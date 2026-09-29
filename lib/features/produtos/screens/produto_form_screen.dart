@@ -101,10 +101,6 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
                   _buildPossuiFichaTecnica(),
                   if (!_possuiFichaTecnica) _buildRowSaldoEstoqueCustoMedio(),
                   if (_possuiFichaTecnica) _buildSaldoEstoque(),
-                  if (_possuiFichaTecnica) _buildCustoMedio(),
-                  if (_possuiFichaTecnica) _buildTempoPreparo(),
-                  if (_possuiFichaTecnica) _buildDespesasGlobais(),
-                  if (_possuiFichaTecnica) _buildRowRendimento(),
                 ],
               ),
             ),
@@ -125,29 +121,50 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
   }
 
-  SectionCard _buildSectionCardFichaTecnica(
-    List<Produto> ingredientesDisponiveis,
-  ) {
-    return SectionCard(
-      title: 'Ficha técnica',
-      trailing: TextButton.icon(
-        onPressed: ingredientesDisponiveis.isEmpty
-            ? null
-            : () => _adicionarItem(ingredientesDisponiveis),
-        icon: const Icon(Icons.add),
-        label: const Text('Adicionar item'),
-      ),
-      child: _buildFichaTecnica(ingredientesDisponiveis),
+  Widget _buildSectionCardFichaTecnica(List<Produto> ingredientesDisponiveis) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            children: [
+              SectionCard(
+                title: 'Rendimento, preparo e custos',
+                child: Column(
+                  spacing: AppSpacing.md,
+                  children: [
+                    _buildRowRendimentoTempoPreparo(),
+                    _buildCustoOperacional(),
+                    _buildCustoMedio(),
+                    _buildCustoRendimentoUnitario(),
+                  ],
+                ),
+              ),
+
+              SectionCard(
+                title: 'Itens da ficha técnica',
+                trailing: TextButton.icon(
+                  onPressed: ingredientesDisponiveis.isEmpty
+                      ? null
+                      : () => _adicionarItem(ingredientesDisponiveis),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Adicionar item'),
+                ),
+                child: _buildFichaTecnica(ingredientesDisponiveis),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Row _buildRowRendimento() {
+  Row _buildRowRendimentoTempoPreparo() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: AppSpacing.md,
       children: [
         Expanded(child: _buildRendimento()),
-        Expanded(child: _buildCustoRendimentoUnitario()),
+        Expanded(flex: 2, child: _buildTempoPreparo()),
       ],
     );
   }
@@ -177,9 +194,23 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   }
 
   AppNumberField _buildCustoRendimentoUnitario() {
+    final unidadeEstoque =
+        (_formKey.currentState?.fields['unidadeEstoqueId']?.value ?? "");
+
+    var unidadeMedidaConsumo =
+        (_formKey.currentState?.fields['unidadeConsumoId']?.value ??
+        unidadeEstoque);
+
+    unidadeMedidaConsumo = (unidadeMedidaConsumo ?? '').isEmpty
+        ? (_produtoOriginal?.unidadeConsumoId ??
+              _produtoOriginal?.unidadeEstoqueId)
+        : unidadeMedidaConsumo;
+
+    unidadeMedidaConsumo = unidadeMedidaConsumo ?? '';
+
     return AppNumberField(
       name: 'custoRendimentoUnitario',
-      label: 'Custo unitário rendimento',
+      label: 'Custo de 1 $unidadeMedidaConsumo',
       required: false,
       readOnly: true,
       min: 0,
@@ -212,7 +243,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   AppNumberField _buildCustoMedio() {
     return AppNumberField(
       name: 'custoMedio',
-      label: _possuiFichaTecnica ? 'Custo ficha técnica' : 'Custo médio',
+      label: _possuiFichaTecnica
+          ? 'Custo total dos itens da receita + custo operacional'
+          : 'Custo médio',
       icon: Icons.attach_money,
       suffixText: 'R\$',
       readOnly: _possuiFichaTecnica,
@@ -220,8 +253,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
   }
 
-  Widget _buildDespesasGlobais() {
-    double despesasPorHora = _repo.empresa.despesasGlobais;
+  Widget _buildCustoOperacional() {
+    double custoOperacionalPorHora = _repo.empresa.custoOperacionalPorHora;
 
     return Column(
       children: [
@@ -231,9 +264,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           children: [
             Expanded(
               child: AppNumberField(
-                name: 'despesasGlobais',
+                name: 'custoOperacional',
                 label:
-                    'Despesas globais (${despesasPorHora.toCurrency()}/hora, ver cadastro da empresa)',
+                    'Custo operacional (${custoOperacionalPorHora.toCurrency()}/hora, ver cadastro da empresa)',
                 suffixText: 'R\$',
                 min: 0,
                 readOnly: true,
@@ -251,6 +284,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       label: 'Saldo em estoque',
       icon: Icons.inventory_2_outlined,
       min: 0,
+      readOnly: true,
     );
   }
 
@@ -303,13 +337,6 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   }
 
   Map<String, dynamic> get _getDadosIniciais {
-    double despesasGlobais =
-        (_produtoOriginal?.tempoPreparoMinutos ?? 0) == 0 ||
-            _repo.empresa.despesasGlobais == 0
-        ? 0
-        : _repo.empresa.despesasGlobaisPorMinuto *
-              _produtoOriginal!.tempoPreparoMinutos;
-
     return {
       'nome': _produtoOriginal?.nome ?? '',
       'ativo': _produtoOriginal?.ativo ?? true,
@@ -331,7 +358,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       'custoRendimentoUnitario':
           _produtoOriginal?.custoRendimentoUnitario.toDecimal() ??
           0.toDouble().toDecimal(),
-      'despesasGlobais': despesasGlobais.toDecimal(),
+      'custoOperacional':
+          _produtoOriginal?.custoOperacional.toDecimal() ??
+          0.toDouble().toDecimal(),
     };
   }
 
@@ -361,6 +390,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
         if (id == null) return 'Usar estoque';
         final unidade = unidades.firstWhere((u) => u.id == id);
         return unidade.sigla;
+      },
+      onChanged: (value) {
+        setState(() {});
       },
     );
   }
@@ -401,19 +433,19 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   }
 
   void _atualizarCamposDeCustos() {
-    final despesasGlobais = _calcularDespesasGlobais();
+    final custoOperacional = _calcularCustoOperacional();
     final custoFichaTecnica = _calcularTotalFichaTecnica();
 
     final custoUnitarioRendimento = _calcularCustoUnitarioRendimentoReceita(
-      custoFichaTecnica + despesasGlobais,
+      custoFichaTecnica + custoOperacional,
+    );
+
+    _formKey.currentState?.fields['custoOperacional']?.didChange(
+      custoOperacional.toDecimal(),
     );
 
     _formKey.currentState?.fields['custoMedio']?.didChange(
-      custoFichaTecnica.toDecimal(),
-    );
-
-    _formKey.currentState?.fields['despesasGlobais']?.didChange(
-      despesasGlobais.toDecimal(),
+      (custoFichaTecnica + custoOperacional).toDecimal(),
     );
 
     _formKey.currentState?.fields['custoRendimentoUnitario']?.didChange(
@@ -432,19 +464,19 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     return totalFichaTecnica;
   }
 
-  double _calcularDespesasGlobais() {
-    double despesasGlobais = _repo.empresa.despesasGlobais;
+  double _calcularCustoOperacional() {
+    double custoOperacionalPorHora = _repo.empresa.custoOperacionalPorHora;
     double tempoPreparoEmHoras =
         ((_formKey.currentState?.fields['tempoPreparoMinutos']?.value ?? "0.0")
                 .toString()
                 .toInt() ??
             0) /
         60;
-    return despesasGlobais * tempoPreparoEmHoras;
+    return custoOperacionalPorHora * tempoPreparoEmHoras;
   }
 
   double _calcularCustoUnitarioRendimentoReceita(
-    double totalValorFichaTecnica,
+    double custoFichaTecnicaComCustoOperacional,
   ) {
     int novoRendimentoReceita =
         (_formKey.currentState?.fields['rendimentoReceita']?.value ?? "0.0")
@@ -454,7 +486,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
     return Produto.calcularCustoRendimentoUnitario(
       novoRendimentoReceita,
-      totalValorFichaTecnica,
+      custoFichaTecnicaComCustoOperacional,
     );
   }
 
@@ -497,10 +529,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           onRemover: () => setState(() => _itens.removeAt(i)),
         ),
       );
-      linhas.add(SizedBox(height: AppSpacing.md));
     }
     linhas.add(const Divider());
-    return Column(children: linhas);
+    return Column(spacing: AppSpacing.md, children: linhas);
   }
 
   void _adicionarItem(List<Produto> ingredientes) {
@@ -562,6 +593,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
                   .map((i) => i.copy())
                   .toList()
             : [],
+        custoOperacional: _valorNumerico(valores['custoOperacional']),
       );
       await _repo.salvarProduto(produto);
       onSuccess(produto);

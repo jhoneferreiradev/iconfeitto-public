@@ -11,6 +11,7 @@ class Produto {
   bool possuiFichaTecnica;
   int tempoPreparoMinutos;
   int rendimentoReceita;
+  double custoOperacional;
   String unidadeEstoqueId;
   String? unidadeConsumoId;
   List<ItemFichaTecnica> fichaTecnica;
@@ -20,6 +21,7 @@ class Produto {
     required this.nome,
     required this.ativo,
     required this.custoMedio,
+    required this.custoOperacional,
     this.saldoEstoque = 0,
     this.podeSerVendido = true,
     this.podeSerComprado = true,
@@ -31,15 +33,17 @@ class Produto {
     required this.fichaTecnica,
   });
 
-  double get custoRendimentoUnitario =>
-      calcularCustoRendimentoUnitario(rendimentoReceita, custoMedio);
+  double get custoRendimentoUnitario => calcularCustoRendimentoUnitario(
+    rendimentoReceita,
+    custoMedio + custoOperacional,
+  );
 
   static double calcularCustoRendimentoUnitario(
     int rendimentoReceita,
-    double custoMedio,
+    double custoFichaTecnicaComCustoOperacional,
   ) {
-    return (custoMedio <= 0 || rendimentoReceita <= 0)
+    return (custoFichaTecnicaComCustoOperacional <= 0 || rendimentoReceita <= 0)
         ? 0
-        : custoMedio / rendimentoReceita;
+        : custoFichaTecnicaComCustoOperacional / rendimentoReceita;
   }
 }

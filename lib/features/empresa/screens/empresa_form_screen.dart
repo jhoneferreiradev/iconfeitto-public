@@ -293,7 +293,7 @@ class _EmpresaFormScreenState extends State<EmpresaFormScreen> {
             ),
           SizedBox(height: AppSpacing.sm),
           Text(
-            'Total: ${_empresaOriginal.despesasGlobais.toCurrency()}',
+            'Total: ${_empresaOriginal.custoOperacionalPorHora.toCurrency()}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],

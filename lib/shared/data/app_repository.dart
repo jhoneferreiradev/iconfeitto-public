@@ -126,6 +126,7 @@ class AppRepository extends ChangeNotifier {
           unidadeEstoqueId: row['unidadeEstoqueId'] as String,
           unidadeConsumoId: row['unidadeConsumoId'] as String?,
           fichaTecnica: fichaTecnica,
+          custoOperacional: row['custoOperacional'] as double,
         ),
       );
     }
@@ -688,7 +689,7 @@ class AppRepository extends ChangeNotifier {
       'instagram': empresa.instagram,
       'facebook': empresa.facebook,
       'logoPath': empresa.logoPath,
-      'despesasGlobais': empresa.despesasGlobais,
+      'despesasGlobais': empresa.custoOperacionalPorHora,
     });
     notifyListeners();
   }
@@ -836,6 +837,7 @@ class AppRepository extends ChangeNotifier {
     'unidadeEstoqueId': produto.unidadeEstoqueId,
     'unidadeConsumoId': produto.unidadeConsumoId,
     'rendimentoReceita': produto.rendimentoReceita,
+    'custoOperacional': produto.custoOperacional,
   };
 
   UnidadeMedida _unidadeFromRow(Map<String, dynamic> row) => UnidadeMedida(

@@ -1,4 +1,3 @@
-
 import 'custo_operacional.dart';
 
 class Empresa {
@@ -24,8 +23,8 @@ class Empresa {
     this.custosOperacionais = const [],
   });
 
-  double get despesasGlobaisPorMinuto => despesasGlobais / 60;
-  double get despesasGlobais =>
+  double get custoOperacionalPorMinuto => custoOperacionalPorHora / 60;
+  double get custoOperacionalPorHora =>
       custosOperacionais.fold(0.0, (sum, custo) => sum + custo.valor);
 
   Empresa copy({

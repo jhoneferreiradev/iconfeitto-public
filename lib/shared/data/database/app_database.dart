@@ -51,6 +51,7 @@ class AppDatabase {
         possuiFichaTecnica INTEGER NOT NULL,
         tempoPreparoMinutos INTEGER NOT NULL,
         rendimentoReceita INTEGER NOT NULL,
+        custoOperacional REAL NOT NULL,
         unidadeEstoqueId TEXT NOT NULL,
         unidadeConsumoId TEXT,
         FOREIGN KEY (unidadeEstoqueId) REFERENCES unidades_medida(id),
