@@ -46,11 +46,11 @@ class PdfHeaderHelper {
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
-                  if (empresa.cnpjCpf != null && empresa.cnpjCpf!.isNotEmpty)
-                    pw.Text(
-                      'CNPJ/CPF: ${empresa.cnpjCpf}',
-                      style: pw.TextStyle(fontSize: fontSize),
-                    ),
+                  // if (empresa.cnpjCpf != null && empresa.cnpjCpf!.isNotEmpty)
+                  //   pw.Text(
+                  //     'CNPJ/CPF: ${empresa.cnpjCpf}',
+                  //     style: pw.TextStyle(fontSize: fontSize),
+                  //   ),
                   if (empresa.telefone != null && empresa.telefone!.isNotEmpty)
                     pw.Text(
                       'Tel: ${empresa.telefone}',

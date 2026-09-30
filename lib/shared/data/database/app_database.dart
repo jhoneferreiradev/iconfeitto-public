@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -212,9 +212,42 @@ class AppDatabase {
     ''');
   }
 
+  Future<void> _createFichaTecnicaEmbalagem(Database db) async {
+    // Embalagem
+    await db.execute('''
+      CREATE TABLE itens_ficha_tecnica_embalagem (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        produtoId TEXT NOT NULL,
+        produtoEmbalagemId TEXT NOT NULL,
+        FOREIGN KEY (produtoId) REFERENCES produtos(id),
+        FOREIGN KEY (produtoEmbalagemId) REFERENCES produtos(id)
+      )
+    ''');
+  }
+
+  Future<void> _addDadosEmbalagemColumnInProdutosTable(Database db) async {
+    await db.execute('''
+      ALTER TABLE produtos
+      ADD COLUMN isEmbalagem INTEGER NOT NULL DEFAULT 0
+    ''');
+
+    await db.execute('''
+      ALTER TABLE produtos
+      ADD COLUMN custoEmbalagem REAL NOT NULL DEFAULT 0
+    ''');
+  }
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createCustosOperacionaisTable(db);
+    }
+
+    if (oldVersion < 3) {
+      await _createFichaTecnicaEmbalagem(db);
+    }
+
+    if (oldVersion < 4) {
+      await _addDadosEmbalagemColumnInProdutosTable(db);
     }
   }
 

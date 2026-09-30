@@ -11,19 +11,14 @@ class AppSpacing {
   static const double xxl = 32.0;
 
   // Common padding values
-  static const EdgeInsets screenPadding = EdgeInsets.fromLTRB(16, 16, 16, 32);
-  static const EdgeInsets screenPaddingNoBottom = EdgeInsets.fromLTRB(
-    16,
-    16,
-    16,
-    16,
-  );
-  static const EdgeInsets cardPadding = EdgeInsets.all(16);
-  static const EdgeInsets sectionPadding = EdgeInsets.all(12);
+  static const EdgeInsets screenPadding = EdgeInsets.all(xs);
+  static const EdgeInsets screenPaddingNoBottom = EdgeInsets.all(xs);
+  static const EdgeInsets cardPadding = EdgeInsets.all(xs);
+  static const EdgeInsets sectionPadding = EdgeInsets.all(xs);
 
   // Gaps for Column and Row
-  static const SizedBox fieldGap = SizedBox(height: md);
-  static const SizedBox rowGap = SizedBox(width: md);
+  static const SizedBox fieldGap = SizedBox(height: sm);
+  static const SizedBox rowGap = SizedBox(width: sm);
   static const SizedBox smallGap = SizedBox(height: sm);
   static const SizedBox largeGap = SizedBox(height: lg);
 

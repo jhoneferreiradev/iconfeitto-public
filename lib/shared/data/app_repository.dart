@@ -7,6 +7,7 @@ import '../models/empresa.dart';
 import '../models/fornecedor.dart';
 import '../models/grupo_unidade.dart';
 import '../models/item_ficha_tecnica.dart';
+import '../models/item_ficha_tecnica_embalagem.dart';
 import '../models/operacao.dart';
 import '../models/produto.dart';
 import '../models/unidade_medida.dart';
@@ -102,12 +103,26 @@ class AppRepository extends ChangeNotifier {
         where: 'produtoId = ?',
         whereArgs: [produtoId],
       );
+
+      final fichaTecnicaEmbalagemRows = await _db.query(
+        'itens_ficha_tecnica_embalagem',
+        where: 'produtoId = ?',
+        whereArgs: [produtoId],
+      );
+
       final fichaTecnica = [
         for (final fichaRow in fichaTecnicaRows)
           ItemFichaTecnica(
             produtoIngredienteId: fichaRow['produtoIngredienteId'] as String,
             quantidade: fichaRow['quantidade'] as double,
             unidadeId: fichaRow['unidadeId'] as String,
+          ),
+      ];
+
+      final fichaTecnicaEmbalagem = [
+        for (final fichaRow in fichaTecnicaEmbalagemRows)
+          ItemFichaTecnicaEmbalagem(
+            produtoEmbalagemId: fichaRow['produtoEmbalagemId'] as String,
           ),
       ];
 
@@ -126,7 +141,9 @@ class AppRepository extends ChangeNotifier {
           unidadeEstoqueId: row['unidadeEstoqueId'] as String,
           unidadeConsumoId: row['unidadeConsumoId'] as String?,
           fichaTecnica: fichaTecnica,
+          fichaTecnicaEmbalagem: fichaTecnicaEmbalagem,
           custoOperacional: row['custoOperacional'] as double,
+          isEmbalagem: (row['isEmbalagem'] as int) == 1,
         ),
       );
     }
@@ -377,6 +394,12 @@ class AppRepository extends ChangeNotifier {
       whereArgs: [produto.id],
     );
 
+    await _db.delete(
+      'itens_ficha_tecnica_embalagem',
+      where: 'produtoId = ?',
+      whereArgs: [produto.id],
+    );
+
     if (idx >= 0) {
       produtos[idx] = produto;
       await _db.update(
@@ -399,6 +422,13 @@ class AppRepository extends ChangeNotifier {
       });
     }
 
+    for (final item in produto.fichaTecnicaEmbalagem) {
+      await _db.insert('itens_ficha_tecnica_embalagem', {
+        'produtoId': produto.id,
+        'produtoEmbalagemId': item.produtoEmbalagemId,
+      });
+    }
+
     notifyListeners();
   }
 
@@ -406,6 +436,11 @@ class AppRepository extends ChangeNotifier {
     produtos.removeWhere((p) => p.id == id);
     await _db.delete(
       'itens_ficha_tecnica',
+      where: 'produtoId = ?',
+      whereArgs: [id],
+    );
+    await _db.delete(
+      'itens_ficha_tecnica_embalagem',
       where: 'produtoId = ?',
       whereArgs: [id],
     );
@@ -777,6 +812,12 @@ class AppRepository extends ChangeNotifier {
     return custoBase * item.quantidade * unidadeItem.fatorParaBase;
   }
 
+  double custoItemFichaEmbalagem(ItemFichaTecnicaEmbalagem item) {
+    final embalagem = produtoPorId(item.produtoEmbalagemId);
+    if (embalagem == null) return 0;
+    return embalagem.custoMedio;
+  }
+
   double custoTotalFicha(Produto produto) => produto.fichaTecnica.fold(
     0.0,
     (soma, item) => soma + custoItemFicha(item),
@@ -838,6 +879,7 @@ class AppRepository extends ChangeNotifier {
     'unidadeConsumoId': produto.unidadeConsumoId,
     'rendimentoReceita': produto.rendimentoReceita,
     'custoOperacional': produto.custoOperacional,
+    'isEmbalagem': produto.isEmbalagem ? 1 : 0,
   };
 
   UnidadeMedida _unidadeFromRow(Map<String, dynamic> row) => UnidadeMedida(

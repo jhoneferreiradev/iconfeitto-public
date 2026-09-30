@@ -15,9 +15,11 @@ import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
+import '../../../shared/models/item_ficha_tecnica_embalagem.dart';
 import '../../../shared/models/produto.dart';
 import '../../../shared/models/unidade_medida.dart';
 import '../pdf/ficha_tecnica_pdf.dart';
+import '../widgets/item_ficha_embalagem_row.dart';
 import '../widgets/item_ficha_row.dart';
 
 part 'part_builder_produto_form_screen.dart';
@@ -33,8 +35,10 @@ class ProdutoFormScreen extends StatefulWidget {
 class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;
-  late List<ItemFichaTecnica> _itens;
-  late bool _possuiFichaTecnica;
+  late List<ItemFichaTecnica> _ingredientes;
+  late List<ItemFichaTecnicaEmbalagem> _embalagens;
+  bool _possuiFichaTecnica = false;
+  bool _isEmbalagem = false;
   Produto? _produtoOriginal;
 
   bool get _isEdicao => widget.produtoId != null;
@@ -44,11 +48,18 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     super.initState();
     if (_isEdicao) {
       _produtoOriginal = _repo.produtoPorId(widget.produtoId!);
-      _itens =
+      _embalagens =
+          _produtoOriginal?.fichaTecnicaEmbalagem
+              .map((i) => i.copy())
+              .toList() ??
+          [];
+      _ingredientes =
           _produtoOriginal?.fichaTecnica.map((i) => i.copy()).toList() ?? [];
       _possuiFichaTecnica = _produtoOriginal?.possuiFichaTecnica ?? false;
+      _embalagens = [];
+      _isEmbalagem = _produtoOriginal?.isEmbalagem ?? false;
     } else {
-      _itens = [];
+      _ingredientes = [];
       _possuiFichaTecnica = false;
     }
   }
@@ -70,7 +81,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
             setState(() {});
           }),
         ),
-        if (_possuiFichaTecnica && _itens.isNotEmpty)
+        if (_possuiFichaTecnica && _ingredientes.isNotEmpty)
           IconButton(
             icon: const Icon(Icons.print_outlined),
             tooltip: 'Imprimir ficha técnica',
@@ -95,15 +106,17 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
                 spacing: AppSpacing.fieldGap.height ?? 0,
                 children: [
                   _buildNomeProduto(),
-                  _buildStatusProduto(),
+                  _buildRowStatusProdutoIsEmbalagem(),
                   _buildRowPodeSerCompradoPodeSerVendido(),
-                  _buildRowUnidadesDeMedida(unidades),
-                  _buildPossuiFichaTecnica(),
+                  if (!_isEmbalagem) _buildRowUnidadesDeMedida(unidades),
+                  if (!_isEmbalagem) _buildPossuiFichaTecnica(),
                   if (!_possuiFichaTecnica) _buildRowSaldoEstoqueCustoMedio(),
                   if (_possuiFichaTecnica) _buildSaldoEstoque(),
                 ],
               ),
             ),
+            if (!_isEmbalagem)
+              _buildSectionCardEmbalagem(ingredientesDisponiveis),
             if (_possuiFichaTecnica)
               _buildSectionCardFichaTecnica(ingredientesDisponiveis),
             FilledButton.icon(
@@ -118,6 +131,20 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionCardEmbalagem(List<Produto> ingredientesDisponiveis) {
+    return SectionCard(
+      title: 'Embalagem',
+      trailing: TextButton.icon(
+        onPressed: ingredientesDisponiveis.isEmpty
+            ? null
+            : () => _adicionarItemDeEmbalagem(ingredientesDisponiveis),
+        icon: const Icon(Icons.add),
+        label: const Text('Adicionar item'),
+      ),
+      child: _buildFichaTecnicaDeEmbalagem(ingredientesDisponiveis),
     );
   }
 
@@ -299,6 +326,29 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
   }
 
+  Widget _buildIsEmbalagem() {
+    return FormBuilderSwitch(
+      name: 'isEmbalagem',
+      title: const Text('É embalagem'),
+      onChanged: (value) {
+        setState(() {
+          _isEmbalagem = value ?? false;
+        });
+      },
+    );
+  }
+
+  Row _buildRowStatusProdutoIsEmbalagem() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpacing.md,
+      children: [
+        Expanded(child: _buildStatusProduto()),
+        Expanded(child: _buildIsEmbalagem()),
+      ],
+    );
+  }
+
   Row _buildRowPodeSerCompradoPodeSerVendido() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +375,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   }
 
   FormBuilderSwitch _buildStatusProduto() {
-    return FormBuilderSwitch(name: 'ativo', title: const Text('Produto ativo'));
+    return FormBuilderSwitch(name: 'ativo', title: Text('Ativo'));
   }
 
   AppTextField _buildNomeProduto() {
@@ -343,6 +393,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       'podeSerVendido': _produtoOriginal?.podeSerVendido ?? true,
       'podeSerComprado': _produtoOriginal?.podeSerComprado ?? true,
       'possuiFichaTecnica': _produtoOriginal?.possuiFichaTecnica ?? false,
+      'isEmbalagem': _produtoOriginal?.isEmbalagem ?? false,
       'tempoPreparoMinutos':
           _produtoOriginal?.tempoPreparoMinutos.toString() ?? '0',
       'rendimentoReceita':
@@ -435,9 +486,10 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   void _atualizarCamposDeCustos() {
     final custoOperacional = _calcularCustoOperacional();
     final custoFichaTecnica = _calcularTotalFichaTecnica();
+    final custoEmbalagem = _calcularCustoEmbalagem();
 
     final custoUnitarioRendimento = _calcularCustoUnitarioRendimentoReceita(
-      custoFichaTecnica + custoOperacional,
+      custoFichaTecnica + custoOperacional + custoEmbalagem,
     );
 
     _formKey.currentState?.fields['custoOperacional']?.didChange(
@@ -451,12 +503,16 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     _formKey.currentState?.fields['custoRendimentoUnitario']?.didChange(
       custoUnitarioRendimento.toDecimal(),
     );
+
+    _formKey.currentState?.fields['custoEmbalagem']?.didChange(
+      custoEmbalagem.toDecimal(),
+    );
   }
 
   double _calcularTotalFichaTecnica() {
     double totalFichaTecnica = 0;
-    for (var i = 0; i < _itens.length; i++) {
-      final item = _itens[i];
+    for (var i = 0; i < _ingredientes.length; i++) {
+      final item = _ingredientes[i];
       final custoLinha = _repo.custoItemFicha(item);
       totalFichaTecnica += custoLinha;
     }
@@ -490,21 +546,56 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
   }
 
+  Widget _buildFichaTecnicaDeEmbalagem(List<Produto> embalagens) {
+    if (embalagens.isEmpty) {
+      return const Text('Cadastre outras embalagens.');
+    }
+    if (_embalagens.isEmpty) {
+      return const Text(
+        'Nenhum item de embalagem foi adicionado. Use "Adicionar item" para começar.',
+      );
+    }
+
+    final linhas = <Widget>[];
+    for (var i = 0; i < _embalagens.length; i++) {
+      final item = _embalagens[i];
+      final embalagem = _repo.produtoPorId(item.produtoEmbalagemId);
+      if (embalagem == null) continue;
+      final custoLinha = _repo.custoItemFichaEmbalagem(item);
+
+      linhas.add(
+        ItemFichaEmbalagemRow(
+          key: ValueKey('ficha-$i'),
+          item: item,
+          embalagens: embalagens,
+          custoLinha: custoLinha,
+          onChanged: (novo) => setState(() {
+            _embalagens[i] = novo;
+            _atualizarCamposDeCustos();
+          }),
+          onRemover: () => setState(() => _embalagens.removeAt(i)),
+        ),
+      );
+    }
+    linhas.add(const Divider());
+    return Column(spacing: AppSpacing.md, children: linhas);
+  }
+
   Widget _buildFichaTecnica(List<Produto> ingredientes) {
     if (ingredientes.isEmpty) {
       return const Text(
         'Cadastre outros produtos para poder montar a ficha técnica.',
       );
     }
-    if (_itens.isEmpty) {
+    if (_ingredientes.isEmpty) {
       return const Text(
         'Nenhum item adicionado. Use "Adicionar item" para começar.',
       );
     }
 
     final linhas = <Widget>[];
-    for (var i = 0; i < _itens.length; i++) {
-      final item = _itens[i];
+    for (var i = 0; i < _ingredientes.length; i++) {
+      final item = _ingredientes[i];
       final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
       if (ingrediente == null) continue;
       final unidadeIngrediente = _repo.unidadePorId(
@@ -523,10 +614,10 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           unidadesCompativeis: unidadesCompativeis,
           custoLinha: custoLinha,
           onChanged: (novo) => setState(() {
-            _itens[i] = novo;
+            _ingredientes[i] = novo;
             _atualizarCamposDeCustos();
           }),
-          onRemover: () => setState(() => _itens.removeAt(i)),
+          onRemover: () => setState(() => _ingredientes.removeAt(i)),
         ),
       );
     }
@@ -534,10 +625,20 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     return Column(spacing: AppSpacing.md, children: linhas);
   }
 
+  void _adicionarItemDeEmbalagem(List<Produto> ingredientes) {
+    final primeiro = ingredientes.first;
+    setState(() {
+      _embalagens.insert(
+        0,
+        ItemFichaTecnicaEmbalagem(produtoEmbalagemId: primeiro.id),
+      );
+    });
+  }
+
   void _adicionarItem(List<Produto> ingredientes) {
     final primeiro = ingredientes.first;
     setState(() {
-      _itens.insert(
+      _ingredientes.insert(
         0,
         ItemFichaTecnica(
           produtoIngredienteId: primeiro.id,
@@ -576,16 +677,22 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
         ativo: valores['ativo'] == true,
         podeSerVendido: valores['podeSerVendido'] != false,
         podeSerComprado: valores['podeSerComprado'] != false,
-        possuiFichaTecnica: possuiFicha,
-        tempoPreparoMinutos: _valorNumerico(valores['tempoPreparoMinutos'])
-            .round(),
+        isEmbalagem: valores['isEmbalagem'] == false,
+        possuiFichaTecnica: _isEmbalagem ? false : possuiFicha,
+        tempoPreparoMinutos: _isEmbalagem
+            ? 0
+            : _valorNumerico(valores['tempoPreparoMinutos']).round(),
         custoMedio: _valorNumerico(valores['custoMedio']),
         saldoEstoque: _valorNumerico(valores['saldoEstoque']),
-        unidadeEstoqueId: unidadeId,
-        unidadeConsumoId: valores['unidadeConsumoId'],
-        rendimentoReceita: _valorNumerico(valores['rendimentoReceita']).round(),
-        fichaTecnica: possuiFicha
-            ? _itens
+        unidadeEstoqueId: _isEmbalagem ? 'un' : unidadeId,
+        unidadeConsumoId: _isEmbalagem ? 'un' : valores['unidadeConsumoId'],
+        rendimentoReceita: _isEmbalagem
+            ? 0
+            : _valorNumerico(valores['rendimentoReceita']).round(),
+        fichaTecnica: _isEmbalagem
+            ? []
+            : possuiFicha
+            ? _ingredientes
                   .where(
                     (i) =>
                         i.produtoIngredienteId.isNotEmpty && i.quantidade > 0,
@@ -593,6 +700,10 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
                   .map((i) => i.copy())
                   .toList()
             : [],
+        fichaTecnicaEmbalagem: _embalagens
+            .where((i) => i.produtoEmbalagemId.isNotEmpty)
+            .map((i) => i.copy())
+            .toList(),
         custoOperacional: _valorNumerico(valores['custoOperacional']),
       );
       await _repo.salvarProduto(produto);
@@ -621,5 +732,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       _repo.excluirProduto(_produtoOriginal!.id);
       if (mounted) context.pop();
     }
+  }
+
+  double _calcularCustoEmbalagem() {
+    return _embalagens
+        .where((i) => i.produtoEmbalagemId.isNotEmpty)
+        .fold(0.0, (sum, i) => sum + _repo.custoItemFichaEmbalagem(i));
   }
 }

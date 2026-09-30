@@ -1,4 +1,5 @@
 import 'item_ficha_tecnica.dart';
+import 'item_ficha_tecnica_embalagem.dart';
 
 class Produto {
   String id;
@@ -9,12 +10,14 @@ class Produto {
   bool podeSerVendido;
   bool podeSerComprado;
   bool possuiFichaTecnica;
+  bool isEmbalagem;
   int tempoPreparoMinutos;
   int rendimentoReceita;
   double custoOperacional;
   String unidadeEstoqueId;
   String? unidadeConsumoId;
   List<ItemFichaTecnica> fichaTecnica;
+  List<ItemFichaTecnicaEmbalagem> fichaTecnicaEmbalagem;
 
   Produto({
     required this.id,
@@ -25,12 +28,14 @@ class Produto {
     this.saldoEstoque = 0,
     this.podeSerVendido = true,
     this.podeSerComprado = true,
+    this.isEmbalagem = false,
     this.possuiFichaTecnica = false,
     this.tempoPreparoMinutos = 0,
     this.rendimentoReceita = 0,
     required this.unidadeEstoqueId,
     this.unidadeConsumoId,
     required this.fichaTecnica,
+    required this.fichaTecnicaEmbalagem,
   });
 
   double get custoRendimentoUnitario => calcularCustoRendimentoUnitario(
@@ -42,10 +47,11 @@ class Produto {
 
   static double calcularCustoRendimentoUnitario(
     int rendimentoReceita,
-    double custoFichaTecnicaComCustoOperacional,
+    double custoFichaTecnicaCustoOperacionalCustoEmbalagem,
   ) {
-    return (custoFichaTecnicaComCustoOperacional <= 0 || rendimentoReceita <= 0)
+    return (custoFichaTecnicaCustoOperacionalCustoEmbalagem <= 0 ||
+            rendimentoReceita <= 0)
         ? 0
-        : custoFichaTecnicaComCustoOperacional / rendimentoReceita;
+        : custoFichaTecnicaCustoOperacionalCustoEmbalagem / rendimentoReceita;
   }
 }
