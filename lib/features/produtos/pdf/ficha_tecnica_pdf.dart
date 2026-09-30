@@ -29,6 +29,16 @@ class FichaTecnicaPdf {
       );
     }
 
+    final CalculadoraCustoProduto calculadoraCustoProduto =
+        CalculadoraCustoProduto(
+          rendimentoReceita: produto.rendimentoReceita,
+          custoFichaTecnica: repo.custoTotalFicha(produto),
+          custoOperacional: produto.custoOperacional,
+          custoEmbalagem: repo.custoEmbalagem(produto),
+        );
+
+    final double custoTotalReceita = calculadoraCustoProduto.custoReceitaTotal;
+
     doc.addPage(
       pw.MultiPage(
         build: (context) => [
@@ -54,16 +64,16 @@ class FichaTecnicaPdf {
           ),
           buildLinhaCabecalho(
             'Custo operacional',
-            produto.custoOperacional.toCurrency(),
+            calculadoraCustoProduto.custoOperacional.toCurrency(),
           ),
           buildLinhaCabecalho(
             'Custo total da receita',
-            produto.custoTotalReceita.toCurrency(),
+            custoTotalReceita.toCurrency(),
           ),
           pw.Divider(endIndent: 200),
           buildLinhaCabecalho(
             'Custo para produzir 1 ${produto.unidadeConsumoId ?? produto.unidadeEstoqueId}',
-            produto.custoRendimentoUnitario.toCurrency(),
+            calculadoraCustoProduto.custoRendimentoUnitario.toCurrency(),
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
           ),
           pw.Divider(endIndent: 200),

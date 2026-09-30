@@ -387,6 +387,16 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   }
 
   Map<String, dynamic> get _getDadosIniciais {
+    final CalculadoraCustoProduto calculadoraCustoProduto =
+        CalculadoraCustoProduto(
+          rendimentoReceita: _produtoOriginal?.rendimentoReceita ?? 0,
+          custoFichaTecnica: _produtoOriginal?.custoMedio ?? 0,
+          custoOperacional: _produtoOriginal?.custoOperacional ?? 0,
+          custoEmbalagem: _produtoOriginal == null
+              ? 0
+              : _repo.custoEmbalagem(_produtoOriginal!),
+        );
+
     return {
       'nome': _produtoOriginal?.nome ?? '',
       'ativo': _produtoOriginal?.ativo ?? true,
@@ -406,9 +416,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           : formatarNumero(_produtoOriginal!.saldoEstoque),
       'unidadeEstoqueId': _produtoOriginal?.unidadeEstoqueId,
       'unidadeConsumoId': _produtoOriginal?.unidadeConsumoId,
-      'custoRendimentoUnitario':
-          _produtoOriginal?.custoRendimentoUnitario.toDecimal() ??
-          0.toDouble().toDecimal(),
+      'custoRendimentoUnitario': calculadoraCustoProduto.custoRendimentoUnitario
+          .toDecimal(),
       'custoOperacional':
           _produtoOriginal?.custoOperacional.toDecimal() ??
           0.toDouble().toDecimal(),
@@ -500,12 +509,12 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       (custoFichaTecnica).toDecimal(),
     );
 
-    _formKey.currentState?.fields['custoRendimentoUnitario']?.didChange(
-      custoUnitarioRendimento.toDecimal(),
-    );
-
     _formKey.currentState?.fields['custoEmbalagem']?.didChange(
       custoEmbalagem.toDecimal(),
+    );
+
+    _formKey.currentState?.fields['custoRendimentoUnitario']?.didChange(
+      custoUnitarioRendimento.toDecimal(),
     );
   }
 

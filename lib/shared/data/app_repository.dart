@@ -818,6 +818,13 @@ class AppRepository extends ChangeNotifier {
     return embalagem.custoMedio;
   }
 
+  double custoEmbalagem(Produto produto) {
+    return produto.fichaTecnicaEmbalagem.fold(
+      0,
+      (sum, item) => sum + custoItemFichaEmbalagem(item),
+    );
+  }
+
   double custoTotalFicha(Produto produto) => produto.fichaTecnica.fold(
     0.0,
     (soma, item) => soma + custoItemFicha(item),

@@ -55,3 +55,25 @@ class Produto {
         : custoFichaTecnicaCustoOperacionalCustoEmbalagem / rendimentoReceita;
   }
 }
+
+class CalculadoraCustoProduto {
+  final int rendimentoReceita;
+  final double custoFichaTecnica;
+  final double custoOperacional;
+  final double custoEmbalagem;
+
+  CalculadoraCustoProduto({
+    required this.rendimentoReceita,
+    required this.custoFichaTecnica,
+    required this.custoOperacional,
+    required this.custoEmbalagem,
+  });
+
+  double get custoReceitaTotal =>
+      custoFichaTecnica + custoOperacional + custoEmbalagem;
+
+  double get custoRendimentoUnitario =>
+      (custoReceitaTotal <= 0 || rendimentoReceita <= 0)
+      ? 0
+      : custoReceitaTotal / rendimentoReceita;
+}
