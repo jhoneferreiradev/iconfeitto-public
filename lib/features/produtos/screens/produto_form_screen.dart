@@ -445,7 +445,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
 
     _formKey.currentState?.fields['custoMedio']?.didChange(
-      (custoFichaTecnica + custoOperacional).toDecimal(),
+      (custoFichaTecnica).toDecimal(),
     );
 
     _formKey.currentState?.fields['custoRendimentoUnitario']?.didChange(

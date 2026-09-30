@@ -38,6 +38,8 @@ class Produto {
     custoMedio + custoOperacional,
   );
 
+  double get custoTotalReceita => custoMedio + custoOperacional;
+
   static double calcularCustoRendimentoUnitario(
     int rendimentoReceita,
     double custoFichaTecnicaComCustoOperacional,
