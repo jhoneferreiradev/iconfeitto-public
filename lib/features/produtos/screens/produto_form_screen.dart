@@ -168,11 +168,12 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           padding: AppSpacing.screenPadding,
           children: [
             _buildDadosDoProduto(),
-            if (_podeSerVendido) _buildPrecoVenda(),
+            if (!_possuiFichaTecnica && _podeSerVendido) _buildPrecoVenda(),
             if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
             if (_possuiFichaTecnica && !_isEmbalagem) ...[
               _buildRendimentoPreparo(),
               _buildTabelaCusto(),
+              _buildPrecoVenda(),
               _buildFichaTecnica(),
             ],
             FilledButton.icon(
@@ -754,6 +755,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           : [],
       fichaTecnicaEmbalagem: _embalagens,
       custoOperacional: _custos.custoOperacional,
+      precoVenda: _calculadoraPrecoVenda.precoVenda,
     );
   }
 

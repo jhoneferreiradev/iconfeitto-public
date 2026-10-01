@@ -126,8 +126,6 @@ class AppRepository extends ChangeNotifier {
           ),
       ];
 
-      print("Embalagens: ${fichaTecnicaEmbalagem.length}");
-
       produtos.add(
         Produto(
           id: produtoId,
@@ -146,6 +144,7 @@ class AppRepository extends ChangeNotifier {
           fichaTecnicaEmbalagem: fichaTecnicaEmbalagem,
           custoOperacional: row['custoOperacional'] as double,
           isEmbalagem: (row['isEmbalagem'] as int) == 1,
+          precoVenda: row['precoVenda'] as double,
         ),
       );
     }
@@ -889,6 +888,7 @@ class AppRepository extends ChangeNotifier {
     'rendimentoReceita': produto.rendimentoReceita,
     'custoOperacional': produto.custoOperacional,
     'isEmbalagem': produto.isEmbalagem ? 1 : 0,
+    'precoVenda': produto.precoVenda,
   };
 
   UnidadeMedida _unidadeFromRow(Map<String, dynamic> row) => UnidadeMedida(
@@ -908,8 +908,9 @@ class AppRepository extends ChangeNotifier {
   TipoMovimentoEstoque _tipoMovimentoFromString(String s) {
     if (s.contains('compra')) return TipoMovimentoEstoque.compra;
     if (s.contains('venda')) return TipoMovimentoEstoque.venda;
-    if (s.contains('consumoFabricacao'))
+    if (s.contains('consumoFabricacao')) {
       return TipoMovimentoEstoque.consumoFabricacao;
+    }
     if (s.contains('producao')) return TipoMovimentoEstoque.producao;
     return TipoMovimentoEstoque.ajuste;
   }
