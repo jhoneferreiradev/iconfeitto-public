@@ -127,14 +127,13 @@ class _ItemFichaRowState extends State<ItemFichaRow> {
 
   Widget _buildUnidade() {
     final unidades = widget.unidadesCompativeis;
-    final selecionadaValida = unidades.any(
-      (u) => u.id == widget.item.unidadeId,
-    );
     UnidadeMedida porId(String id) => unidades.firstWhere((u) => u.id == id);
+
+    print('UNIDADE SELECIONADA: ${widget.item.unidadeId}');
 
     return AppGroupedDropdown<String>(
       label: 'Unidade',
-      value: selecionadaValida ? widget.item.unidadeId : null,
+      value: widget.item.unidadeId,
       groups: [
         AppDropdownGroup(
           name: unidades.isEmpty ? '' : unidades.first.grupo.label,

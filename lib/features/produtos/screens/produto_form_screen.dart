@@ -114,8 +114,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     return {
       'nome': p?.nome ?? '',
       'ativo': p?.ativo ?? true,
-      'podeSerVendido': p?.podeSerVendido ?? true,
-      'podeSerComprado': p?.podeSerComprado ?? true,
+      'podeSerVendido': p?.podeSerVendido ?? _podeSerVendido,
+      'podeSerComprado': p?.podeSerComprado ?? false,
       'possuiFichaTecnica': _possuiFichaTecnica,
       'isEmbalagem': _isEmbalagem,
       'tempoPreparoMinutos': (p?.tempoPreparoMinutos ?? 0).toString(),
@@ -168,7 +168,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           padding: AppSpacing.screenPadding,
           children: [
             _buildDadosDoProduto(),
-            if (!_possuiFichaTecnica && _podeSerVendido) _buildPrecoVenda(),
+            if (!_possuiFichaTecnica) _buildPrecoVenda(),
             if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
             if (_possuiFichaTecnica && !_isEmbalagem) ...[
               _buildRendimentoPreparo(),
@@ -441,6 +441,10 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   // Preço de venda
   // ---------------------------------------------------------------------------
   Widget _buildPrecoVenda() {
+    if (!_podeSerVendido) {
+      return SizedBox.shrink();
+    }
+
     return SectionCard(
       title: "Preço de venda",
       child: Column(
@@ -603,7 +607,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
     if (ingrediente == null) return null;
 
-    final grupo = _repo.unidadePorId(ingrediente.unidadeEstoqueId).grupo;
+    final grupo = _repo.unidadePorId(ingrediente.unidadeConsumoId).grupo;
 
     return ItemFichaRow(
       key: _chavesIngredientes[i],
@@ -632,13 +636,14 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
   void _adicionarIngrediente() {
     final primeiro = _ingredientesDisponiveis.first;
+
     _alterarItens(() {
       _ingredientes.insert(
         0,
         ItemFichaTecnica(
           produtoIngredienteId: primeiro.id,
           quantidade: 0,
-          unidadeId: primeiro.unidadeEstoqueId,
+          unidadeId: primeiro.unidadeConsumoId,
         ),
       );
       _chavesIngredientes.insert(0, UniqueKey());

@@ -341,6 +341,7 @@ class FichaTecnicaPdf {
           'Tempo de preparo',
           _formatarTempo(produto.tempoPreparoMinutos),
         ),
+      _destaque('Preço de venda', produto.precoVenda.toCurrency()),
     ];
 
     return pw.Container(
