@@ -604,6 +604,23 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
   Widget? _buildLinhaIngrediente(int i) {
     final item = _ingredientes[i];
+
+    // Item recém-adicionado, ainda sem ingrediente escolhido.
+    if (item.produtoIngredienteId.isEmpty) {
+      return ItemFichaRow(
+        key: _chavesIngredientes[i],
+        item: item,
+        ingredientes: _ingredientesDisponiveis,
+        unidadesCompativeis: const [],
+        custoLinha: 0,
+        onChanged: (novo) => _alterarItens(() => _ingredientes[i] = novo),
+        onRemover: () => _alterarItens(() {
+          _ingredientes.removeAt(i);
+          _chavesIngredientes.removeAt(i);
+        }),
+      );
+    }
+
     final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
     if (ingrediente == null) return null;
 
@@ -635,15 +652,13 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   }
 
   void _adicionarIngrediente() {
-    final primeiro = _ingredientesDisponiveis.first;
-
     _alterarItens(() {
       _ingredientes.insert(
         0,
         ItemFichaTecnica(
-          produtoIngredienteId: primeiro.id,
+          produtoIngredienteId: '',
           quantidade: 0,
-          unidadeId: primeiro.unidadeConsumoId,
+          unidadeId: '',
         ),
       );
       _chavesIngredientes.insert(0, UniqueKey());
@@ -760,7 +775,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           : [],
       fichaTecnicaEmbalagem: _embalagens,
       custoOperacional: _custos.custoOperacional,
-      precoVenda: _calculadoraPrecoVenda.precoVenda,
+      precoVenda: _podeSerVendido ? _calculadoraPrecoVenda.precoVenda : 0,
     );
   }
 

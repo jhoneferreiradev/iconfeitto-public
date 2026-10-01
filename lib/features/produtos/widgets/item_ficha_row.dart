@@ -74,7 +74,7 @@ class _ItemFichaRowState extends State<ItemFichaRow> {
     widget.onChanged(
       _copiarItem(
         produtoIngredienteId: novoId,
-        unidadeId: ingrediente.unidadeEstoqueId,
+        unidadeId: ingrediente.unidadeConsumoId,
       ),
     );
   }
@@ -127,13 +127,14 @@ class _ItemFichaRowState extends State<ItemFichaRow> {
 
   Widget _buildUnidade() {
     final unidades = widget.unidadesCompativeis;
+    final selecionadaValida = unidades.any(
+      (u) => u.id == widget.item.unidadeId,
+    );
     UnidadeMedida porId(String id) => unidades.firstWhere((u) => u.id == id);
-
-    print('UNIDADE SELECIONADA: ${widget.item.unidadeId}');
 
     return AppGroupedDropdown<String>(
       label: 'Unidade',
-      value: widget.item.unidadeId,
+      value: selecionadaValida ? widget.item.unidadeId : null,
       groups: [
         AppDropdownGroup(
           name: unidades.isEmpty ? '' : unidades.first.grupo.label,
