@@ -50,6 +50,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   late List<Key> _chavesEmbalagens;
   late bool _possuiFichaTecnica;
   late bool _isEmbalagem;
+  late bool _podeSerVendido;
 
   /// Fonte única dos valores de custo exibidos e salvos.
   late CalculadoraCustoProduto _custos;
@@ -80,6 +81,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     _chavesEmbalagens = _gerarChaves(_embalagens.length);
     _possuiFichaTecnica = original?.possuiFichaTecnica ?? false;
     _isEmbalagem = original?.isEmbalagem ?? false;
+    _podeSerVendido = original?.podeSerVendido ?? false;
 
     _custos = CalculadoraCustoProduto(
       rendimentoReceita: original?.rendimentoReceita ?? 0,
@@ -155,8 +157,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           padding: AppSpacing.screenPadding,
           children: [
             _buildDadosDoProduto(),
-            if (!_isEmbalagem) _buildEmbalagem(),
-            if (_possuiFichaTecnica) ...[
+            if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
+            if (_possuiFichaTecnica && !_isEmbalagem) ...[
               _buildRendimentoPreparo(),
               _buildTabelaCusto(),
               _buildFichaTecnica(),
@@ -201,7 +203,12 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           ]),
           _linha([
             _buildSwitch('podeSerComprado', 'Pode ser comprado'),
-            _buildSwitch('podeSerVendido', 'Pode ser vendido'),
+            _buildSwitch(
+              'podeSerVendido',
+              'Pode ser vendido',
+              onChanged: (value) =>
+                  setState(() => _podeSerVendido = value ?? false),
+            ),
           ]),
           if (!_isEmbalagem) ...[
             _linha([
