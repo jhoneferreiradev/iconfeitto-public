@@ -126,6 +126,8 @@ class AppRepository extends ChangeNotifier {
           ),
       ];
 
+      print("Embalagens: ${fichaTecnicaEmbalagem.length}");
+
       produtos.add(
         Produto(
           id: produtoId,
@@ -139,7 +141,7 @@ class AppRepository extends ChangeNotifier {
           tempoPreparoMinutos: row['tempoPreparoMinutos'] as int,
           rendimentoReceita: row['rendimentoReceita'] as int,
           unidadeEstoqueId: row['unidadeEstoqueId'] as String,
-          unidadeConsumoId: row['unidadeConsumoId'] as String?,
+          unidadeConsumoId: row['unidadeConsumoId'] as String,
           fichaTecnica: fichaTecnica,
           fichaTecnicaEmbalagem: fichaTecnicaEmbalagem,
           custoOperacional: row['custoOperacional'] as double,

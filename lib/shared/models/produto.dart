@@ -15,7 +15,7 @@ class Produto {
   int rendimentoReceita;
   double custoOperacional;
   String unidadeEstoqueId;
-  String? unidadeConsumoId;
+  String unidadeConsumoId;
   List<ItemFichaTecnica> fichaTecnica;
   List<ItemFichaTecnicaEmbalagem> fichaTecnicaEmbalagem;
 
@@ -33,47 +33,34 @@ class Produto {
     this.tempoPreparoMinutos = 0,
     this.rendimentoReceita = 0,
     required this.unidadeEstoqueId,
-    this.unidadeConsumoId,
+    required this.unidadeConsumoId,
     required this.fichaTecnica,
     required this.fichaTecnicaEmbalagem,
   });
-
-  double get custoRendimentoUnitario => calcularCustoRendimentoUnitario(
-    rendimentoReceita,
-    custoMedio + custoOperacional,
-  );
-
-  double get custoTotalReceita => custoMedio + custoOperacional;
-
-  static double calcularCustoRendimentoUnitario(
-    int rendimentoReceita,
-    double custoFichaTecnicaCustoOperacionalCustoEmbalagem,
-  ) {
-    return (custoFichaTecnicaCustoOperacionalCustoEmbalagem <= 0 ||
-            rendimentoReceita <= 0)
-        ? 0
-        : custoFichaTecnicaCustoOperacionalCustoEmbalagem / rendimentoReceita;
-  }
 }
 
 class CalculadoraCustoProduto {
   final int rendimentoReceita;
   final double custoFichaTecnica;
   final double custoOperacional;
-  final double custoEmbalagem;
+  final double custoUnitarioEmbalagem;
 
   CalculadoraCustoProduto({
     required this.rendimentoReceita,
     required this.custoFichaTecnica,
     required this.custoOperacional,
-    required this.custoEmbalagem,
+    required this.custoUnitarioEmbalagem,
   });
 
   double get custoReceitaTotal =>
-      custoFichaTecnica + custoOperacional + custoEmbalagem;
+      custoFichaTecnica +
+      custoOperacional +
+      (custoUnitarioEmbalagem * rendimentoReceita);
 
   double get custoRendimentoUnitario =>
       (custoReceitaTotal <= 0 || rendimentoReceita <= 0)
       ? 0
       : custoReceitaTotal / rendimentoReceita;
+
+  double get custoTotalEmbalagem => custoUnitarioEmbalagem * rendimentoReceita;
 }

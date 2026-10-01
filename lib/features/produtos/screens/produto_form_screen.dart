@@ -17,12 +17,9 @@ import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
 import '../../../shared/models/item_ficha_tecnica_embalagem.dart';
 import '../../../shared/models/produto.dart';
-import '../../../shared/models/unidade_medida.dart';
 import '../pdf/ficha_tecnica_pdf.dart';
 import '../widgets/item_ficha_embalagem_row.dart';
 import '../widgets/item_ficha_row.dart';
-
-part 'part_builder_produto_form_screen.dart';
 
 class ProdutoFormScreen extends StatefulWidget {
   final String? produtoId;
@@ -33,44 +30,101 @@ class ProdutoFormScreen extends StatefulWidget {
 }
 
 class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
+  /// Unidade fixa usada por produtos do tipo embalagem.
+  static const _unidadeEmbalagem = 'un';
+
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;
+
+  late final Produto? _produtoOriginal;
+  late final List<Produto> _ingredientesDisponiveis;
+  late final List<Produto> _embalagensDisponiveis;
+  late final Map<String, dynamic> _dadosIniciais;
+
   late List<ItemFichaTecnica> _ingredientes;
   late List<ItemFichaTecnicaEmbalagem> _embalagens;
-  bool _possuiFichaTecnica = false;
-  bool _isEmbalagem = false;
-  Produto? _produtoOriginal;
+
+  // Chaves estáveis (uma por item), para que remover um item do meio não faça
+  // outra linha herdar o estado (texto digitado) da linha removida.
+  late List<Key> _chavesIngredientes;
+  late List<Key> _chavesEmbalagens;
+  late bool _possuiFichaTecnica;
+  late bool _isEmbalagem;
+
+  /// Fonte única dos valores de custo exibidos e salvos.
+  late CalculadoraCustoProduto _custos;
 
   bool get _isEdicao => widget.produtoId != null;
+
+  // ---------------------------------------------------------------------------
+  // Ciclo de vida
+  // ---------------------------------------------------------------------------
 
   @override
   void initState() {
     super.initState();
-    if (_isEdicao) {
-      _produtoOriginal = _repo.produtoPorId(widget.produtoId!);
-      _embalagens =
-          _produtoOriginal?.fichaTecnicaEmbalagem
-              .map((i) => i.copy())
-              .toList() ??
-          [];
-      _ingredientes =
-          _produtoOriginal?.fichaTecnica.map((i) => i.copy()).toList() ?? [];
-      _possuiFichaTecnica = _produtoOriginal?.possuiFichaTecnica ?? false;
-      _embalagens = [];
-      _isEmbalagem = _produtoOriginal?.isEmbalagem ?? false;
-    } else {
-      _ingredientes = [];
-      _possuiFichaTecnica = false;
-    }
+    final id = widget.produtoId;
+    final original = id == null ? null : _repo.produtoPorId(id);
+
+    _produtoOriginal = original;
+    _ingredientesDisponiveis = _repo.produtos.where((p) => p.id != id).toList()
+      ..sort((a, b) => a.nome.compareTo(b.nome));
+    _embalagensDisponiveis = _ingredientesDisponiveis
+        .where((p) => p.isEmbalagem)
+        .toList();
+
+    _ingredientes = original?.fichaTecnica.map((i) => i.copy()).toList() ?? [];
+    _embalagens =
+        original?.fichaTecnicaEmbalagem.map((i) => i.copy()).toList() ?? [];
+    _chavesIngredientes = _gerarChaves(_ingredientes.length);
+    _chavesEmbalagens = _gerarChaves(_embalagens.length);
+    _possuiFichaTecnica = original?.possuiFichaTecnica ?? false;
+    _isEmbalagem = original?.isEmbalagem ?? false;
+
+    _custos = CalculadoraCustoProduto(
+      rendimentoReceita: original?.rendimentoReceita ?? 0,
+      custoFichaTecnica: _ingredientes.fold<double>(
+        0,
+        (soma, item) => soma + _repo.custoItemFicha(item),
+      ),
+      custoOperacional: original?.custoOperacional ?? 0,
+      custoUnitarioEmbalagem: _embalagens.fold<double>(
+        0,
+        (soma, item) => soma + _repo.custoItemFichaEmbalagem(item),
+      ),
+    );
+
+    _dadosIniciais = _montarDadosIniciais(original);
   }
+
+  List<Key> _gerarChaves(int quantidade) =>
+      List.generate(quantidade, (_) => UniqueKey());
+
+  Map<String, dynamic> _montarDadosIniciais(Produto? p) {
+    return {
+      'nome': p?.nome ?? '',
+      'ativo': p?.ativo ?? true,
+      'podeSerVendido': p?.podeSerVendido ?? true,
+      'podeSerComprado': p?.podeSerComprado ?? true,
+      'possuiFichaTecnica': _possuiFichaTecnica,
+      'isEmbalagem': _isEmbalagem,
+      'tempoPreparoMinutos': (p?.tempoPreparoMinutos ?? 0).toString(),
+      'rendimentoReceita': (p?.rendimentoReceita ?? 0).toString(),
+      'custoMedio': (p?.custoMedio ?? 0.0).toDecimal(),
+      // Formato pt-BR (vírgula), senão "12.5" seria lido como 125 ao parsear.
+      'saldoEstoque': formatarNumero(p?.saldoEstoque ?? 0.0)
+          .replaceAll('.', ','),
+      'unidadeEstoqueId': p?.unidadeEstoqueId,
+      'unidadeConsumoId': p?.unidadeConsumoId,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final unidades = _repo.unidades;
-    final ingredientesDisponiveis =
-        _repo.produtos.where((p) => p.id != widget.produtoId).toList()
-          ..sort((a, b) => a.nome.compareTo(b.nome));
-
     return AppScaffold(
       title: _isEdicao ? 'Editar produto' : 'Novo produto',
       actions: [
@@ -78,7 +132,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           tooltip: 'Unidades de medida',
           icon: const Icon(Icons.straighten),
           onPressed: () => context.push('/unidades').then((_) {
-            setState(() {});
+            if (mounted) setState(() {});
           }),
         ),
         if (_possuiFichaTecnica && _ingredientes.isNotEmpty)
@@ -96,32 +150,20 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       ],
       body: FormBuilder(
         key: _formKey,
-        initialValue: _getDadosIniciais,
+        initialValue: _dadosIniciais,
         child: ListView(
           padding: AppSpacing.screenPadding,
           children: [
-            SectionCard(
-              title: 'Dados do produto',
-              child: Column(
-                spacing: AppSpacing.fieldGap.height ?? 0,
-                children: [
-                  _buildNomeProduto(),
-                  _buildRowStatusProdutoIsEmbalagem(),
-                  _buildRowPodeSerCompradoPodeSerVendido(),
-                  if (!_isEmbalagem) _buildRowUnidadesDeMedida(unidades),
-                  if (!_isEmbalagem) _buildPossuiFichaTecnica(),
-                  if (!_possuiFichaTecnica) _buildRowSaldoEstoqueCustoMedio(),
-                  if (_possuiFichaTecnica) _buildSaldoEstoque(),
-                ],
-              ),
-            ),
-            if (!_isEmbalagem)
-              _buildSectionCardEmbalagem(ingredientesDisponiveis),
-            if (_possuiFichaTecnica)
-              _buildSectionCardFichaTecnica(ingredientesDisponiveis),
+            _buildDadosDoProduto(),
+            if (!_isEmbalagem) _buildEmbalagem(),
+            if (_possuiFichaTecnica) ...[
+              _buildRendimentoPreparo(),
+              _buildTabelaCusto(),
+              _buildFichaTecnica(),
+            ],
             FilledButton.icon(
               onPressed: () => _salvar(
-                onSuccess: (produto) {
+                onSuccess: (_) {
                   if (mounted) context.pop();
                 },
               ),
@@ -134,179 +176,230 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
   }
 
-  Widget _buildSectionCardEmbalagem(List<Produto> ingredientesDisponiveis) {
+  // ---------------------------------------------------------------------------
+  // Seções
+  // ---------------------------------------------------------------------------
+
+  Widget _buildDadosDoProduto() {
     return SectionCard(
-      title: 'Embalagem',
+      title: 'Dados do produto',
+      child: Column(
+        spacing: AppSpacing.sm,
+        children: [
+          const AppTextField(
+            name: 'nome',
+            label: 'Nome do produto',
+            icon: Icons.cake_outlined,
+          ),
+          _linha([
+            _buildSwitch('ativo', 'Ativo'),
+            _buildSwitch(
+              'isEmbalagem',
+              'É embalagem',
+              onChanged: _alterarIsEmbalagem,
+            ),
+          ]),
+          _linha([
+            _buildSwitch('podeSerComprado', 'Pode ser comprado'),
+            _buildSwitch('podeSerVendido', 'Pode ser vendido'),
+          ]),
+          if (!_isEmbalagem) ...[
+            _linha([
+              _buildUnidadeEstoqueDropdown(),
+              _buildUnidadeConsumoDropdown(),
+            ]),
+            _buildSwitch(
+              'possuiFichaTecnica',
+              'Possui ficha técnica',
+              onChanged: (value) =>
+                  setState(() => _possuiFichaTecnica = value ?? false),
+            ),
+          ],
+          if (_possuiFichaTecnica)
+            _buildSaldoEstoque()
+          else
+            _linha([_buildSaldoEstoque(), _buildCustoMedio()]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmbalagem() {
+    return _buildSecaoItens(
+      titulo: 'Embalagem',
+      disponiveis: _embalagensDisponiveis,
+      onAdicionar: _adicionarEmbalagem,
+      child: _buildListaItens(
+        disponiveis: _embalagensDisponiveis,
+        quantidade: _embalagens.length,
+        mensagemSemProdutos:
+            'Cadastre produtos marcados como "É embalagem" para usá-los aqui.',
+        mensagemVazia: 'Nenhum item de embalagem foi adicionado. Use "Adicionar item" para começar.',
+        buildLinha: _buildLinhaEmbalagem,
+      ),
+    );
+  }
+
+  Widget _buildFichaTecnica() {
+    return _buildSecaoItens(
+      titulo: 'Itens da ficha técnica',
+      disponiveis: _ingredientesDisponiveis,
+      onAdicionar: _adicionarIngrediente,
+      child: _buildListaItens(
+        disponiveis: _ingredientesDisponiveis,
+        quantidade: _ingredientes.length,
+        mensagemSemProdutos:
+            'Cadastre outros produtos para poder montar a ficha técnica.',
+        mensagemVazia:
+            'Nenhum item adicionado. Use "Adicionar item" para começar.',
+        buildLinha: _buildLinhaIngrediente,
+      ),
+    );
+  }
+
+  Widget _buildRendimentoPreparo() {
+    return SectionCard(
+      title: 'Rendimento e preparo',
+      child: _linha(
+        [
+          _buildCampoDeCusto('rendimentoReceita', 'Rendimento'),
+          _buildCampoDeCusto(
+            'tempoPreparoMinutos',
+            'Tempo de preparo (minutos)',
+          ),
+        ],
+        flex: [1, 2],
+      ),
+    );
+  }
+
+  Widget _buildTabelaCusto() {
+    final custoHora = _repo.empresa.custoOperacionalPorHora;
+
+    return SectionCard(
+      title: 'Tabela de custos',
+      child: Column(
+        children: [
+          _buildLinhaCusto(
+            'Custo operacional da receita',
+            '${custoHora.toCurrency()}/hora, ver cadastro da empresa',
+            _custos.custoOperacional,
+          ),
+          _buildLinhaCusto(
+            'Custo total da embalagem',
+            'Custo total de embalagens para a receita',
+            _custos.custoTotalEmbalagem,
+          ),
+          _buildLinhaCusto(
+            'Custo total dos itens da receita',
+            'Soma de todos os custos dos itens da receita',
+            _custos.custoFichaTecnica,
+          ),
+          _buildLinhaCusto(
+            'Custo unitário de cada ${_produtoOriginal?.unidadeConsumoId}',
+            'Custo por unidade do produto',
+            _custos.custoRendimentoUnitario,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Componentes reutilizáveis da tela
+  // ---------------------------------------------------------------------------
+
+  /// Linha de campos lado a lado, com largura proporcional a [flex].
+  Widget _linha(List<Widget> filhos, {List<int> flex = const []}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpacing.md,
+      children: [
+        for (var i = 0; i < filhos.length; i++)
+          Expanded(flex: i < flex.length ? flex[i] : 1, child: filhos[i]),
+      ],
+    );
+  }
+
+  Widget _buildSwitch(
+    String name,
+    String titulo, {
+    ValueChanged<bool?>? onChanged,
+  }) {
+    return FormBuilderSwitch(
+      name: name,
+      title: Text(titulo),
+      onChanged: onChanged,
+    );
+  }
+
+  /// Seção com botão "Adicionar item" (embalagem e ficha técnica).
+  Widget _buildSecaoItens({
+    required String titulo,
+    required List<Produto> disponiveis,
+    required VoidCallback onAdicionar,
+    required Widget child,
+  }) {
+    return SectionCard(
+      title: titulo,
       trailing: TextButton.icon(
-        onPressed: ingredientesDisponiveis.isEmpty
-            ? null
-            : () => _adicionarItemDeEmbalagem(ingredientesDisponiveis),
+        onPressed: disponiveis.isEmpty ? null : onAdicionar,
         icon: const Icon(Icons.add),
         label: const Text('Adicionar item'),
       ),
-      child: _buildFichaTecnicaDeEmbalagem(ingredientesDisponiveis),
+      child: child,
     );
   }
 
-  Widget _buildSectionCardFichaTecnica(List<Produto> ingredientesDisponiveis) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            children: [
-              SectionCard(
-                title: 'Rendimento, preparo e custos',
-                child: Column(
-                  spacing: AppSpacing.md,
-                  children: [
-                    _buildRowRendimentoTempoPreparo(),
-                    _buildCustoOperacional(),
-                    _buildCustoMedio(),
-                    _buildCustoRendimentoUnitario(),
-                  ],
-                ),
-              ),
+  /// Lista de linhas de itens com mensagens de estado vazio.
+  /// [buildLinha] pode devolver null para ignorar um item inválido.
+  Widget _buildListaItens({
+    required List<Produto> disponiveis,
+    required int quantidade,
+    required String mensagemSemProdutos,
+    required String mensagemVazia,
+    required Widget? Function(int index) buildLinha,
+  }) {
+    if (disponiveis.isEmpty) return Text(mensagemSemProdutos);
+    if (quantidade == 0) return Text(mensagemVazia);
 
-              SectionCard(
-                title: 'Itens da ficha técnica',
-                trailing: TextButton.icon(
-                  onPressed: ingredientesDisponiveis.isEmpty
-                      ? null
-                      : () => _adicionarItem(ingredientesDisponiveis),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Adicionar item'),
-                ),
-                child: _buildFichaTecnica(ingredientesDisponiveis),
-              ),
-            ],
-          ),
-        ),
-      ],
+    final linhas = <Widget>[];
+    for (var i = 0; i < quantidade; i++) {
+      final linha = buildLinha(i);
+      if (linha != null) linhas.add(linha);
+    }
+    linhas.add(const Divider());
+    return Column(spacing: AppSpacing.md, children: linhas);
+  }
+
+  Widget _buildLinhaCusto(String titulo, String explicacao, double valor) {
+    final textTheme = Theme.of(context).textTheme;
+    return ListTile(
+      title: Row(
+        children: [
+          Expanded(child: Text(titulo, style: textTheme.bodyLarge)),
+          Text(valor.toCurrency(), style: textTheme.bodyLarge),
+        ],
+      ),
+      subtitle: Text(
+        explicacao,
+        style: textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+      ),
     );
   }
 
-  Row _buildRowRendimentoTempoPreparo() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: AppSpacing.md,
-      children: [
-        Expanded(child: _buildRendimento()),
-        Expanded(flex: 2, child: _buildTempoPreparo()),
-      ],
-    );
-  }
-
-  AppNumberField _buildTempoPreparo() {
+  AppNumberField _buildCampoDeCusto(String name, String label) {
     return AppNumberField(
-      name: 'tempoPreparoMinutos',
-      label: 'Tempo de preparo (minutos)',
+      name: name,
+      label: label,
       required: false,
       min: 0,
-      onChanged: (value) {
-        _atualizarCamposDeCustos();
-      },
-    );
-  }
-
-  AppNumberField _buildRendimento() {
-    return AppNumberField(
-      name: 'rendimentoReceita',
-      label: 'Rendimento',
-      required: false,
-      min: 0,
-      onChanged: (value) {
-        _atualizarCamposDeCustos();
-      },
-    );
-  }
-
-  AppNumberField _buildCustoRendimentoUnitario() {
-    final unidadeEstoque =
-        (_formKey.currentState?.fields['unidadeEstoqueId']?.value ?? "");
-
-    var unidadeMedidaConsumo =
-        (_formKey.currentState?.fields['unidadeConsumoId']?.value ??
-        unidadeEstoque);
-
-    unidadeMedidaConsumo = (unidadeMedidaConsumo ?? '').isEmpty
-        ? (_produtoOriginal?.unidadeConsumoId ??
-              _produtoOriginal?.unidadeEstoqueId)
-        : unidadeMedidaConsumo;
-
-    unidadeMedidaConsumo = unidadeMedidaConsumo ?? '';
-
-    return AppNumberField(
-      name: 'custoRendimentoUnitario',
-      label: 'Custo de 1 $unidadeMedidaConsumo',
-      required: false,
-      readOnly: true,
-      min: 0,
-    );
-  }
-
-  FormBuilderSwitch _buildPossuiFichaTecnica() {
-    return FormBuilderSwitch(
-      name: 'possuiFichaTecnica',
-      title: const Text('Possui ficha técnica'),
-      onChanged: (value) {
-        setState(() {
-          _possuiFichaTecnica = value ?? false;
-        });
-      },
-    );
-  }
-
-  Row _buildRowSaldoEstoqueCustoMedio() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: AppSpacing.md,
-      children: [
-        Expanded(child: _buildSaldoEstoque()),
-        Expanded(child: _buildCustoMedio()),
-      ],
-    );
-  }
-
-  AppNumberField _buildCustoMedio() {
-    return AppNumberField(
-      name: 'custoMedio',
-      label: _possuiFichaTecnica
-          ? 'Custo total dos itens da receita + custo operacional'
-          : 'Custo médio',
-      icon: Icons.attach_money,
-      suffixText: 'R\$',
-      readOnly: _possuiFichaTecnica,
-      min: 0,
-    );
-  }
-
-  Widget _buildCustoOperacional() {
-    double custoOperacionalPorHora = _repo.empresa.custoOperacionalPorHora;
-
-    return Column(
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: AppSpacing.md,
-          children: [
-            Expanded(
-              child: AppNumberField(
-                name: 'custoOperacional',
-                label:
-                    'Custo operacional (${custoOperacionalPorHora.toCurrency()}/hora, ver cadastro da empresa)',
-                suffixText: 'R\$',
-                min: 0,
-                readOnly: true,
-              ),
-            ),
-          ],
-        ),
-      ],
+      onChanged: (_) => _atualizarCustos(),
     );
   }
 
   AppNumberField _buildSaldoEstoque() {
-    return AppNumberField(
+    return const AppNumberField(
       name: 'saldoEstoque',
       label: 'Saldo em estoque',
       icon: Icons.inventory_2_outlined,
@@ -315,116 +408,21 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     );
   }
 
-  Row _buildRowUnidadesDeMedida(List<UnidadeMedida> unidades) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: AppSpacing.md,
-      children: [
-        Expanded(child: _buildUnidadeEstoqueDropdown(unidades)),
-        Expanded(child: _buildUnidadeConsumoDropdown(unidades)),
-      ],
+  AppNumberField _buildCustoMedio() {
+    return const AppNumberField(
+      name: 'custoMedio',
+      label: 'Custo médio',
+      icon: Icons.attach_money,
+      suffixText: 'R\$',
+      min: 0,
     );
   }
 
-  Widget _buildIsEmbalagem() {
-    return FormBuilderSwitch(
-      name: 'isEmbalagem',
-      title: const Text('É embalagem'),
-      onChanged: (value) {
-        setState(() {
-          _isEmbalagem = value ?? false;
-        });
-      },
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Unidades de medida
+  // ---------------------------------------------------------------------------
 
-  Row _buildRowStatusProdutoIsEmbalagem() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: AppSpacing.md,
-      children: [
-        Expanded(child: _buildStatusProduto()),
-        Expanded(child: _buildIsEmbalagem()),
-      ],
-    );
-  }
-
-  Row _buildRowPodeSerCompradoPodeSerVendido() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: AppSpacing.md,
-      children: [
-        Expanded(child: _buildPodeSerComprado()),
-        Expanded(child: _buildPodeSerVendido()),
-      ],
-    );
-  }
-
-  FormBuilderSwitch _buildPodeSerVendido() {
-    return FormBuilderSwitch(
-      name: 'podeSerVendido',
-      title: const Text('Pode ser vendido'),
-    );
-  }
-
-  FormBuilderSwitch _buildPodeSerComprado() {
-    return FormBuilderSwitch(
-      name: 'podeSerComprado',
-      title: const Text('Pode ser comprado'),
-    );
-  }
-
-  FormBuilderSwitch _buildStatusProduto() {
-    return FormBuilderSwitch(name: 'ativo', title: Text('Ativo'));
-  }
-
-  AppTextField _buildNomeProduto() {
-    return const AppTextField(
-      name: 'nome',
-      label: 'Nome do produto',
-      icon: Icons.cake_outlined,
-    );
-  }
-
-  Map<String, dynamic> get _getDadosIniciais {
-    final CalculadoraCustoProduto calculadoraCustoProduto =
-        CalculadoraCustoProduto(
-          rendimentoReceita: _produtoOriginal?.rendimentoReceita ?? 0,
-          custoFichaTecnica: _produtoOriginal?.custoMedio ?? 0,
-          custoOperacional: _produtoOriginal?.custoOperacional ?? 0,
-          custoEmbalagem: _produtoOriginal == null
-              ? 0
-              : _repo.custoEmbalagem(_produtoOriginal!),
-        );
-
-    return {
-      'nome': _produtoOriginal?.nome ?? '',
-      'ativo': _produtoOriginal?.ativo ?? true,
-      'podeSerVendido': _produtoOriginal?.podeSerVendido ?? true,
-      'podeSerComprado': _produtoOriginal?.podeSerComprado ?? true,
-      'possuiFichaTecnica': _produtoOriginal?.possuiFichaTecnica ?? false,
-      'isEmbalagem': _produtoOriginal?.isEmbalagem ?? false,
-      'tempoPreparoMinutos':
-          _produtoOriginal?.tempoPreparoMinutos.toString() ?? '0',
-      'rendimentoReceita':
-          _produtoOriginal?.rendimentoReceita.toString() ?? '0',
-      'custoMedio': _produtoOriginal == null
-          ? 0.toDouble().toDecimal()
-          : _produtoOriginal!.custoMedio.toDecimal(),
-      'saldoEstoque': _produtoOriginal == null
-          ? '0'
-          : formatarNumero(_produtoOriginal!.saldoEstoque),
-      'unidadeEstoqueId': _produtoOriginal?.unidadeEstoqueId,
-      'unidadeConsumoId': _produtoOriginal?.unidadeConsumoId,
-      'custoRendimentoUnitario': calculadoraCustoProduto.custoRendimentoUnitario
-          .toDecimal(),
-      'custoOperacional':
-          _produtoOriginal?.custoOperacional.toDecimal() ??
-          0.toDouble().toDecimal(),
-    };
-  }
-
-  Widget _buildUnidadeEstoqueDropdown(List<UnidadeMedida> unidades) {
+  Widget _buildUnidadeEstoqueDropdown() {
     return FormBuilderGroupedDropdownField<String>(
       name: 'unidadeEstoqueId',
       label: 'Unidade de estoque',
@@ -432,221 +430,118 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       validator: FormBuilderValidators.required(
         errorText: 'Selecione a unidade',
       ),
-      groups: _agruparUnidades(unidades),
-      itemBuilder: (id) {
-        final unidade = unidades.firstWhere((u) => u.id == id);
-        return unidade.sigla;
-      },
+      groups: _gruposDeUnidades(),
+      itemBuilder: (id) => _repo.unidadePorId(id).sigla,
+      onChanged: _sugerirUnidadeConsumo,
     );
   }
 
-  Widget _buildUnidadeConsumoDropdown(List<UnidadeMedida> unidades) {
-    return FormBuilderGroupedDropdownField<String?>(
+  Widget _buildUnidadeConsumoDropdown() {
+    return FormBuilderGroupedDropdownField<String>(
       name: 'unidadeConsumoId',
       label: 'Unidade de consumo',
       icon: Icons.sell,
-      groups: _agruparUnidadesOpcional(unidades),
-      itemBuilder: (id) {
-        if (id == null) return 'Usar estoque';
-        final unidade = unidades.firstWhere((u) => u.id == id);
-        return unidade.sigla;
-      },
-      onChanged: (value) {
-        setState(() {});
-      },
+      validator: FormBuilderValidators.required(
+        errorText: 'Selecione a unidade',
+      ),
+      groups: _gruposDeUnidades(),
+      itemBuilder: (id) => _repo.unidadePorId(id).sigla,
     );
   }
 
-  List<AppDropdownGroup<String>> _agruparUnidades(
-    List<UnidadeMedida> unidades,
-  ) {
-    return [
-      for (final grupo in GrupoUnidade.values)
-        if (unidades.any((u) => u.grupo == grupo))
-          AppDropdownGroup<String>(
-            name: grupo.label,
-            items:
-                (unidades.where((u) => u.grupo == grupo).toList()
-                      ..sort((a, b) => a.nome.compareTo(b.nome)))
-                    .map((u) => u.id)
-                    .toList(),
-          ),
-    ];
-  }
-
-  List<AppDropdownGroup<String?>> _agruparUnidadesOpcional(
-    List<UnidadeMedida> unidades,
-  ) {
-    return [
-      const AppDropdownGroup<String?>(name: '', items: [null]),
-      for (final grupo in GrupoUnidade.values)
-        if (unidades.any((u) => u.grupo == grupo))
-          AppDropdownGroup<String?>(
-            name: grupo.label,
-            items:
-                (unidades.where((u) => u.grupo == grupo).toList()
-                      ..sort((a, b) => a.nome.compareTo(b.nome)))
-                    .map<String?>((u) => u.id)
-                    .toList(),
-          ),
-    ];
-  }
-
-  void _atualizarCamposDeCustos() {
-    final custoOperacional = _calcularCustoOperacional();
-    final custoFichaTecnica = _calcularTotalFichaTecnica();
-    final custoEmbalagem = _calcularCustoEmbalagem();
-
-    final custoUnitarioRendimento = _calcularCustoUnitarioRendimentoReceita(
-      custoFichaTecnica + custoOperacional + custoEmbalagem,
-    );
-
-    _formKey.currentState?.fields['custoOperacional']?.didChange(
-      custoOperacional.toDecimal(),
-    );
-
-    _formKey.currentState?.fields['custoMedio']?.didChange(
-      (custoFichaTecnica).toDecimal(),
-    );
-
-    _formKey.currentState?.fields['custoEmbalagem']?.didChange(
-      custoEmbalagem.toDecimal(),
-    );
-
-    _formKey.currentState?.fields['custoRendimentoUnitario']?.didChange(
-      custoUnitarioRendimento.toDecimal(),
-    );
-  }
-
-  double _calcularTotalFichaTecnica() {
-    double totalFichaTecnica = 0;
-    for (var i = 0; i < _ingredientes.length; i++) {
-      final item = _ingredientes[i];
-      final custoLinha = _repo.custoItemFicha(item);
-      totalFichaTecnica += custoLinha;
+  /// Ao escolher a unidade de estoque, sugere a mesma unidade para consumo
+  /// enquanto esta ainda não foi preenchida.
+  void _sugerirUnidadeConsumo(String? unidadeEstoqueId) {
+    final consumo = _formKey.currentState?.fields['unidadeConsumoId'];
+    if (unidadeEstoqueId != null && consumo?.value == null) {
+      consumo?.didChange(unidadeEstoqueId);
     }
-
-    return totalFichaTecnica;
   }
 
-  double _calcularCustoOperacional() {
-    double custoOperacionalPorHora = _repo.empresa.custoOperacionalPorHora;
-    double tempoPreparoEmHoras =
-        ((_formKey.currentState?.fields['tempoPreparoMinutos']?.value ?? "0.0")
-                .toString()
-                .toInt() ??
-            0) /
-        60;
-    return custoOperacionalPorHora * tempoPreparoEmHoras;
-  }
-
-  double _calcularCustoUnitarioRendimentoReceita(
-    double custoFichaTecnicaComCustoOperacional,
-  ) {
-    int novoRendimentoReceita =
-        (_formKey.currentState?.fields['rendimentoReceita']?.value ?? "0.0")
-            .toString()
-            .toInt() ??
-        0;
-
-    return Produto.calcularCustoRendimentoUnitario(
-      novoRendimentoReceita,
-      custoFichaTecnicaComCustoOperacional,
-    );
-  }
-
-  Widget _buildFichaTecnicaDeEmbalagem(List<Produto> embalagens) {
-    if (embalagens.isEmpty) {
-      return const Text('Cadastre outras embalagens.');
-    }
-    if (_embalagens.isEmpty) {
-      return const Text(
-        'Nenhum item de embalagem foi adicionado. Use "Adicionar item" para começar.',
-      );
-    }
-
-    final linhas = <Widget>[];
-    for (var i = 0; i < _embalagens.length; i++) {
-      final item = _embalagens[i];
-      final embalagem = _repo.produtoPorId(item.produtoEmbalagemId);
-      if (embalagem == null) continue;
-      final custoLinha = _repo.custoItemFichaEmbalagem(item);
-
-      linhas.add(
-        ItemFichaEmbalagemRow(
-          key: ValueKey('ficha-$i'),
-          item: item,
-          embalagens: embalagens,
-          custoLinha: custoLinha,
-          onChanged: (novo) => setState(() {
-            _embalagens[i] = novo;
-            _atualizarCamposDeCustos();
-          }),
-          onRemover: () => setState(() => _embalagens.removeAt(i)),
+  /// Unidades agrupadas por tipo (peso, volume, unidade), ordenadas por nome.
+  List<AppDropdownGroup<String>> _gruposDeUnidades() {
+    final grupos = <AppDropdownGroup<String>>[];
+    for (final grupo in GrupoUnidade.values) {
+      final unidades = _repo.unidadesDoGrupo(grupo)
+        ..sort((a, b) => a.nome.compareTo(b.nome));
+      if (unidades.isEmpty) continue;
+      grupos.add(
+        AppDropdownGroup<String>(
+          name: grupo.label,
+          items: unidades.map((u) => u.id).toList(),
         ),
       );
     }
-    linhas.add(const Divider());
-    return Column(spacing: AppSpacing.md, children: linhas);
+    return grupos;
   }
 
-  Widget _buildFichaTecnica(List<Produto> ingredientes) {
-    if (ingredientes.isEmpty) {
-      return const Text(
-        'Cadastre outros produtos para poder montar a ficha técnica.',
-      );
-    }
-    if (_ingredientes.isEmpty) {
-      return const Text(
-        'Nenhum item adicionado. Use "Adicionar item" para começar.',
-      );
-    }
-
-    final linhas = <Widget>[];
-    for (var i = 0; i < _ingredientes.length; i++) {
-      final item = _ingredientes[i];
-      final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
-      if (ingrediente == null) continue;
-      final unidadeIngrediente = _repo.unidadePorId(
-        ingrediente.unidadeEstoqueId,
-      );
-      final unidadesCompativeis = _repo.unidadesDoGrupo(
-        unidadeIngrediente.grupo,
-      );
-      final custoLinha = _repo.custoItemFicha(item);
-
-      linhas.add(
-        ItemFichaRow(
-          key: ValueKey('ficha-$i'),
-          item: item,
-          ingredientes: ingredientes,
-          unidadesCompativeis: unidadesCompativeis,
-          custoLinha: custoLinha,
-          onChanged: (novo) => setState(() {
-            _ingredientes[i] = novo;
-            _atualizarCamposDeCustos();
-          }),
-          onRemover: () => setState(() => _ingredientes.removeAt(i)),
-        ),
-      );
-    }
-    linhas.add(const Divider());
-    return Column(spacing: AppSpacing.md, children: linhas);
-  }
-
-  void _adicionarItemDeEmbalagem(List<Produto> ingredientes) {
-    final primeiro = ingredientes.first;
+  void _alterarIsEmbalagem(bool? value) {
     setState(() {
+      _isEmbalagem = value ?? false;
+      if (_isEmbalagem) {
+        final campos = _formKey.currentState?.fields;
+        campos?['unidadeEstoqueId']?.didChange(_unidadeEmbalagem);
+        campos?['unidadeConsumoId']?.didChange(_unidadeEmbalagem);
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Itens (embalagem e ficha técnica)
+  // ---------------------------------------------------------------------------
+
+  Widget? _buildLinhaEmbalagem(int i) {
+    final item = _embalagens[i];
+    if (_repo.produtoPorId(item.produtoEmbalagemId) == null) return null;
+
+    return ItemFichaEmbalagemRow(
+      key: _chavesEmbalagens[i],
+      item: item,
+      embalagens: _embalagensDisponiveis,
+      custoLinha: _repo.custoItemFichaEmbalagem(item),
+      onChanged: (novo) => _alterarItens(() => _embalagens[i] = novo),
+      onRemover: () => _alterarItens(() {
+        _embalagens.removeAt(i);
+        _chavesEmbalagens.removeAt(i);
+      }),
+    );
+  }
+
+  Widget? _buildLinhaIngrediente(int i) {
+    final item = _ingredientes[i];
+    final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
+    if (ingrediente == null) return null;
+
+    final grupo = _repo.unidadePorId(ingrediente.unidadeEstoqueId).grupo;
+
+    return ItemFichaRow(
+      key: _chavesIngredientes[i],
+      item: item,
+      ingredientes: _ingredientesDisponiveis,
+      unidadesCompativeis: _repo.unidadesDoGrupo(grupo),
+      custoLinha: _repo.custoItemFicha(item),
+      onChanged: (novo) => _alterarItens(() => _ingredientes[i] = novo),
+      onRemover: () => _alterarItens(() {
+        _ingredientes.removeAt(i);
+        _chavesIngredientes.removeAt(i);
+      }),
+    );
+  }
+
+  void _adicionarEmbalagem() {
+    final primeiro = _embalagensDisponiveis.first;
+    _alterarItens(() {
       _embalagens.insert(
         0,
         ItemFichaTecnicaEmbalagem(produtoEmbalagemId: primeiro.id),
       );
+      _chavesEmbalagens.insert(0, UniqueKey());
     });
   }
 
-  void _adicionarItem(List<Produto> ingredientes) {
-    final primeiro = ingredientes.first;
-    setState(() {
+  void _adicionarIngrediente() {
+    final primeiro = _ingredientesDisponiveis.first;
+    _alterarItens(() {
       _ingredientes.insert(
         0,
         ItemFichaTecnica(
@@ -655,97 +550,141 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           unidadeId: primeiro.unidadeEstoqueId,
         ),
       );
+      _chavesIngredientes.insert(0, UniqueKey());
     });
   }
 
-  void _imprimirFichaTecnica() {
-    _salvar(
-      onSuccess: (produto) {
-        FichaTecnicaPdf.imprimir(produto);
-      },
-    );
+  /// Aplica a alteração nas listas de itens e recalcula os custos.
+  void _alterarItens(VoidCallback alteracao) {
+    alteracao();
+    _atualizarCustos();
   }
 
-  Future<void> _salvar({required Function(Produto) onSuccess}) async {
-    if (_formKey.currentState?.saveAndValidate() != true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Revise os campos obrigatórios do produto.'),
-        ),
+  // ---------------------------------------------------------------------------
+  // Cálculo de custos
+  // ---------------------------------------------------------------------------
+
+  void _atualizarCustos() {
+    final custoFicha = _ingredientes.fold<double>(
+      0,
+      (soma, item) => soma + _repo.custoItemFicha(item),
+    );
+    final custoEmbalagem = _embalagens.fold<double>(
+      0,
+      (soma, item) => soma + _repo.custoItemFichaEmbalagem(item),
+    );
+    final horasDePreparo = _lerNumero('tempoPreparoMinutos') / 60;
+
+    _formKey.currentState?.fields['custoMedio']?.didChange(
+      custoFicha.toDecimal(),
+    );
+
+    setState(() {
+      _custos = CalculadoraCustoProduto(
+        rendimentoReceita: _lerNumero('rendimentoReceita').round(),
+        custoFichaTecnica: custoFicha,
+        custoOperacional:
+            _repo.empresa.custoOperacionalPorHora * horasDePreparo,
+        custoUnitarioEmbalagem: custoEmbalagem,
       );
+    });
+  }
+
+  double _lerNumero(String campo) {
+    return _numero(_formKey.currentState?.fields[campo]?.value);
+  }
+
+  /// Converte o valor bruto de um campo (num ou texto pt-BR) em double.
+  static double _numero(dynamic valor) {
+    return switch (valor) {
+      num n => n.toDouble(),
+      String s => s.toDouble() ?? 0.0,
+      _ => 0.0,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ações
+  // ---------------------------------------------------------------------------
+
+  void _imprimirFichaTecnica() {
+    _salvar(onSuccess: FichaTecnicaPdf.imprimir);
+  }
+
+  Future<void> _salvar({required ValueChanged<Produto> onSuccess}) async {
+    final form = _formKey.currentState;
+    if (form == null || !form.saveAndValidate()) {
+      _mostrarMensagem('Revise os campos obrigatórios do produto.');
       return;
     }
+
     try {
-      final valores = _formKey.currentState!.value;
-      final possuiFicha = valores['possuiFichaTecnica'] == true;
-      final unidadeId = valores['unidadeEstoqueId']?.toString() ?? '';
-      if (unidadeId.isEmpty) return;
-      final produto = Produto(
-        id: _produtoOriginal?.id ?? _repo.novoId(),
-        nome: valores['nome']?.toString().trim() ?? '',
-        ativo: valores['ativo'] == true,
-        podeSerVendido: valores['podeSerVendido'] != false,
-        podeSerComprado: valores['podeSerComprado'] != false,
-        isEmbalagem: valores['isEmbalagem'] == false,
-        possuiFichaTecnica: _isEmbalagem ? false : possuiFicha,
-        tempoPreparoMinutos: _isEmbalagem
-            ? 0
-            : _valorNumerico(valores['tempoPreparoMinutos']).round(),
-        custoMedio: _valorNumerico(valores['custoMedio']),
-        saldoEstoque: _valorNumerico(valores['saldoEstoque']),
-        unidadeEstoqueId: _isEmbalagem ? 'un' : unidadeId,
-        unidadeConsumoId: _isEmbalagem ? 'un' : valores['unidadeConsumoId'],
-        rendimentoReceita: _isEmbalagem
-            ? 0
-            : _valorNumerico(valores['rendimentoReceita']).round(),
-        fichaTecnica: _isEmbalagem
-            ? []
-            : possuiFicha
-            ? _ingredientes
-                  .where(
-                    (i) =>
-                        i.produtoIngredienteId.isNotEmpty && i.quantidade > 0,
-                  )
-                  .map((i) => i.copy())
-                  .toList()
-            : [],
-        fichaTecnicaEmbalagem: _embalagens
-            .where((i) => i.produtoEmbalagemId.isNotEmpty)
-            .map((i) => i.copy())
-            .toList(),
-        custoOperacional: _valorNumerico(valores['custoOperacional']),
-      );
+      final produto = _montarProduto(form.value);
       await _repo.salvarProduto(produto);
       onSuccess(produto);
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível salvar o produto: $error')),
-      );
+      _mostrarMensagem('Não foi possível salvar o produto: $error');
     }
   }
 
-  double _valorNumerico(dynamic valor) {
-    if (valor is num) return valor.toDouble();
-    return valor is String ? valor.toDouble() ?? 0 : 0;
+  Produto _montarProduto(Map<String, dynamic> valores) {
+    final possuiFicha = !_isEmbalagem && _possuiFichaTecnica;
+
+    return Produto(
+      id: _produtoOriginal?.id ?? _repo.novoId(),
+      nome: valores['nome']?.toString().trim() ?? '',
+      ativo: valores['ativo'] == true,
+      podeSerVendido: valores['podeSerVendido'] != false,
+      podeSerComprado: valores['podeSerComprado'] != false,
+      isEmbalagem: _isEmbalagem,
+      possuiFichaTecnica: possuiFicha,
+      tempoPreparoMinutos: _isEmbalagem
+          ? 0
+          : _numero(valores['tempoPreparoMinutos']).round(),
+      custoMedio: possuiFicha
+          ? _custos.custoFichaTecnica
+          : _numero(valores['custoMedio']),
+      // Campo somente leitura: preserva o valor real em vez de reparsear o texto.
+      saldoEstoque: _produtoOriginal?.saldoEstoque ?? 0,
+      unidadeEstoqueId: _isEmbalagem
+          ? _unidadeEmbalagem
+          : valores['unidadeEstoqueId'] as String,
+      unidadeConsumoId: _isEmbalagem
+          ? _unidadeEmbalagem
+          : valores['unidadeConsumoId'] as String,
+      rendimentoReceita: _isEmbalagem
+          ? 0
+          : _numero(valores['rendimentoReceita']).round(),
+      fichaTecnica: possuiFicha
+          ? _ingredientes
+                .where(
+                  (i) => i.produtoIngredienteId.isNotEmpty && i.quantidade > 0,
+                )
+                .toList()
+          : [],
+      fichaTecnicaEmbalagem: _embalagens,
+      custoOperacional: _custos.custoOperacional,
+    );
   }
 
   Future<void> _excluirProduto() async {
-    if (_produtoOriginal == null) return;
+    final produto = _produtoOriginal;
+    if (produto == null) return;
+
     final confirmar = await confirmarExclusao(
       context,
       titulo: 'Excluir produto',
       mensagem:
-          'Deseja excluir "${_produtoOriginal!.nome}"? Essa ação não pode ser desfeita.',
+          'Deseja excluir "${produto.nome}"? Essa ação não pode ser desfeita.',
     );
-    if (confirmar) {
-      _repo.excluirProduto(_produtoOriginal!.id);
-      if (mounted) context.pop();
-    }
+    if (!confirmar) return;
+
+    await _repo.excluirProduto(produto.id);
+    if (mounted) context.pop();
   }
 
-  double _calcularCustoEmbalagem() {
-    return _embalagens
-        .where((i) => i.produtoEmbalagemId.isNotEmpty)
-        .fold(0.0, (sum, i) => sum + _repo.custoItemFichaEmbalagem(i));
+  void _mostrarMensagem(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
   }
 }

@@ -335,9 +335,7 @@ class _OperacaoFormScreenState extends State<OperacaoFormScreen> {
     final unidade = produto == null
         ? null
         : _repo.unidadePorId(
-            _compra
-                ? produto.unidadeEstoqueId
-                : (produto.unidadeConsumoId ?? produto.unidadeEstoqueId),
+            _compra ? produto.unidadeEstoqueId : produto.unidadeConsumoId,
           );
     final quantidade = (valores['quantidade_$id'] as double?) ?? 0;
     final valorUnitario = (valores['valor_$id'] as double?) ?? 0;
@@ -471,9 +469,7 @@ class _OperacaoFormScreenState extends State<OperacaoFormScreen> {
       if (!_compra && produtoId != null) {
         final produto = _repo.produtoPorId(produtoId);
         if (produto != null) {
-          final unidade = _repo.unidadePorId(
-            produto.unidadeConsumoId ?? produto.unidadeEstoqueId,
-          );
+          final unidade = _repo.unidadePorId(produto.unidadeConsumoId);
           totalCusto +=
               _repo.custoPorUnidadeBase(produto) *
               unidade.fatorParaBase *
@@ -545,9 +541,7 @@ class _OperacaoFormScreenState extends State<OperacaoFormScreen> {
       final produto = _repo.produtoPorId(produtoId);
       final unidadeId = produto == null
           ? ''
-          : (_compra
-                ? produto.unidadeEstoqueId
-                : (produto.unidadeConsumoId ?? produto.unidadeEstoqueId));
+          : (_compra ? produto.unidadeEstoqueId : produto.unidadeConsumoId);
       return ItemOperacao(
         produtoId: produtoId,
         quantidade: valores['quantidade_$id'] as double,

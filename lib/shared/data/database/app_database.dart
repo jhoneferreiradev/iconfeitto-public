@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -39,25 +39,7 @@ class AppDatabase {
     ''');
 
     // Produtos
-    await db.execute('''
-      CREATE TABLE produtos (
-        id TEXT PRIMARY KEY,
-        nome TEXT NOT NULL,
-        ativo INTEGER NOT NULL,
-        custoMedio REAL NOT NULL,
-        saldoEstoque REAL NOT NULL,
-        podeSerVendido INTEGER NOT NULL,
-        podeSerComprado INTEGER NOT NULL,
-        possuiFichaTecnica INTEGER NOT NULL,
-        tempoPreparoMinutos INTEGER NOT NULL,
-        rendimentoReceita INTEGER NOT NULL,
-        custoOperacional REAL NOT NULL,
-        unidadeEstoqueId TEXT NOT NULL,
-        unidadeConsumoId TEXT,
-        FOREIGN KEY (unidadeEstoqueId) REFERENCES unidades_medida(id),
-        FOREIGN KEY (unidadeConsumoId) REFERENCES unidades_medida(id)
-      )
-    ''');
+    await _createProdutosTable(db);
 
     // Ficha técnica (bill of materials)
     await db.execute('''
@@ -197,6 +179,33 @@ class AppDatabase {
     ''');
 
     await _createCustosOperacionaisTable(db);
+    await _createFichaTecnicaEmbalagem(db);
+  }
+
+  /// Schema atual da tabela de produtos (v5+). [nome] permite criar uma
+  /// tabela temporária durante a migração.
+  Future<void> _createProdutosTable(Database db, {String nome = 'produtos'}) {
+    return db.execute('''
+      CREATE TABLE $nome (
+        id TEXT PRIMARY KEY,
+        nome TEXT NOT NULL,
+        ativo INTEGER NOT NULL,
+        custoMedio REAL NOT NULL,
+        saldoEstoque REAL NOT NULL,
+        podeSerVendido INTEGER NOT NULL,
+        podeSerComprado INTEGER NOT NULL,
+        possuiFichaTecnica INTEGER NOT NULL,
+        tempoPreparoMinutos INTEGER NOT NULL,
+        rendimentoReceita INTEGER NOT NULL,
+        custoOperacional REAL NOT NULL,
+        unidadeEstoqueId TEXT NOT NULL,
+        unidadeConsumoId TEXT NOT NULL,
+        isEmbalagem INTEGER NOT NULL DEFAULT 0,
+        custoEmbalagem REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY (unidadeEstoqueId) REFERENCES unidades_medida(id),
+        FOREIGN KEY (unidadeConsumoId) REFERENCES unidades_medida(id)
+      )
+    ''');
   }
 
   Future<void> _createCustosOperacionaisTable(Database db) async {
@@ -249,6 +258,40 @@ class AppDatabase {
     if (oldVersion < 4) {
       await _addDadosEmbalagemColumnInProdutosTable(db);
     }
+
+    if (oldVersion < 5) {
+      await _tornarUnidadeConsumoObrigatoria(db);
+    }
+  }
+
+  /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.
+  ///
+  /// O SQLite não altera a nulidade de uma coluna existente, então a tabela é
+  /// recriada. Produtos sem unidade de consumo (antes "usar estoque") passam a
+  /// usar a própria unidade de estoque.
+  Future<void> _tornarUnidadeConsumoObrigatoria(Database db) async {
+    const tabelaTemporaria = 'produtos_v5';
+    await db.execute('DROP TABLE IF EXISTS $tabelaTemporaria');
+    await _createProdutosTable(db, nome: tabelaTemporaria);
+
+    await db.execute('''
+      INSERT INTO $tabelaTemporaria (
+        id, nome, ativo, custoMedio, saldoEstoque, podeSerVendido,
+        podeSerComprado, possuiFichaTecnica, tempoPreparoMinutos,
+        rendimentoReceita, custoOperacional, unidadeEstoqueId,
+        unidadeConsumoId, isEmbalagem, custoEmbalagem
+      )
+      SELECT
+        id, nome, ativo, custoMedio, saldoEstoque, podeSerVendido,
+        podeSerComprado, possuiFichaTecnica, tempoPreparoMinutos,
+        rendimentoReceita, custoOperacional, unidadeEstoqueId,
+        COALESCE(NULLIF(unidadeConsumoId, ''), unidadeEstoqueId),
+        isEmbalagem, custoEmbalagem
+      FROM produtos
+    ''');
+
+    await db.execute('DROP TABLE produtos');
+    await db.execute('ALTER TABLE $tabelaTemporaria RENAME TO produtos');
   }
 
   Future<void> close() async {
