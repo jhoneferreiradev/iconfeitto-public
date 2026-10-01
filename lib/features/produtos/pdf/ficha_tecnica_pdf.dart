@@ -440,9 +440,9 @@ class FichaTecnicaPdf {
               indice: 1,
             ),
             _linhaCusto(
-              'Embalagem',
-              'Soma das embalagens do produto',
-              custos.custoUnitarioEmbalagem,
+              'Embalagem total',
+              'Soma das embalagens do produto rendido',
+              custos.custoTotalEmbalagem,
               indice: 2,
             ),
             _linhaCusto(

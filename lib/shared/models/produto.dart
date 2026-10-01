@@ -18,6 +18,7 @@ class Produto {
   String unidadeConsumoId;
   List<ItemFichaTecnica> fichaTecnica;
   List<ItemFichaTecnicaEmbalagem> fichaTecnicaEmbalagem;
+  double precoVenda;
 
   Produto({
     required this.id,
@@ -36,6 +37,7 @@ class Produto {
     required this.unidadeConsumoId,
     required this.fichaTecnica,
     required this.fichaTecnicaEmbalagem,
+    this.precoVenda = 0,
   });
 }
 

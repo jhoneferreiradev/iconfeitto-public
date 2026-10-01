@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -262,6 +262,10 @@ class AppDatabase {
     if (oldVersion < 5) {
       await _tornarUnidadeConsumoObrigatoria(db);
     }
+
+    if (oldVersion < 6) {
+      await _addPrecoVendaNoProduto(db);
+    }
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.
@@ -292,6 +296,13 @@ class AppDatabase {
 
     await db.execute('DROP TABLE produtos');
     await db.execute('ALTER TABLE $tabelaTemporaria RENAME TO produtos');
+  }
+
+  Future<void> _addPrecoVendaNoProduto(Database db) async {
+    await db.execute('''
+      ALTER TABLE produtos
+      ADD COLUMN precoVenda REAL NOT NULL DEFAULT 0
+    ''');
   }
 
   Future<void> close() async {
