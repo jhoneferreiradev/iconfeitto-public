@@ -66,3 +66,49 @@ class CalculadoraCustoProduto {
 
   double get custoTotalEmbalagem => custoUnitarioEmbalagem * rendimentoReceita;
 }
+
+class CalculadoraPrecoVendaProduto {
+  final CalculadoraCustoProduto custos;
+  final double margemLucro;
+
+  CalculadoraPrecoVendaProduto({
+    required this.custos,
+    required this.margemLucro,
+  });
+
+  double get lucroReal => (custos.custoRendimentoUnitario == 0 || margemLucro == 0)
+      ? 0
+      : precoVenda - custos.custoRendimentoUnitario;
+
+  double get precoVenda =>
+      (custos.custoRendimentoUnitario == 0 || margemLucro == 0)
+      ? 0
+      : custos.custoRendimentoUnitario +
+            (custos.custoRendimentoUnitario * (margemLucro / 100));
+
+  factory CalculadoraPrecoVendaProduto.calcularMargemLucro({
+    required CalculadoraCustoProduto custos,
+    required double precoVenda,
+  }) {
+    final lucro =
+        (precoVenda == 0 || custos.custoRendimentoUnitario == 0)
+        ? 0.0
+        : precoVenda - custos.custoRendimentoUnitario;
+
+    final novaMargemLucro = lucro == 0
+        ? 0.0
+        : (lucro / custos.custoRendimentoUnitario) * 100;
+
+    return CalculadoraPrecoVendaProduto(
+      custos: custos,
+      margemLucro: novaMargemLucro,
+    );
+  }
+
+  CalculadoraPrecoVendaProduto recalcular({double? margemLucro}) {
+    return CalculadoraPrecoVendaProduto(
+      custos: custos,
+      margemLucro: margemLucro ?? this.margemLucro,
+    );
+  }
+}

@@ -51,9 +51,12 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   late bool _possuiFichaTecnica;
   late bool _isEmbalagem;
   late bool _podeSerVendido;
+  late bool _calcularPrecoVendaUsandoMargemLucro = false;
+  late double _margemLucro = 0;
 
   /// Fonte única dos valores de custo exibidos e salvos.
   late CalculadoraCustoProduto _custos;
+  late CalculadoraPrecoVendaProduto _calculadoraPrecoVenda;
 
   bool get _isEdicao => widget.produtoId != null;
 
@@ -96,6 +99,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       ),
     );
 
+    _calculadoraPrecoVenda = CalculadoraPrecoVendaProduto.calcularMargemLucro(
+      custos: _custos,
+      precoVenda: _produtoOriginal?.precoVenda ?? 0,
+    );
+
     _dadosIniciais = _montarDadosIniciais(original);
   }
 
@@ -118,6 +126,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           .replaceAll('.', ','),
       'unidadeEstoqueId': p?.unidadeEstoqueId,
       'unidadeConsumoId': p?.unidadeConsumoId,
+      'calcularPrecoVendaUsandoMargemLucro': false,
+      'precoVenda': (p?.precoVenda ?? 0.0).toDecimal(),
+      'margemLucro': _calculadoraPrecoVenda.margemLucro.toDecimal(),
     };
   }
 
@@ -157,6 +168,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           padding: AppSpacing.screenPadding,
           children: [
             _buildDadosDoProduto(),
+            if (_podeSerVendido) _buildPrecoVenda(),
             if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
             if (_possuiFichaTecnica && !_isEmbalagem) ...[
               _buildRendimentoPreparo(),
@@ -375,7 +387,6 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       final linha = buildLinha(i);
       if (linha != null) linhas.add(linha);
     }
-    linhas.add(const Divider());
     return Column(spacing: AppSpacing.md, children: linhas);
   }
 
@@ -422,6 +433,78 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       icon: Icons.attach_money,
       suffixText: 'R\$',
       min: 0,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preço de venda
+  // ---------------------------------------------------------------------------
+  Widget _buildPrecoVenda() {
+    return SectionCard(
+      title: "Preço de venda",
+      child: Column(
+        spacing: AppSpacing.sm,
+        children: [
+          _buildSwitch(
+            'calcularPrecoVendaUsandoMargemLucro',
+            'Calcular usando margem de lucro',
+            onChanged: (value) => setState(
+              () => _calcularPrecoVendaUsandoMargemLucro = value ?? false,
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: AppSpacing.md,
+            children: [
+              Expanded(
+                child: AppNumberField(
+                  name: 'precoVenda',
+                  label: _calcularPrecoVendaUsandoMargemLucro
+                      ? 'Margem de lucro (%)'
+                      : 'Preço (R\$)',
+                  icon: Icons.attach_money,
+                  suffixText: 'R\$',
+                  min: 0,
+                  onChanged: _onPrecoVendaChanged,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _calcularPrecoVendaUsandoMargemLucro
+                          ? 'Preço (R\$)'
+                          : 'Margem de lucro (%)',
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Text(
+                      _calcularPrecoVendaUsandoMargemLucro
+                          ? _calculadoraPrecoVenda.precoVenda.toCurrency()
+                          : _calculadoraPrecoVenda.margemLucro.toPercentage(),
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Row(
+            spacing: AppSpacing.md,
+            children: [
+              Expanded(
+                child: Text(
+                  'Lucro: ${_calculadoraPrecoVenda.lucroReal.toCurrency()}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.end,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -693,5 +776,23 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   void _mostrarMensagem(String texto) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+  }
+
+  void _onPrecoVendaChanged(String? value) {
+    setState(() {
+      double valor = _numero(value);
+
+      if (_calcularPrecoVendaUsandoMargemLucro) {
+        _calculadoraPrecoVenda = _calculadoraPrecoVenda.recalcular(
+          margemLucro: valor,
+        );
+      } else {
+        _calculadoraPrecoVenda =
+            CalculadoraPrecoVendaProduto.calcularMargemLucro(
+              custos: _calculadoraPrecoVenda.custos,
+              precoVenda: valor,
+            );
+      }
+    });
   }
 }

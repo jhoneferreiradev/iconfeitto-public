@@ -17,6 +17,7 @@ extension DoubleFormatters on double {
   String toCurrency() => _moedaFormatter.format(this);
 
   String toDecimal() => _decimalFormatter.format(this);
+  String toPercentage() => this == 0 ? '0%' : '${toDecimal()}%';
 }
 
 extension StringNumberParser on String {

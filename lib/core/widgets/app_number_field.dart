@@ -83,7 +83,7 @@ class AppNumberField extends StatelessWidget {
   final bool required;
   final double? min;
   final bool readOnly;
-  final Function(String?)? onChanged;
+  final void Function(String?)? onChanged;
 
   const AppNumberField({
     super.key,
