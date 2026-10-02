@@ -262,6 +262,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         _modoUnitario[_proximoId] = true;
         _proximoId++;
       }
+      // instantValue só fica disponível após o primeiro frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
     }
   }
 
@@ -364,10 +368,15 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         : unidadeConsumo.id;
   }
 
-  String _comoTexto(double valor) => valor
-      .toStringAsFixed(8)
-      .replaceFirst(RegExp(r'0+$'), '')
-      .replaceFirst(RegExp(r'\.$'), '');
+  String _comoTexto(double valor) {
+    final partes = valor.toStringAsFixed(8).split('.');
+    final decimais = partes[1].replaceFirst(RegExp(r'0+$'), '');
+    final inteiro = partes[0].replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
+    return decimais.isEmpty ? inteiro : '$inteiro,$decimais';
+  }
 
   Widget _buildFornecedorField() {
     final fornecedores = _repo.fornecedores.where((f) => f.ativo).toList()
@@ -496,9 +505,14 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                     ? 'valor_unitario_$id'
                     : 'valor_total_$id'],
               );
-              final novoValor = novoModoUnitario
-                  ? (quantidade > 0 ? valorAtual / quantidade : 0.0)
-                  : valorAtual * quantidade;
+              final novoValor =
+                  (quantidade <= 0
+                          ? 0
+                          : novoModoUnitario
+                          ? (valorAtual / quantidade * 100).truncate() / 100
+                          : valorAtual * quantidade)
+                      .toDouble();
+
               formulario
                   ?.fields[novoModoUnitario
                       ? 'valor_unitario_$id'
