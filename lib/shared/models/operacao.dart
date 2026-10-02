@@ -72,6 +72,7 @@ enum TipoMovimentoEstoque { compra, venda, consumoFabricacao, producao, ajuste }
 
 class MovimentoEstoque {
   final String id;
+  final String? operacaoId;
   final DateTime data;
   final String produtoId;
   final TipoMovimentoEstoque tipo;
@@ -81,6 +82,7 @@ class MovimentoEstoque {
 
   const MovimentoEstoque({
     required this.id,
+    this.operacaoId,
     required this.data,
     required this.produtoId,
     required this.tipo,

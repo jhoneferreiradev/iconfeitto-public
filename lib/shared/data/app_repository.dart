@@ -242,6 +242,7 @@ class AppRepository extends ChangeNotifier {
       movimentacoes.add(
         MovimentoEstoque(
           id: row['id'] as String,
+          operacaoId: row['operacaoId'] as String?,
           data: DateTime.parse(row['data'] as String),
           produtoId: row['produtoId'] as String,
           tipo: _tipoMovimentoFromString(row['tipo'] as String),
@@ -557,40 +558,186 @@ class AppRepository extends ChangeNotifier {
   }
 
   Future<void> salvarCompra(Compra compra) async {
+    final movimentosNovos = _criarMovimentosCompra(compra);
+    await _db.transaction(
+      (transaction) => _inserirCompra(transaction, compra, movimentosNovos),
+    );
     compras.add(compra);
+    movimentacoes.addAll(movimentosNovos);
+    recalcularEstoque(
+      produtosSemMovimentacoes: movimentosNovos
+          .map((movimento) => movimento.produtoId)
+          .toSet(),
+    );
+    await _persistirProdutos();
+    notifyListeners();
+  }
 
-    await _db.insert('compras', {
+  Future<void> atualizarCompra(Compra compra) async {
+    final indice = compras.indexWhere((existente) => existente.id == compra.id);
+    if (indice < 0) {
+      throw StateError('A compra que você tentou editar não foi encontrada.');
+    }
+
+    final movimentosAntigos = _movimentosDaCompra(compras[indice]);
+    final movimentosNovos = _criarMovimentosCompra(compra);
+    await _db.transaction((transaction) async {
+      for (final movimento in movimentosAntigos) {
+        await transaction.delete(
+          'movimentos_estoque',
+          where: 'id = ?',
+          whereArgs: [movimento.id],
+        );
+      }
+      await transaction.delete(
+        'itens_compra',
+        where: 'compraId = ?',
+        whereArgs: [compra.id],
+      );
+      await transaction.delete(
+        'compras',
+        where: 'id = ?',
+        whereArgs: [compra.id],
+      );
+      await _inserirCompra(transaction, compra, movimentosNovos);
+    });
+
+    final idsRemovidos = movimentosAntigos
+        .map((movimento) => movimento.id)
+        .toSet();
+    movimentacoes.removeWhere(
+      (movimento) => idsRemovidos.contains(movimento.id),
+    );
+    movimentacoes.addAll(movimentosNovos);
+    compras[indice] = compra;
+    recalcularEstoque(
+      produtosSemMovimentacoes: {
+        ...movimentosAntigos.map((movimento) => movimento.produtoId),
+        ...movimentosNovos.map((movimento) => movimento.produtoId),
+      },
+    );
+    await _persistirProdutos();
+    notifyListeners();
+  }
+
+  Future<void> excluirCompra(String compraId) async {
+    final indice = compras.indexWhere((compra) => compra.id == compraId);
+    if (indice < 0) return;
+
+    final compra = compras[indice];
+    final movimentosDaCompra = _movimentosDaCompra(compra);
+    await _db.transaction((transaction) async {
+      for (final movimento in movimentosDaCompra) {
+        await transaction.delete(
+          'movimentos_estoque',
+          where: 'id = ?',
+          whereArgs: [movimento.id],
+        );
+      }
+      await transaction.delete(
+        'itens_compra',
+        where: 'compraId = ?',
+        whereArgs: [compraId],
+      );
+      await transaction.delete(
+        'compras',
+        where: 'id = ?',
+        whereArgs: [compraId],
+      );
+    });
+
+    final idsRemovidos = movimentosDaCompra
+        .map((movimento) => movimento.id)
+        .toSet();
+    movimentacoes.removeWhere(
+      (movimento) => idsRemovidos.contains(movimento.id),
+    );
+    compras.removeAt(indice);
+    recalcularEstoque(
+      produtosSemMovimentacoes: movimentosDaCompra
+          .map((movimento) => movimento.produtoId)
+          .toSet(),
+    );
+    await _persistirProdutos();
+    notifyListeners();
+  }
+
+  Future<void> _inserirCompra(
+    DatabaseExecutor database,
+    Compra compra,
+    List<MovimentoEstoque> movimentos,
+  ) async {
+    await database.insert('compras', {
       'id': compra.id,
       'data': compra.data.toIso8601String(),
       'fornecedorId': compra.fornecedorId,
     });
-
     for (final item in compra.itens) {
-      await _db.insert('itens_compra', {
+      await database.insert('itens_compra', {
         'compraId': compra.id,
         'produtoId': item.produtoId,
         'quantidade': item.quantidade,
         'valorUnitario': item.valorUnitario,
         'unidadeId': item.unidadeId,
       });
+    }
+    for (final movimento in movimentos) {
+      await database.insert('movimentos_estoque', _movimentoToRow(movimento));
+    }
+  }
 
-      movimentacoes.add(
-        MovimentoEstoque(
-          id: novoId(),
-          data: compra.data,
-          produtoId: item.produtoId,
-          tipo: TipoMovimentoEstoque.compra,
-          quantidade: item.quantidade,
-          valorUnitario: item.valorUnitario,
-          unidadeId: item.unidadeId,
-        ),
-      );
+  List<MovimentoEstoque> _criarMovimentosCompra(Compra compra) => [
+    for (final item in compra.itens)
+      MovimentoEstoque(
+        id: novoId(),
+        operacaoId: compra.id,
+        data: compra.data,
+        produtoId: item.produtoId,
+        tipo: TipoMovimentoEstoque.compra,
+        quantidade: item.quantidade,
+        valorUnitario: item.valorUnitario,
+        unidadeId: item.unidadeId,
+      ),
+  ];
+
+  List<MovimentoEstoque> _movimentosDaCompra(Compra compra) {
+    final vinculados = movimentacoes
+        .where(
+          (movimento) =>
+              movimento.operacaoId == compra.id &&
+              movimento.tipo == TipoMovimentoEstoque.compra,
+        )
+        .toList();
+    if (vinculados.isNotEmpty) {
+      if (vinculados.length != compra.itens.length) {
+        throw StateError(
+          'Não foi possível localizar todas as movimentações da compra.',
+        );
+      }
+      return vinculados;
     }
 
-    await _persistirMovimentos();
-    recalcularEstoque();
-    await _persistirProdutos();
-    notifyListeners();
+    final candidatos = movimentacoes
+        .where((movimento) => movimento.tipo == TipoMovimentoEstoque.compra)
+        .toList();
+    final correspondentes = <MovimentoEstoque>[];
+    for (final item in compra.itens) {
+      final indice = candidatos.indexWhere(
+        (movimento) =>
+            movimento.produtoId == item.produtoId &&
+            movimento.data == compra.data &&
+            movimento.quantidade == item.quantidade &&
+            movimento.valorUnitario == item.valorUnitario &&
+            movimento.unidadeId == item.unidadeId,
+      );
+      if (indice >= 0) correspondentes.add(candidatos.removeAt(indice));
+    }
+    if (correspondentes.length != compra.itens.length) {
+      throw StateError(
+        'Não foi possível localizar todas as movimentações da compra.',
+      );
+    }
+    return correspondentes;
   }
 
   Future<void> salvarVenda(Venda venda) async {
@@ -614,6 +761,7 @@ class AppRepository extends ChangeNotifier {
       movimentacoes.add(
         MovimentoEstoque(
           id: novoId(),
+          operacaoId: venda.id,
           data: venda.data,
           produtoId: item.produtoId,
           tipo: TipoMovimentoEstoque.venda,
@@ -755,16 +903,30 @@ class AppRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void recalcularEstoque() {
-    final comMovimento = movimentacoes.map((m) => m.produtoId).toSet();
-    for (final produto in produtos.where((p) => comMovimento.contains(p.id))) {
+  void recalcularEstoque({Set<String> produtosSemMovimentacoes = const {}}) {
+    final produtosComMovimento = movimentacoes
+        .map((movimento) => movimento.produtoId)
+        .toSet();
+    for (final produto in produtos) {
+      if (!produtosComMovimento.contains(produto.id) &&
+          !produtosSemMovimentacoes.contains(produto.id)) {
+        continue;
+      }
       var saldo = 0.0;
-      var custo = produto.custoMedio;
+      var custo = 0.0;
       var valorEstoque = 0.0;
 
-      for (final movimento in movimentacoes.where(
-        (m) => m.produtoId == produto.id,
-      )) {
+      final movimentosProduto =
+          movimentacoes
+              .where((movimento) => movimento.produtoId == produto.id)
+              .toList()
+            ..sort((a, b) {
+              final dataComparacao = a.data.compareTo(b.data);
+              return dataComparacao != 0
+                  ? dataComparacao
+                  : a.id.compareTo(b.id);
+            });
+      for (final movimento in movimentosProduto) {
         final unidadeMovimento = unidadePorId(movimento.unidadeId);
         final unidadeProduto = unidadePorId(produto.unidadeEstoqueId);
         final quantidade =
@@ -779,7 +941,7 @@ class AppRepository extends ChangeNotifier {
         if (movimento.tipo == TipoMovimentoEstoque.ajuste) {
           saldo += quantidade;
           valorEstoque += quantidade * valorUnitario;
-          custo = movimento.valorUnitario;
+          custo = valorUnitario;
         } else if (movimento.tipo == TipoMovimentoEstoque.compra ||
             movimento.tipo == TipoMovimentoEstoque.producao) {
           valorEstoque += quantidade * valorUnitario;
@@ -857,21 +1019,24 @@ class AppRepository extends ChangeNotifier {
 
   Future<void> _persistirMovimentos() async {
     for (final movimento in movimentacoes) {
-      try {
-        await _db.insert('movimentos_estoque', {
-          'id': movimento.id,
-          'data': movimento.data.toIso8601String(),
-          'produtoId': movimento.produtoId,
-          'tipo': movimento.tipo.toString(),
-          'quantidade': movimento.quantidade,
-          'valorUnitario': movimento.valorUnitario,
-          'unidadeId': movimento.unidadeId,
-        });
-      } catch (_) {
-        // Ignore duplicate inserts
-      }
+      await _db.insert(
+        'movimentos_estoque',
+        _movimentoToRow(movimento),
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
   }
+
+  Map<String, dynamic> _movimentoToRow(MovimentoEstoque movimento) => {
+    'id': movimento.id,
+    'operacaoId': movimento.operacaoId,
+    'data': movimento.data.toIso8601String(),
+    'produtoId': movimento.produtoId,
+    'tipo': movimento.tipo.toString(),
+    'quantidade': movimento.quantidade,
+    'valorUnitario': movimento.valorUnitario,
+    'unidadeId': movimento.unidadeId,
+  };
 
   Map<String, dynamic> _produtoToRow(Produto produto) => {
     'id': produto.id,

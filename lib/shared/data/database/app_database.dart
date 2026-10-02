@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -152,6 +152,7 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE movimentos_estoque (
         id TEXT PRIMARY KEY,
+        operacaoId TEXT,
         data TEXT NOT NULL,
         produtoId TEXT NOT NULL,
         tipo TEXT NOT NULL,
@@ -266,6 +267,12 @@ class AppDatabase {
 
     if (oldVersion < 6) {
       await _addPrecoVendaNoProduto(db);
+    }
+
+    if (oldVersion < 7) {
+      await db.execute(
+        'ALTER TABLE movimentos_estoque ADD COLUMN operacaoId TEXT',
+      );
     }
   }
 

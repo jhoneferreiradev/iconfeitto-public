@@ -10,7 +10,8 @@ import '../../features/empresa/screens/empresa_form_screen.dart';
 import '../../features/estoque/screens/estoque_screen.dart';
 import '../../features/fornecedores/screens/fornecedor_form_screen.dart';
 import '../../features/fornecedores/screens/fornecedor_list_screen.dart';
-import '../../features/operacoes/screens/operacao_screens.dart';
+import '../../features/operacoes/screens/compra_screens.dart';
+import '../../features/operacoes/screens/venda_screens.dart';
 import '../../features/produtos/screens/produto_form_screen.dart';
 import '../../features/produtos/screens/produto_list_screen.dart';
 import '../../features/unidades/screens/unidade_form_screen.dart';
@@ -86,23 +87,24 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/compras',
-      builder: (context, state) =>
-          const OperacaoListScreen(tipo: OperacaoTipo.compra()),
+      builder: (context, state) => const CompraListScreen(),
     ),
     GoRoute(
       path: '/compras/nova',
+      builder: (context, state) => const CompraFormScreen(),
+    ),
+    GoRoute(
+      path: '/compras/:id/editar',
       builder: (context, state) =>
-          const OperacaoFormScreen(tipo: OperacaoTipo.compra()),
+          CompraFormScreen(compraId: state.pathParameters['id']),
     ),
     GoRoute(
       path: '/vendas',
-      builder: (context, state) =>
-          const OperacaoListScreen(tipo: OperacaoTipo.venda()),
+      builder: (context, state) => const VendaListScreen(),
     ),
     GoRoute(
       path: '/vendas/nova',
-      builder: (context, state) =>
-          const OperacaoFormScreen(tipo: OperacaoTipo.venda()),
+      builder: (context, state) => const VendaFormScreen(),
     ),
     GoRoute(
       path: '/cozinha',
