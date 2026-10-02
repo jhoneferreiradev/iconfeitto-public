@@ -559,6 +559,10 @@ class AppRepository extends ChangeNotifier {
 
   Future<void> salvarCompra(Compra compra) async {
     final movimentosNovos = _criarMovimentosCompra(compra);
+    final saldosIniciais = _capturarSaldosIniciais(
+      movimentosNovos.map((movimento) => movimento.produtoId),
+    );
+    _validarSaldoEstoque(movimentosNovos);
     await _db.transaction(
       (transaction) => _inserirCompra(transaction, compra, movimentosNovos),
     );
@@ -568,6 +572,7 @@ class AppRepository extends ChangeNotifier {
       produtosSemMovimentacoes: movimentosNovos
           .map((movimento) => movimento.produtoId)
           .toSet(),
+      saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
     notifyListeners();
@@ -581,6 +586,14 @@ class AppRepository extends ChangeNotifier {
 
     final movimentosAntigos = _movimentosDaCompra(compras[indice]);
     final movimentosNovos = _criarMovimentosCompra(compra);
+    final idsAntigos = movimentosAntigos
+        .map((movimento) => movimento.id)
+        .toSet();
+    final saldosIniciais = _capturarSaldosIniciais({
+      ...movimentosAntigos.map((movimento) => movimento.produtoId),
+      ...movimentosNovos.map((movimento) => movimento.produtoId),
+    });
+    _validarSaldoEstoque(movimentosNovos, removerIds: idsAntigos);
     await _db.transaction((transaction) async {
       for (final movimento in movimentosAntigos) {
         await transaction.delete(
@@ -602,11 +615,8 @@ class AppRepository extends ChangeNotifier {
       await _inserirCompra(transaction, compra, movimentosNovos);
     });
 
-    final idsRemovidos = movimentosAntigos
-        .map((movimento) => movimento.id)
-        .toSet();
     movimentacoes.removeWhere(
-      (movimento) => idsRemovidos.contains(movimento.id),
+      (movimento) => idsAntigos.contains(movimento.id),
     );
     movimentacoes.addAll(movimentosNovos);
     compras[indice] = compra;
@@ -615,6 +625,7 @@ class AppRepository extends ChangeNotifier {
         ...movimentosAntigos.map((movimento) => movimento.produtoId),
         ...movimentosNovos.map((movimento) => movimento.produtoId),
       },
+      saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
     notifyListeners();
@@ -626,6 +637,13 @@ class AppRepository extends ChangeNotifier {
 
     final compra = compras[indice];
     final movimentosDaCompra = _movimentosDaCompra(compra);
+    final idsRemovidos = movimentosDaCompra
+        .map((movimento) => movimento.id)
+        .toSet();
+    final saldosIniciais = _capturarSaldosIniciais(
+      movimentosDaCompra.map((movimento) => movimento.produtoId),
+    );
+    _validarSaldoEstoque(const [], removerIds: idsRemovidos);
     await _db.transaction((transaction) async {
       for (final movimento in movimentosDaCompra) {
         await transaction.delete(
@@ -646,9 +664,6 @@ class AppRepository extends ChangeNotifier {
       );
     });
 
-    final idsRemovidos = movimentosDaCompra
-        .map((movimento) => movimento.id)
-        .toSet();
     movimentacoes.removeWhere(
       (movimento) => idsRemovidos.contains(movimento.id),
     );
@@ -657,6 +672,7 @@ class AppRepository extends ChangeNotifier {
       produtosSemMovimentacoes: movimentosDaCompra
           .map((movimento) => movimento.produtoId)
           .toSet(),
+      saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
     notifyListeners();
@@ -741,24 +757,9 @@ class AppRepository extends ChangeNotifier {
   }
 
   Future<void> salvarVenda(Venda venda) async {
-    vendas.add(venda);
-
-    await _db.insert('vendas', {
-      'id': venda.id,
-      'data': venda.data.toIso8601String(),
-      'clienteId': venda.clienteId,
-    });
-
+    final movimentosNovos = <MovimentoEstoque>[];
     for (final item in venda.itens) {
-      await _db.insert('itens_venda', {
-        'vendaId': venda.id,
-        'produtoId': item.produtoId,
-        'quantidade': item.quantidade,
-        'valorUnitario': item.valorUnitario,
-        'unidadeId': item.unidadeId,
-      });
-
-      movimentacoes.add(
+      movimentosNovos.add(
         MovimentoEstoque(
           id: novoId(),
           operacaoId: venda.id,
@@ -772,36 +773,49 @@ class AppRepository extends ChangeNotifier {
       );
     }
 
-    await _persistirMovimentos();
-    recalcularEstoque();
+    final saldosIniciais = _capturarSaldosIniciais(
+      movimentosNovos.map((movimento) => movimento.produtoId),
+    );
+    _validarSaldoEstoque(movimentosNovos);
+    await _db.transaction((transaction) async {
+      await transaction.insert('vendas', {
+        'id': venda.id,
+        'data': venda.data.toIso8601String(),
+        'clienteId': venda.clienteId,
+      });
+      for (final item in venda.itens) {
+        await transaction.insert('itens_venda', {
+          'vendaId': venda.id,
+          'produtoId': item.produtoId,
+          'quantidade': item.quantidade,
+          'valorUnitario': item.valorUnitario,
+          'unidadeId': item.unidadeId,
+        });
+      }
+      for (final movimento in movimentosNovos) {
+        await transaction.insert(
+          'movimentos_estoque',
+          _movimentoToRow(movimento),
+        );
+      }
+    });
+    vendas.add(venda);
+    movimentacoes.addAll(movimentosNovos);
+    recalcularEstoque(saldosIniciais: saldosIniciais);
     await _persistirProdutos();
     notifyListeners();
   }
 
   Future<void> salvarFabricacao(Fabricacao fabricacao) async {
-    fabricacoes.add(fabricacao);
-
-    await _db.insert('fabricacoes', {
-      'id': fabricacao.id,
-      'data': fabricacao.data.toIso8601String(),
-      'produtoId': fabricacao.produtoId,
-      'quantidade': fabricacao.quantidade,
-    });
-
+    final movimentosNovos = <MovimentoEstoque>[];
     var custoTotal = 0.0;
     for (final item in fabricacao.fichaTecnica) {
       final custo = custoItemFicha(item);
       custoTotal += custo * fabricacao.quantidade;
 
-      await _db.insert('itens_fabricacao_registro', {
-        'fabricacaoId': fabricacao.id,
-        'produtoIngredienteId': item.produtoIngredienteId,
-        'quantidade': item.quantidade,
-        'unidadeId': item.unidadeId,
-      });
-
-      movimentacoes.add(
+      movimentosNovos.add(
         MovimentoEstoque(
+          operacaoId: fabricacao.id,
           id: novoId(),
           data: fabricacao.data,
           produtoId: item.produtoIngredienteId,
@@ -814,9 +828,12 @@ class AppRepository extends ChangeNotifier {
     }
 
     final produto = produtoPorId(fabricacao.produtoId);
-    final unidadeId = produto?.unidadeEstoqueId ?? '';
-    movimentacoes.add(
+    if (produto == null) {
+      throw StateError('O produto fabricado não foi encontrado.');
+    }
+    movimentosNovos.add(
       MovimentoEstoque(
+        operacaoId: fabricacao.id,
         id: novoId(),
         data: fabricacao.data,
         produtoId: fabricacao.produtoId,
@@ -825,12 +842,39 @@ class AppRepository extends ChangeNotifier {
         valorUnitario: fabricacao.quantidade == 0
             ? 0
             : custoTotal / fabricacao.quantidade,
-        unidadeId: unidadeId,
+        unidadeId: produto.unidadeEstoqueId,
       ),
     );
 
-    await _persistirMovimentos();
-    recalcularEstoque();
+    final saldosIniciais = _capturarSaldosIniciais(
+      movimentosNovos.map((movimento) => movimento.produtoId),
+    );
+    _validarSaldoEstoque(movimentosNovos);
+    await _db.transaction((transaction) async {
+      await transaction.insert('fabricacoes', {
+        'id': fabricacao.id,
+        'data': fabricacao.data.toIso8601String(),
+        'produtoId': fabricacao.produtoId,
+        'quantidade': fabricacao.quantidade,
+      });
+      for (final item in fabricacao.fichaTecnica) {
+        await transaction.insert('itens_fabricacao_registro', {
+          'fabricacaoId': fabricacao.id,
+          'produtoIngredienteId': item.produtoIngredienteId,
+          'quantidade': item.quantidade,
+          'unidadeId': item.unidadeId,
+        });
+      }
+      for (final movimento in movimentosNovos) {
+        await transaction.insert(
+          'movimentos_estoque',
+          _movimentoToRow(movimento),
+        );
+      }
+    });
+    fabricacoes.add(fabricacao);
+    movimentacoes.addAll(movimentosNovos);
+    recalcularEstoque(saldosIniciais: saldosIniciais);
     await _persistirProdutos();
     notifyListeners();
   }
@@ -843,20 +887,21 @@ class AppRepository extends ChangeNotifier {
     final produto = produtoPorId(produtoId);
     if (produto == null) return;
 
-    movimentacoes.add(
-      MovimentoEstoque(
-        id: novoId(),
-        data: DateTime.now(),
-        produtoId: produtoId,
-        tipo: TipoMovimentoEstoque.ajuste,
-        quantidade: novoSaldo - produto.saldoEstoque,
-        valorUnitario: novoCusto,
-        unidadeId: produto.unidadeEstoqueId,
-      ),
+    final movimento = MovimentoEstoque(
+      id: novoId(),
+      data: DateTime.now(),
+      produtoId: produtoId,
+      tipo: TipoMovimentoEstoque.ajuste,
+      quantidade: novoSaldo - produto.saldoEstoque,
+      valorUnitario: novoCusto,
+      unidadeId: produto.unidadeEstoqueId,
     );
 
-    await _persistirMovimentos();
-    recalcularEstoque();
+    final saldosIniciais = _capturarSaldosIniciais([produtoId]);
+    _validarSaldoEstoque([movimento]);
+    await _db.insert('movimentos_estoque', _movimentoToRow(movimento));
+    movimentacoes.add(movimento);
+    recalcularEstoque(saldosIniciais: saldosIniciais);
     await _persistirProdutos();
     notifyListeners();
   }
@@ -903,7 +948,111 @@ class AppRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void recalcularEstoque({Set<String> produtosSemMovimentacoes = const {}}) {
+  void _validarSaldoEstoque(
+    List<MovimentoEstoque> movimentosPropostos, {
+    Set<String> removerIds = const {},
+  }) {
+    final produtosAfetados = <String>{
+      ...movimentosPropostos.map((movimento) => movimento.produtoId),
+      for (final movimento in movimentacoes)
+        if (removerIds.contains(movimento.id)) movimento.produtoId,
+    };
+
+    for (final produtoId in produtosAfetados) {
+      final produto = produtoPorId(produtoId);
+      if (produto == null) {
+        throw StateError('Um produto da operação não foi encontrado.');
+      }
+      final eventos = [
+        ...movimentacoes.where(
+          (movimento) =>
+              movimento.produtoId == produtoId &&
+              !removerIds.contains(movimento.id),
+        ),
+        ...movimentosPropostos.where(
+          (movimento) => movimento.produtoId == produtoId,
+        ),
+      ]..sort(_compararMovimentos);
+
+      var saldo = _saldoInicialProduto(produto);
+      final fatorUnidadeEstoque = unidadePorId(
+        produto.unidadeEstoqueId,
+      ).fatorParaBase;
+      for (final movimento in eventos) {
+        final fatorUnidadeMovimento = unidadePorId(
+          movimento.unidadeId,
+        ).fatorParaBase;
+        final quantidade =
+            movimento.quantidade * fatorUnidadeMovimento / fatorUnidadeEstoque;
+        final saida = movimento.tipo == TipoMovimentoEstoque.ajuste
+            ? -quantidade
+            : (movimento.tipo == TipoMovimentoEstoque.compra ||
+                  movimento.tipo == TipoMovimentoEstoque.producao)
+            ? 0.0
+            : quantidade;
+
+        if (saida > 0 && saldo + 1e-9 < saida) {
+          throw SaldoEstoqueInsuficienteException(
+            produto: produto.nome,
+            unidade: unidadePorId(produto.unidadeEstoqueId).sigla,
+            disponivel: saldo < 0 ? 0 : saldo,
+            solicitado: saida,
+            data: movimento.data,
+          );
+        }
+
+        if (movimento.tipo == TipoMovimentoEstoque.compra ||
+            movimento.tipo == TipoMovimentoEstoque.producao) {
+          saldo += quantidade;
+        } else {
+          saldo -= saida;
+        }
+        if (saldo.abs() < 1e-9) saldo = 0;
+      }
+    }
+  }
+
+  int _compararMovimentos(MovimentoEstoque a, MovimentoEstoque b) {
+    final dataComparacao = a.data.compareTo(b.data);
+    return dataComparacao != 0 ? dataComparacao : a.id.compareTo(b.id);
+  }
+
+  Map<String, double> _capturarSaldosIniciais(Iterable<String> produtoIds) => {
+    for (final produtoId in produtoIds)
+      if (produtoPorId(produtoId) case final produto?)
+        produtoId: _saldoInicialProduto(produto),
+  };
+
+  double _saldoInicialProduto(Produto produto) {
+    final variacaoMovimentacoes = movimentacoes
+        .where((movimento) => movimento.produtoId == produto.id)
+        .fold<double>(
+          0,
+          (saldo, movimento) =>
+              saldo + _variacaoEmUnidadeEstoque(produto, movimento),
+        );
+    return produto.saldoEstoque - variacaoMovimentacoes;
+  }
+
+  double _variacaoEmUnidadeEstoque(
+    Produto produto,
+    MovimentoEstoque movimento,
+  ) {
+    final fatorEstoque = unidadePorId(produto.unidadeEstoqueId).fatorParaBase;
+    final fatorMovimento = unidadePorId(movimento.unidadeId).fatorParaBase;
+    final quantidade = movimento.quantidade * fatorMovimento / fatorEstoque;
+    if (movimento.tipo == TipoMovimentoEstoque.compra ||
+        movimento.tipo == TipoMovimentoEstoque.producao ||
+        movimento.tipo == TipoMovimentoEstoque.ajuste) {
+      return quantidade;
+    }
+    return -quantidade;
+  }
+
+  void recalcularEstoque({
+    Set<String> produtosSemMovimentacoes = const {},
+    Map<String, double> saldosIniciais = const {},
+  }) {
     final produtosComMovimento = movimentacoes
         .map((movimento) => movimento.produtoId)
         .toSet();
@@ -912,20 +1061,17 @@ class AppRepository extends ChangeNotifier {
           !produtosSemMovimentacoes.contains(produto.id)) {
         continue;
       }
-      var saldo = 0.0;
-      var custo = 0.0;
-      var valorEstoque = 0.0;
+      final saldoInicial =
+          saldosIniciais[produto.id] ?? _saldoInicialProduto(produto);
+      var saldo = saldoInicial;
+      var custo = saldo > 0 ? produto.custoMedio : 0.0;
+      var valorEstoque = saldo * custo;
 
       final movimentosProduto =
           movimentacoes
               .where((movimento) => movimento.produtoId == produto.id)
               .toList()
-            ..sort((a, b) {
-              final dataComparacao = a.data.compareTo(b.data);
-              return dataComparacao != 0
-                  ? dataComparacao
-                  : a.id.compareTo(b.id);
-            });
+            ..sort(_compararMovimentos);
       for (final movimento in movimentosProduto) {
         final unidadeMovimento = unidadePorId(movimento.unidadeId);
         final unidadeProduto = unidadePorId(produto.unidadeEstoqueId);
@@ -1013,16 +1159,6 @@ class AppRepository extends ChangeNotifier {
         },
         where: 'id = ?',
         whereArgs: [produto.id],
-      );
-    }
-  }
-
-  Future<void> _persistirMovimentos() async {
-    for (final movimento in movimentacoes) {
-      await _db.insert(
-        'movimentos_estoque',
-        _movimentoToRow(movimento),
-        conflictAlgorithm: ConflictAlgorithm.ignore,
       );
     }
   }

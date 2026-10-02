@@ -16,7 +16,7 @@ class AppDatabase {
 
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'confeitaria.db');
+    final path = join(dbPath, 'iconfeitto.db');
 
     return openDatabase(
       path,

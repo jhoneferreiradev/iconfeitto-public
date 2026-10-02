@@ -436,15 +436,22 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
         unidadeId: produto.unidadeConsumoId,
       );
     }).toList();
-    await _repo.salvarVenda(
-      Venda(
-        id: _repo.novoId(),
-        data: valores['data'] as DateTime,
-        clienteId: valores['cliente'] as String,
-        itens: itens,
-      ),
-    );
-    if (mounted) context.pop();
+    try {
+      await _repo.salvarVenda(
+        Venda(
+          id: _repo.novoId(),
+          data: valores['data'] as DateTime,
+          clienteId: valores['cliente'] as String,
+          itens: itens,
+        ),
+      );
+      if (mounted) context.pop();
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 }
 

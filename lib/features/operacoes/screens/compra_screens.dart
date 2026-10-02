@@ -209,6 +209,11 @@ class _CompraListScreenState extends State<CompraListScreen> {
     if (confirmou != true || !mounted) return;
     try {
       await AppRepository.instance.excluirCompra(compra.id);
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } on StateError catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -680,6 +685,11 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         await _repo.atualizarCompra(compra);
       }
       if (mounted) context.pop();
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } on StateError catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)

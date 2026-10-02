@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../shared/data/app_repository.dart';
+import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
 import '../pdf/movimentos_pdf.dart';
 
@@ -101,10 +102,23 @@ class EstoqueScreen extends StatelessWidget {
         ],
       ),
     );
+    if (!context.mounted) return;
     if (confirmado != true) return;
     final saldo = saldoController.text.toDouble();
     final custo = custoController.text.toDouble();
-    if (saldo == null || custo == null || saldo < 0 || custo < 0) return;
-    await repo.ajustarEstoque(produto.id, saldo, custo);
+    if (saldo == null || custo == null || saldo < 0 || custo < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe um saldo e custo válidos.')),
+      );
+      return;
+    }
+    try {
+      await repo.ajustarEstoque(produto.id, saldo, custo);
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 }

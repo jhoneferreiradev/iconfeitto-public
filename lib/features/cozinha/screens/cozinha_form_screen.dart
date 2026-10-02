@@ -181,15 +181,22 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
           unidadeId: valores['ficha_u_$i'] as String,
         ),
     ];
-    await _repo.salvarFabricacao(
-      Fabricacao(
-        id: _repo.novoId(),
-        data: valores['data'] as DateTime,
-        produtoId: _produtoId!,
-        quantidade: valores['quantidade'] as double,
-        fichaTecnica: ficha,
-      ),
-    );
-    if (mounted) context.pop();
+    try {
+      await _repo.salvarFabricacao(
+        Fabricacao(
+          id: _repo.novoId(),
+          data: valores['data'] as DateTime,
+          produtoId: _produtoId!,
+          quantidade: valores['quantidade'] as double,
+          fichaTecnica: ficha,
+        ),
+      );
+      if (mounted) context.pop();
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 }

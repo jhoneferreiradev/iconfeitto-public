@@ -70,6 +70,36 @@ class Fabricacao {
 
 enum TipoMovimentoEstoque { compra, venda, consumoFabricacao, producao, ajuste }
 
+class SaldoEstoqueInsuficienteException implements Exception {
+  final String produto;
+  final String unidade;
+  final double disponivel;
+  final double solicitado;
+  final DateTime data;
+
+  const SaldoEstoqueInsuficienteException({
+    required this.produto,
+    required this.unidade,
+    required this.disponivel,
+    required this.solicitado,
+    required this.data,
+  });
+
+  String get message =>
+      'Saldo insuficiente de $produto em ${_dataFormatada(data)}: '
+      'disponível ${_decimalLocal(disponivel)} $unidade, '
+      'necessário ${_decimalLocal(solicitado)} $unidade.';
+
+  @override
+  String toString() => message;
+}
+
+String _dataFormatada(DateTime data) =>
+    '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+
+String _decimalLocal(double valor) =>
+    valor.toStringAsFixed(2).replaceAll('.', ',');
+
 class MovimentoEstoque {
   final String id;
   final String? operacaoId;
