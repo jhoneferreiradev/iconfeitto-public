@@ -84,6 +84,7 @@ class AppNumberField extends StatelessWidget {
   final double? min;
   final bool readOnly;
   final void Function(String?)? onChanged;
+  final String? initialValue;
 
   const AppNumberField({
     super.key,
@@ -95,12 +96,14 @@ class AppNumberField extends StatelessWidget {
     this.min,
     this.readOnly = false,
     this.onChanged,
+    this.initialValue,
   });
 
   @override
   Widget build(BuildContext context) {
     return FormBuilderTextField(
       name: name,
+      initialValue: initialValue,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [_PtBrNumberInputFormatter()],
       decoration: AppInputDecoration.of(

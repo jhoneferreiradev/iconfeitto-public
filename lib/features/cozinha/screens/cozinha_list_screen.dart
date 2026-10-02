@@ -5,6 +5,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/data/app_repository.dart';
+import '../../../shared/models/operacao.dart';
 import '../pdf/fabricacao_pdf.dart';
 
 /// Lista as fabricações registradas, mais recentes primeiro.
@@ -50,10 +51,23 @@ class CozinhaListScreen extends StatelessWidget {
                           '${formatarNumero(fabricacao.quantidade)}'
                           '${unidade != null ? ' ${unidade.sigla}' : ''}',
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.print_outlined),
-                          tooltip: 'Imprimir',
-                          onPressed: () => FabricacaoPdf.imprimir(fabricacao),
+                        onTap: () => context.push('/cozinha/${fabricacao.id}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.print_outlined),
+                              tooltip: 'Imprimir',
+                              onPressed: () =>
+                                  FabricacaoPdf.imprimir(fabricacao),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Excluir',
+                              onPressed: () =>
+                                  confirmarExclusaoFabricacao(context, fabricacao),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -66,4 +80,48 @@ class CozinhaListScreen extends StatelessWidget {
 
   String _formatarData(DateTime data) =>
       '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+}
+
+/// Pede confirmação e exclui a fabricação, avisando se faltar saldo.
+Future<bool> confirmarExclusaoFabricacao(
+  BuildContext context,
+  Fabricacao fabricacao,
+) async {
+  final confirmou = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Excluir fabricação?'),
+      content: const Text(
+        'A fabricação será removida e o estoque e o custo médio serão recalculados.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Excluir'),
+        ),
+      ],
+    ),
+  );
+  if (confirmou != true || !context.mounted) return false;
+  try {
+    await AppRepository.instance.excluirFabricacao(fabricacao.id);
+    return true;
+  } on SaldoEstoqueInsuficienteException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  } on StateError catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+  return false;
 }

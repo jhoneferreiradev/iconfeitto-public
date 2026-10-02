@@ -115,6 +115,11 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const CozinhaFormScreen(),
     ),
     GoRoute(
+      path: '/cozinha/:id',
+      builder: (context, state) =>
+          CozinhaFormScreen(fabricacaoId: state.pathParameters['id']),
+    ),
+    GoRoute(
       path: '/estoque',
       builder: (context, state) => const EstoqueScreen(),
     ),

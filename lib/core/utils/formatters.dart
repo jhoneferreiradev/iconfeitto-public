@@ -27,6 +27,17 @@ extension StringNumberParser on String {
   int? toInt() => int.tryParse(this);
 }
 
+/// Texto no padrão pt-BR aceito pelos campos numéricos (até 8 decimais).
+String formatarParaCampo(double valor) {
+  final partes = valor.toStringAsFixed(8).split('.');
+  final decimais = partes[1].replaceFirst(RegExp(r'0+$'), '');
+  final inteiro = partes[0].replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
+  return decimais.isEmpty ? inteiro : '$inteiro,$decimais';
+}
+
 /// Formata um número sem casas decimais desnecessárias (ex.: 12.0 -> "12").
 String formatarNumero(double valor) {
   if (valor == valor.roundToDouble()) return valor.toStringAsFixed(0);
