@@ -202,6 +202,7 @@ class AppDatabase {
         unidadeConsumoId TEXT NOT NULL,
         isEmbalagem INTEGER NOT NULL DEFAULT 0,
         custoEmbalagem REAL NOT NULL DEFAULT 0,
+        precoVenda REAL NOT NULL DEFAULT 0,
         FOREIGN KEY (unidadeEstoqueId) REFERENCES unidades_medida(id),
         FOREIGN KEY (unidadeConsumoId) REFERENCES unidades_medida(id)
       )
