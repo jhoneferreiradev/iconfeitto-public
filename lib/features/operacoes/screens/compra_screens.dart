@@ -15,7 +15,9 @@ import '../../../shared/models/fornecedor.dart';
 import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
+import '../../../shared/models/produto_compra_rascunho.dart';
 import '../pdf/compra_pdf.dart';
+import '../widgets/produto_rascunho_sheet.dart';
 
 String _formatarDataCompra(DateTime data) =>
     '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
@@ -237,6 +239,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   final _repo = AppRepository.instance;
   final _itens = <int>[];
   final _modoUnitario = <int, bool>{};
+  final _rascunhos = <String, ProdutoCompraRascunho>{};
+  final _produtoPreSelecionado = <int, String>{};
   String? _fornecedorId;
   int _proximoId = 0;
 
@@ -285,6 +289,25 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     }
     return AppScaffold(
       title: compra == null ? 'Nova compra' : 'Editar compra',
+      actions: [
+        if (compra != null) ...[
+          IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Imprimir',
+            onPressed: () => CompraPdf.imprimir(compra),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Excluir compra',
+            onPressed: () => _excluirCompra(compra),
+          ),
+        ],
+        IconButton(
+          icon: const Icon(Icons.straighten),
+          tooltip: 'Unidades de medida',
+          onPressed: _abrirUnidades,
+        ),
+      ],
       body: FormBuilder(
         key: _formKey,
         onChanged: () => setState(() {}),
@@ -321,7 +344,17 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 onPressed: produtos.isEmpty ? null : _adicionarItem,
               ),
               child: Column(
-                children: [for (final id in _itens) _buildItem(id, produtos)],
+                children: [
+                  for (final id in _itens) _buildItem(id, produtos),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _novoProduto,
+                      icon: const Icon(Icons.add_box_outlined),
+                      label: const Text('Novo produto'),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -399,7 +432,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     final valores =
         _formKey.currentState?.instantValue ?? const <String, dynamic>{};
     final produtoId = valores['produto_$id'] as String?;
-    final produto = produtoId == null ? null : _repo.produtoPorId(produtoId);
+    final produto = produtoId == null ? null : _produtoPorId(produtoId);
+    final rascunho = produtoId == null ? null : _rascunhos[produtoId];
     final quantidade = _numero(valores['quantidade_$id']);
     final unitario = _modoUnitario[id] ?? true;
     final valorEditado = _numero(
@@ -416,7 +450,9 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     final valorUnidadeSelecionada = valores['unidade_$id'] as String?;
     final unidadeSelecionada = unidades.contains(valorUnidadeSelecionada)
         ? valorUnidadeSelecionada
-        : (unidades.isEmpty ? null : unidades.first);
+        : (unidades.contains(unidadeConsumo?.id)
+              ? unidadeConsumo?.id
+              : (unidades.isEmpty ? null : unidades.first));
     final saldo = produto == null
         ? null
         : '${produto.saldoEstoque.toDecimal()} ${_repo.unidadePorId(produto.unidadeEstoqueId).sigla}';
@@ -434,9 +470,11 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                   name: 'produto_$id',
                   label: 'Produto',
                   initialValue: _produtoInicial(id),
-                  items: produtos.map((produto) => produto.id).toList(),
-                  itemBuilder: (pid) =>
-                      produtos.firstWhere((produto) => produto.id == pid).nome,
+                  items: [
+                    ...produtos.map((produto) => produto.id),
+                    ..._rascunhos.keys,
+                  ],
+                  itemBuilder: (pid) => _produtoPorId(pid)?.nome ?? '',
                   validator: FormBuilderValidators.required(
                     errorText: 'Selecione o produto',
                   ),
@@ -444,6 +482,12 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                       _selecionarProduto(id, novoProdutoId),
                 ),
               ),
+              if (rascunho != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Editar novo produto',
+                  onPressed: () => _editarRascunho(rascunho),
+                ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'Remover produto',
@@ -562,9 +606,95 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   }
 
   String? _produtoInicial(int id) {
+    final preSelecionado = _produtoPreSelecionado[id];
+    if (preSelecionado != null) return preSelecionado;
     final compra = _compraOriginal;
     if (compra == null || id >= compra.itens.length) return null;
     return compra.itens[id].produtoId;
+  }
+
+  Produto? _produtoPorId(String id) {
+    final rascunho = _rascunhos[id];
+    if (rascunho != null) {
+      return rascunho.paraProduto(unidadeEstoqueId: rascunho.unidadeConsumoId);
+    }
+    return _repo.produtoPorId(id);
+  }
+
+  Future<void> _novoProduto() async {
+    final rascunho = await mostrarProdutoRascunhoSheet(context);
+    if (rascunho == null || !mounted) return;
+    _rascunhos[rascunho.id] = rascunho;
+    final formulario = _formKey.currentState;
+    final vazio = _itens.cast<int?>().firstWhere(
+      (id) => formulario?.fields['produto_$id']?.value == null,
+      orElse: () => null,
+    );
+    if (vazio != null) {
+      setState(() {});
+      formulario?.fields['produto_$vazio']?.didChange(rascunho.id);
+    } else {
+      final novoId = _proximoId++;
+      setState(() {
+        _produtoPreSelecionado[novoId] = rascunho.id;
+        _itens.add(novoId);
+      });
+    }
+  }
+
+  Future<void> _editarRascunho(ProdutoCompraRascunho rascunho) async {
+    final editado = await mostrarProdutoRascunhoSheet(
+      context,
+      rascunho: rascunho,
+    );
+    if (editado == null || !mounted) return;
+    setState(() => _rascunhos[editado.id] = editado);
+    for (final id in _itens) {
+      final campo = _formKey.currentState?.fields['produto_$id'];
+      if (campo?.value == editado.id) _selecionarProduto(id, editado.id);
+    }
+  }
+
+  Future<void> _abrirUnidades() async {
+    await context.push('/unidades');
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _excluirCompra(Compra compra) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir compra?'),
+        content: const Text(
+          'A compra será removida e o estoque e o custo médio serão recalculados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true || !mounted) return;
+    try {
+      await _repo.excluirCompra(compra.id);
+      if (mounted) context.pop();
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      _avisar(error.message);
+    } on StateError catch (error) {
+      _avisar(error.message);
+    }
+  }
+
+  void _avisar(String mensagem) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   List<String> _unidadesCompra(Produto produto) {
@@ -577,7 +707,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
 
   void _selecionarProduto(int id, String? produtoId) {
     if (produtoId == null) return;
-    final produto = _repo.produtoPorId(produtoId);
+    final produto = _produtoPorId(produtoId);
     if (produto == null) return;
     final unidades = _unidadesCompra(produto);
     final atual = _formKey.currentState?.fields['unidade_$id']?.value;
@@ -693,10 +823,32 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       itens: itens,
     );
     try {
-      if (compraOriginal == null) {
-        await _repo.salvarCompra(compra);
-      } else {
-        await _repo.atualizarCompra(compra);
+      final novosProdutos = <String>[];
+      final unidadePorRascunho = <String, String>{};
+      for (final item in itens) {
+        if (_rascunhos.containsKey(item.produtoId)) {
+          unidadePorRascunho.putIfAbsent(item.produtoId, () => item.unidadeId);
+        }
+      }
+      try {
+        for (final entrada in unidadePorRascunho.entries) {
+          await _repo.salvarProduto(
+            _rascunhos[entrada.key]!.paraProduto(
+              unidadeEstoqueId: entrada.value,
+            ),
+          );
+          novosProdutos.add(entrada.key);
+        }
+        if (compraOriginal == null) {
+          await _repo.salvarCompra(compra);
+        } else {
+          await _repo.atualizarCompra(compra);
+        }
+      } catch (_) {
+        for (final produtoId in novosProdutos) {
+          await _repo.excluirProduto(produtoId);
+        }
+        rethrow;
       }
       if (mounted) context.pop();
     } on SaldoEstoqueInsuficienteException catch (error) {
