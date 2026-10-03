@@ -6,11 +6,11 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_grouped_dropdown.dart';
+import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirm_dialog.dart';
-import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/form_builder_grouped_dropdown_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
@@ -82,13 +82,13 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
     _produtoOriginal = original;
     _tipo = original?.tipo ?? widget.tipoInicial;
-    _ingredientesDisponiveis = _repo.produtos
-        .where(
-          (p) =>
-              p.id != id && TipoItem.tiposFichaTecnica.contains(p.tipo),
-        )
-        .toList()
-      ..sort((a, b) => a.nome.compareTo(b.nome));
+    _ingredientesDisponiveis =
+        _repo.produtos
+            .where(
+              (p) => p.id != id && TipoItem.tiposFichaTecnica.contains(p.tipo),
+            )
+            .toList()
+          ..sort((a, b) => a.nome.compareTo(b.nome));
     _embalagensDisponiveis = _ingredientesDisponiveis
         .where((p) => p.isEmbalagem)
         .toList();
@@ -216,6 +216,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
   Widget _buildDadosDoProduto() {
     return SectionCard(
+      key: GlobalKey(),
       title: 'Dados do item',
       child: Column(
         spacing: AppSpacing.sm,
@@ -236,17 +237,13 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
             ),
             items: (widget.tiposDisponiveis ?? TipoItem.values)
                 .map(
-                  (tipo) => DropdownMenuItem(
-                    value: tipo,
-                    child: Text(tipo.label),
-                  ),
+                  (tipo) =>
+                      DropdownMenuItem(value: tipo, child: Text(tipo.label)),
                 )
                 .toList(),
             onChanged: _alterarTipo,
           ),
-          _linha([
-            _buildSwitch('ativo', 'Ativo'),
-          ]),
+          _linha([_buildSwitch('ativo', 'Ativo')]),
           if (!_isEmbalagem) ...[
             _linha([
               _buildUnidadeEstoqueDropdown(),
@@ -257,9 +254,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
                 'possuiFichaTecnica',
                 'Possui ficha técnica',
                 initialValue: _possuiFichaTecnica,
-                onChanged: (value) => setState(
-                  () => _possuiFichaTecnica = value ?? false,
-                ),
+                onChanged: (value) =>
+                    setState(() => _possuiFichaTecnica = value ?? false),
               ),
           ],
           if (_possuiFichaTecnica)
@@ -279,7 +275,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       child: _buildListaItens(
         disponiveis: _embalagensDisponiveis,
         quantidade: _embalagens.length,
-        mensagemSemProdutos: 'Cadastre itens do tipo embalagem para usá-los aqui.',
+        mensagemSemProdutos:
+            'Cadastre itens do tipo embalagem para usá-los aqui.',
         mensagemVazia: 'Nenhum item de embalagem foi adicionado. Use "Adicionar item" para começar.',
         buildLinha: _buildLinhaEmbalagem,
       ),
@@ -294,8 +291,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       child: _buildListaItens(
         disponiveis: _ingredientesDisponiveis,
         quantidade: _ingredientes.length,
-        mensagemSemProdutos:
-            'Cadastre itens do tipo insumo, material ou preparo para montar a ficha técnica.',
+        mensagemSemProdutos: 'Cadastre itens do tipo insumo, material ou preparo para montar a ficha técnica.',
         mensagemVazia:
             'Nenhum item adicionado. Use "Adicionar item" para começar.',
         buildLinha: _buildLinhaIngrediente,
@@ -608,7 +604,6 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           (value == TipoItem.produto && tinhaFicha);
       _isEmbalagem = value == TipoItem.embalagem;
       _podeSerVendido = value == TipoItem.produto;
-      _formKey.currentState?.fields['tipo']?.didChange(value);
       _formKey.currentState?.fields['possuiFichaTecnica']?.didChange(
         _possuiFichaTecnica,
       );
