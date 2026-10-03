@@ -4,7 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
+import '../../../shared/models/produto.dart';
 import '../widgets/produto_card.dart';
 
 class ProdutoListScreen extends StatelessWidget {
@@ -26,36 +28,39 @@ class ProdutoListScreen extends StatelessWidget {
           ),
           body: produtos.isEmpty
               ? const EmptyState(
-                  mensagem: 'Nenhum produto cadastrado ainda.\nToque em "Novo produto" para começar.',
+                  mensagem:
+                      'Nenhum produto cadastrado ainda.\nToque em "Novo produto" para começar.',
                   icon: Icons.cake_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                  itemCount: produtos.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final produto = produtos[index];
-                    final unidade = repo.unidadePorId(produto.unidadeEstoqueId);
-                    final custoFicha = repo.custoTotalFicha(produto);
-                    return ProdutoCard(
-                      produto: produto,
-                      unidade: unidade,
-                      custoFicha: custoFicha,
-                      onTap: () =>
-                          context.push('/produtos/${produto.id}/editar'),
-                      onDelete: () async {
-                        final confirmar = await confirmarExclusao(
-                          context,
-                          titulo: 'Excluir produto',
-                          mensagem:
-                              'Deseja excluir "${produto.nome}"? Essa ação não pode ser desfeita.',
-                        );
-                        if (confirmar) await repo.excluirProduto(produto.id);
-                      },
-                    );
-                  },
+              : SingleChildScrollView(
+                  child: ContentWidth(
+                    child: ResponsiveCardGrid(
+                      children: [
+                        for (final produto in produtos)
+                          _buildCard(context, repo, produto),
+                      ],
+                    ),
+                  ),
                 ),
         );
+      },
+    );
+  }
+
+  Widget _buildCard(BuildContext context, AppRepository repo, Produto produto) {
+    return ProdutoCard(
+      produto: produto,
+      unidade: repo.unidadePorId(produto.unidadeEstoqueId),
+      custoFicha: repo.custoTotalFicha(produto),
+      onTap: () => context.push('/produtos/${produto.id}/editar'),
+      onDelete: () async {
+        final confirmar = await confirmarExclusao(
+          context,
+          titulo: 'Excluir produto',
+          mensagem:
+              'Deseja excluir "${produto.nome}"? Essa ação não pode ser desfeita.',
+        );
+        if (confirmar) await repo.excluirProduto(produto.id);
       },
     );
   }

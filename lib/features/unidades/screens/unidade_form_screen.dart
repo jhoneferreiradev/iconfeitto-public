@@ -8,6 +8,7 @@ import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/grupo_unidade.dart';
@@ -51,9 +52,9 @@ class _UnidadeFormScreenState extends State<UnidadeFormScreen> {
               ? ''
               : _original!.fatorParaBase.toDecimal(),
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
+        child: ResponsiveFormLayout(
+          singleColumnMaxWidth: 640,
+          primary: [
             SectionCard(
               title: 'Dados da unidade',
               child: Column(
@@ -102,13 +103,12 @@ class _UnidadeFormScreenState extends State<UnidadeFormScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _salvar,
-              icon: const Icon(Icons.check),
-              label: const Text('Salvar unidade'),
-            ),
           ],
+          footer: FilledButton.icon(
+            onPressed: _salvar,
+            icon: const Icon(Icons.check),
+            label: const Text('Salvar unidade'),
+          ),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/fornecedor.dart';
@@ -57,60 +58,15 @@ class _CompraListScreenState extends State<CompraListScreen> {
                         mensagem: 'Nenhum resultado encontrado.',
                         icon: Icons.shopping_cart_outlined,
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                        itemCount: compras.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final compra = compras[index];
-                          final fornecedor =
-                              repo.fornecedorPorId(compra.fornecedorId)?.nome ??
-                              'Fornecedor removido';
-                          return Card(
-                            child: ListTile(
-                              title: Text(fornecedor),
-                              subtitle: Text(_formatarDataCompra(compra.data)),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    compra.total.toCurrency(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.print_outlined),
-                                    tooltip: 'Imprimir',
-                                    onPressed: () => CompraPdf.imprimir(compra),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    tooltip: 'Ações da compra',
-                                    onSelected: (acao) {
-                                      if (acao == 'editar') {
-                                        context.push(
-                                          '/compras/${compra.id}/editar',
-                                        );
-                                      } else {
-                                        _confirmarExclusao(compra);
-                                      }
-                                    },
-                                    itemBuilder: (context) => const [
-                                      PopupMenuItem(
-                                        value: 'editar',
-                                        child: Text('Editar'),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'excluir',
-                                        child: Text('Excluir'),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                    : SingleChildScrollView(
+                        child: ContentWidth(
+                          child: ResponsiveCardGrid(
+                            children: [
+                              for (final compra in compras)
+                                _buildCardCompra(context, repo, compra),
+                            ],
+                          ),
+                        ),
                       ),
               ),
             ],
@@ -120,8 +76,53 @@ class _CompraListScreenState extends State<CompraListScreen> {
     );
   }
 
+  Widget _buildCardCompra(
+    BuildContext context,
+    AppRepository repo,
+    Compra compra,
+  ) {
+    final fornecedor =
+        repo.fornecedorPorId(compra.fornecedorId)?.nome ??
+        'Fornecedor removido';
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        title: Text(fornecedor),
+        subtitle: Text(_formatarDataCompra(compra.data)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              compra.total.toCurrency(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              tooltip: 'Imprimir',
+              onPressed: () => CompraPdf.imprimir(compra),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Ações da compra',
+              onSelected: (acao) {
+                if (acao == 'editar') {
+                  context.push('/compras/${compra.id}/editar');
+                } else {
+                  _confirmarExclusao(compra);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'editar', child: Text('Editar')),
+                PopupMenuItem(value: 'excluir', child: Text('Excluir')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFiltros(BuildContext context) {
-    return Padding(
+    return ContentWidth(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         children: [
@@ -312,9 +313,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         key: _formKey,
         onChanged: () => setState(() {}),
         initialValue: _valoresIniciais(compra),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
+        child: ResponsiveFormLayout(
+          primaryFlex: 4,
+          secondaryFlex: 7,
+          primary: [
             SectionCard(
               title: 'Dados da compra',
               child: Column(
@@ -335,7 +337,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+          ],
+          secondary: [
             SectionCard(
               title: 'Produtos',
               trailing: IconButton(
@@ -357,17 +360,21 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            _buildTotal(),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _salvar,
-              icon: const Icon(Icons.check),
-              label: Text(
-                compra == null ? 'Salvar compra' : 'Salvar alterações',
-              ),
-            ),
           ],
+          footer: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildTotal(),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: _salvar,
+                icon: const Icon(Icons.check),
+                label: Text(
+                  compra == null ? 'Salvar compra' : 'Salvar alterações',
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

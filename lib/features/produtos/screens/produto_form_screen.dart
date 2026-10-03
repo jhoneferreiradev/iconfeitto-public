@@ -11,6 +11,7 @@ import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/form_builder_grouped_dropdown_field.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/grupo_unidade.dart';
@@ -164,28 +165,32 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       body: FormBuilder(
         key: _formKey,
         initialValue: _dadosIniciais,
-        child: ListView(
+        child: ResponsiveFormLayout(
           padding: AppSpacing.screenPadding,
-          children: [
+          primaryFlex: 5,
+          secondaryFlex: 6,
+          primary: [
             _buildDadosDoProduto(),
             if (!_possuiFichaTecnica) _buildPrecoVenda(),
-            if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
             if (_possuiFichaTecnica && !_isEmbalagem) ...[
               _buildRendimentoPreparo(),
               _buildTabelaCusto(),
               _buildPrecoVenda(),
-              _buildFichaTecnica(),
             ],
-            FilledButton.icon(
-              onPressed: () => _salvar(
-                onSuccess: (_) {
-                  if (mounted) context.pop();
-                },
-              ),
-              icon: const Icon(Icons.check),
-              label: const Text('Salvar produto'),
-            ),
           ],
+          secondary: [
+            if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
+            if (_possuiFichaTecnica && !_isEmbalagem) _buildFichaTecnica(),
+          ],
+          footer: FilledButton.icon(
+            onPressed: () => _salvar(
+              onSuccess: (_) {
+                if (mounted) context.pop();
+              },
+            ),
+            icon: const Icon(Icons.check),
+            label: const Text('Salvar produto'),
+          ),
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/confirm_dialog.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/unidade_medida.dart';
@@ -24,12 +25,17 @@ class UnidadeListScreen extends StatelessWidget {
             icon: const Icon(Icons.add),
             label: const Text('Nova unidade'),
           ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-            children: [
-              for (final grupo in GrupoUnidade.values)
-                ..._buildGrupo(context, repo, grupo),
-            ],
+          body: SingleChildScrollView(
+            child: ContentWidth(
+              maxWidth: 1100,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final grupo in GrupoUnidade.values)
+                    ..._buildGrupo(context, repo, grupo),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -56,33 +62,37 @@ class UnidadeListScreen extends StatelessWidget {
           ),
         ),
       ),
-      ...unidadesDoGrupo.map(
-        (u) => Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            title: Text('${u.nome} (${u.sigla})'),
-            subtitle: Text(
-              u.fatorParaBase == 1 || base == null
-                  ? 'Unidade base do grupo'
-                  : '1 ${u.sigla} = ${u.fatorParaBase.toDecimal()} ${base.sigla}',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Editar',
-                  onPressed: () => context.push('/unidades/${u.id}/editar'),
+      ResponsiveCardGrid(
+        minItemWidth: 360,
+        children: [
+          for (final u in unidadesDoGrupo)
+            Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                title: Text('${u.nome} (${u.sigla})'),
+                subtitle: Text(
+                  u.fatorParaBase == 1 || base == null
+                      ? 'Unidade base do grupo'
+                      : '1 ${u.sigla} = ${u.fatorParaBase.toDecimal()} ${base.sigla}',
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Excluir',
-                  onPressed: () => _excluir(context, repo, u),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Editar',
+                      onPressed: () => context.push('/unidades/${u.id}/editar'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Excluir',
+                      onPressed: () => _excluir(context, repo, u),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+        ],
       ),
     ];
   }
