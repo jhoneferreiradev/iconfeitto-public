@@ -10,6 +10,7 @@ import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/empresa.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
 import '../../../shared/models/produto.dart';
+import '../../../shared/models/tipo_item.dart';
 
 /// Paleta do documento.
 class _Cores {
@@ -122,7 +123,9 @@ class FichaTecnicaPdf {
   }
 
   static bool _temFicha(Produto p) =>
-      p.possuiFichaTecnica && p.fichaTecnica.isNotEmpty;
+      TipoItem.tiposFichaTecnica.contains(p.tipo) &&
+      p.possuiFichaTecnica &&
+      p.fichaTecnica.isNotEmpty;
 
   static bool _preenchido(String? texto) =>
       texto != null && texto.trim().isNotEmpty;

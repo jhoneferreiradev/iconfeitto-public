@@ -10,6 +10,7 @@ import '../models/item_ficha_tecnica.dart';
 import '../models/item_ficha_tecnica_embalagem.dart';
 import '../models/operacao.dart';
 import '../models/produto.dart';
+import '../models/tipo_item.dart';
 import '../models/unidade_medida.dart';
 import 'database/app_database.dart';
 
@@ -102,6 +103,7 @@ class AppRepository extends ChangeNotifier {
         'itens_ficha_tecnica',
         where: 'produtoId = ?',
         whereArgs: [produtoId],
+        orderBy: 'id',
       );
 
       final fichaTecnicaEmbalagemRows = await _db.query(
@@ -135,6 +137,9 @@ class AppRepository extends ChangeNotifier {
           saldoEstoque: row['saldoEstoque'] as double,
           podeSerVendido: (row['podeSerVendido'] as int) == 1,
           podeSerComprado: (row['podeSerComprado'] as int) == 1,
+          tipo: row['tipo'] == null
+              ? null
+              : TipoItem.fromString(row['tipo'] as String),
           possuiFichaTecnica: (row['possuiFichaTecnica'] as int) == 1,
           tempoPreparoMinutos: row['tempoPreparoMinutos'] as int,
           rendimentoReceita: row['rendimentoReceita'] as int,
@@ -157,6 +162,7 @@ class AppRepository extends ChangeNotifier {
         'itens_compra',
         where: 'compraId = ?',
         whereArgs: [compraId],
+        orderBy: 'id',
       );
       final itens = [
         for (final itemRow in itensData)
@@ -1238,9 +1244,20 @@ class AppRepository extends ChangeNotifier {
   }
 
   double custoPorUnidadeBase(Produto produto) {
-    final unidade = unidadePorId(produto.unidadeEstoqueId);
+    final unidadeId = produto.possuiFichaTecnica
+        ? produto.unidadeConsumoId
+        : produto.unidadeEstoqueId;
+    final unidade = unidadePorId(unidadeId);
     if (unidade.fatorParaBase == 0) return 0;
-    return produto.custoMedio / unidade.fatorParaBase;
+    final custo = produto.possuiFichaTecnica
+        ? CalculadoraCustoProduto(
+            rendimentoReceita: produto.rendimentoReceita,
+            custoFichaTecnica: custoTotalFicha(produto),
+            custoOperacional: produto.custoOperacional,
+            custoUnitarioEmbalagem: custoEmbalagem(produto),
+          ).custoRendimentoUnitario
+        : produto.custoMedio;
+    return custo / unidade.fatorParaBase;
   }
 
   double custoItemFicha(ItemFichaTecnica item) {
@@ -1312,6 +1329,7 @@ class AppRepository extends ChangeNotifier {
     'saldoEstoque': produto.saldoEstoque,
     'podeSerVendido': produto.podeSerVendido ? 1 : 0,
     'podeSerComprado': produto.podeSerComprado ? 1 : 0,
+    'tipo': produto.tipo.name,
     'possuiFichaTecnica': produto.possuiFichaTecnica ? 1 : 0,
     'tempoPreparoMinutos': produto.tempoPreparoMinutos,
     'unidadeEstoqueId': produto.unidadeEstoqueId,

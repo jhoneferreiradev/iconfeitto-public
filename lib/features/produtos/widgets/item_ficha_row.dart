@@ -19,6 +19,8 @@ class ItemFichaRow extends StatefulWidget {
   final double custoLinha;
   final ValueChanged<ItemFichaTecnica> onChanged;
   final VoidCallback onRemover;
+  final VoidCallback? onMoverParaCima;
+  final VoidCallback? onMoverParaBaixo;
 
   const ItemFichaRow({
     super.key,
@@ -28,6 +30,8 @@ class ItemFichaRow extends StatefulWidget {
     required this.custoLinha,
     required this.onChanged,
     required this.onRemover,
+    this.onMoverParaCima,
+    this.onMoverParaBaixo,
   });
 
   @override
@@ -96,6 +100,18 @@ class _ItemFichaRowState extends State<ItemFichaRow> {
     return ItemFichaCard(
       custoLinha: widget.custoLinha,
       onRemover: widget.onRemover,
+      acoes: [
+        IconButton(
+          icon: const Icon(Icons.arrow_upward),
+          tooltip: 'Mover para cima',
+          onPressed: widget.onMoverParaCima,
+        ),
+        IconButton(
+          icon: const Icon(Icons.arrow_downward),
+          tooltip: 'Mover para baixo',
+          onPressed: widget.onMoverParaBaixo,
+        ),
+      ],
       seletor: SeletorDeProduto(
         label: 'Ingrediente',
         produtos: widget.ingredientes,

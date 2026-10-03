@@ -61,7 +61,7 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _SummaryTile(
-                      label: 'Produtos',
+                      label: 'Itens',
                       value: '${repo.produtos.length}',
                     ),
                   ),
@@ -95,7 +95,18 @@ class DashboardScreen extends StatelessWidget {
         children: [
           const DrawerHeader(child: Text('Confeitaria Admin')),
           _drawerItem(context, 'Dashboard', Icons.dashboard_outlined, '/'),
-          _drawerItem(context, 'Produtos', Icons.cake_outlined, '/produtos'),
+          _drawerItem(
+            context,
+            'Insumos, materiais e embalagens',
+            Icons.inventory_2_outlined,
+            '/itens/insumos',
+          ),
+          _drawerItem(
+            context,
+            'Produtos e preparos',
+            Icons.cake_outlined,
+            '/itens/produtos',
+          ),
           _drawerItem(
             context,
             'Compras',

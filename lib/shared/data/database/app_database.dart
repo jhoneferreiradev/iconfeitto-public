@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 7,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -195,6 +195,7 @@ class AppDatabase {
         saldoEstoque REAL NOT NULL,
         podeSerVendido INTEGER NOT NULL,
         podeSerComprado INTEGER NOT NULL,
+        tipo TEXT NOT NULL DEFAULT 'produto',
         possuiFichaTecnica INTEGER NOT NULL,
         tempoPreparoMinutos INTEGER NOT NULL,
         rendimentoReceita INTEGER NOT NULL,
@@ -273,6 +274,33 @@ class AppDatabase {
       await db.execute(
         'ALTER TABLE movimentos_estoque ADD COLUMN operacaoId TEXT',
       );
+    }
+
+    if (oldVersion < 8) {
+      final colunas = await db.rawQuery('PRAGMA table_info(produtos)');
+      if (!colunas.any((coluna) => coluna['name'] == 'tipo')) {
+        await db.execute(
+          "ALTER TABLE produtos ADD COLUMN tipo TEXT NOT NULL DEFAULT 'produto'",
+        );
+      }
+      await db.execute('''
+        UPDATE produtos
+        SET tipo = CASE
+          WHEN isEmbalagem = 1 THEN 'embalagem'
+          WHEN podeSerVendido = 1 THEN 'produto'
+          WHEN possuiFichaTecnica = 1 THEN 'preparo'
+          WHEN podeSerComprado = 1 THEN 'insumo'
+          ELSE 'produto'
+        END
+      ''');
+    }
+
+    if (oldVersion < 9) {
+      await db.execute('''
+        UPDATE produtos
+        SET unidadeEstoqueId = 'un', unidadeConsumoId = 'un'
+        WHERE tipo = 'embalagem' OR isEmbalagem = 1
+      ''');
     }
   }
 

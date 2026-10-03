@@ -16,6 +16,7 @@ import '../../features/produtos/screens/produto_form_screen.dart';
 import '../../features/produtos/screens/produto_list_screen.dart';
 import '../../features/unidades/screens/unidade_form_screen.dart';
 import '../../features/unidades/screens/unidade_list_screen.dart';
+import '../../shared/models/tipo_item.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/empty_state.dart';
 
@@ -48,15 +49,42 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const ProdutoListScreen(),
     ),
     GoRoute(
+      path: '/itens/insumos',
+      builder: (context, state) => const ProdutoListScreen(
+        title: 'Insumos, materiais e embalagens',
+        tipos: TipoItem.tiposCompra,
+      ),
+    ),
+    GoRoute(
+      path: '/itens/produtos',
+      builder: (context, state) => const ProdutoListScreen(),
+    ),
+    GoRoute(
       path: '/produtos/novo',
-      builder: (context, state) =>
-          const ProdutoFormScreen(key: ValueKey('produto-novo')),
+      builder: (context, state) => ProdutoFormScreen(
+        key: ValueKey(
+          'produto-novo-${state.uri.queryParameters['tipo']}-${state.uri.queryParameters['grupo']}',
+        ),
+        tipoInicial: TipoItem.fromString(state.uri.queryParameters['tipo']),
+        tiposDisponiveis: switch (state.uri.queryParameters['grupo']) {
+          'estoque' => TipoItem.tiposCompra,
+          'produto' => const [TipoItem.produto, TipoItem.preparo],
+          _ => null,
+        },
+      ),
     ),
     GoRoute(
       path: '/produtos/:id/editar',
       builder: (context, state) => ProdutoFormScreen(
-        key: ValueKey('produto-${state.pathParameters['id']}'),
+        key: ValueKey(
+          'produto-${state.pathParameters['id']}-${state.uri.queryParameters['grupo']}',
+        ),
         produtoId: state.pathParameters['id'],
+        tiposDisponiveis: switch (state.uri.queryParameters['grupo']) {
+          'estoque' => TipoItem.tiposCompra,
+          'produto' => const [TipoItem.produto, TipoItem.preparo],
+          _ => null,
+        },
       ),
     ),
     GoRoute(

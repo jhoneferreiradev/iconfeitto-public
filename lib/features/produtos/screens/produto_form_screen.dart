@@ -10,6 +10,7 @@ import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirm_dialog.dart';
+import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/form_builder_grouped_dropdown_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
@@ -18,13 +19,21 @@ import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
 import '../../../shared/models/item_ficha_tecnica_embalagem.dart';
 import '../../../shared/models/produto.dart';
+import '../../../shared/models/tipo_item.dart';
 import '../pdf/ficha_tecnica_pdf.dart';
 import '../widgets/item_ficha_embalagem_row.dart';
 import '../widgets/item_ficha_row.dart';
 
 class ProdutoFormScreen extends StatefulWidget {
   final String? produtoId;
-  const ProdutoFormScreen({super.key, this.produtoId});
+  final TipoItem tipoInicial;
+  final List<TipoItem>? tiposDisponiveis;
+  const ProdutoFormScreen({
+    super.key,
+    this.produtoId,
+    this.tipoInicial = TipoItem.produto,
+    this.tiposDisponiveis,
+  });
 
   @override
   State<ProdutoFormScreen> createState() => _ProdutoFormScreenState();
@@ -49,11 +58,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   // outra linha herdar o estado (texto digitado) da linha removida.
   late List<Key> _chavesIngredientes;
   late List<Key> _chavesEmbalagens;
+  late TipoItem _tipo;
   late bool _possuiFichaTecnica;
   late bool _isEmbalagem;
   late bool _podeSerVendido;
   late bool _calcularPrecoVendaUsandoMargemLucro = false;
-  late double _margemLucro = 0;
 
   /// Fonte única dos valores de custo exibidos e salvos.
   late CalculadoraCustoProduto _custos;
@@ -72,7 +81,13 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     final original = id == null ? null : _repo.produtoPorId(id);
 
     _produtoOriginal = original;
-    _ingredientesDisponiveis = _repo.produtos.where((p) => p.id != id).toList()
+    _tipo = original?.tipo ?? widget.tipoInicial;
+    _ingredientesDisponiveis = _repo.produtos
+        .where(
+          (p) =>
+              p.id != id && TipoItem.tiposFichaTecnica.contains(p.tipo),
+        )
+        .toList()
       ..sort((a, b) => a.nome.compareTo(b.nome));
     _embalagensDisponiveis = _ingredientesDisponiveis
         .where((p) => p.isEmbalagem)
@@ -83,9 +98,10 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
         original?.fichaTecnicaEmbalagem.map((i) => i.copy()).toList() ?? [];
     _chavesIngredientes = _gerarChaves(_ingredientes.length);
     _chavesEmbalagens = _gerarChaves(_embalagens.length);
-    _possuiFichaTecnica = original?.possuiFichaTecnica ?? false;
-    _isEmbalagem = original?.isEmbalagem ?? false;
-    _podeSerVendido = original?.podeSerVendido ?? false;
+    _possuiFichaTecnica =
+        original?.possuiFichaTecnica ?? _tipo == TipoItem.preparo;
+    _isEmbalagem = _tipo == TipoItem.embalagem;
+    _podeSerVendido = _tipo == TipoItem.produto;
 
     _custos = CalculadoraCustoProduto(
       rendimentoReceita: original?.rendimentoReceita ?? 0,
@@ -115,10 +131,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     return {
       'nome': p?.nome ?? '',
       'ativo': p?.ativo ?? true,
-      'podeSerVendido': p?.podeSerVendido ?? _podeSerVendido,
-      'podeSerComprado': p?.podeSerComprado ?? false,
+      'tipo': _tipo,
       'possuiFichaTecnica': _possuiFichaTecnica,
-      'isEmbalagem': _isEmbalagem,
       'tempoPreparoMinutos': (p?.tempoPreparoMinutos ?? 0).toString(),
       'rendimentoReceita': (p?.rendimentoReceita ?? 0).toString(),
       'custoMedio': (p?.custoMedio ?? 0.0).toDecimal(),
@@ -140,7 +154,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: _isEdicao ? 'Editar produto' : 'Novo produto',
+      title: _isEdicao ? 'Editar item' : 'Novo item',
       actions: [
         IconButton(
           tooltip: 'Unidades de medida',
@@ -158,7 +172,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
         if (_isEdicao)
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            tooltip: 'Excluir produto',
+            tooltip: 'Excluir item',
             onPressed: _excluirProduto,
           ),
       ],
@@ -171,7 +185,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           secondaryFlex: 6,
           primary: [
             _buildDadosDoProduto(),
-            if (!_possuiFichaTecnica) _buildPrecoVenda(),
+            if (_podeSerVendido) _buildPrecoVenda(),
             if (_possuiFichaTecnica && !_isEmbalagem) ...[
               _buildRendimentoPreparo(),
               _buildTabelaCusto(),
@@ -189,7 +203,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
               },
             ),
             icon: const Icon(Icons.check),
-            label: const Text('Salvar produto'),
+            label: const Text('Salvar item'),
           ),
         ),
       ),
@@ -202,43 +216,51 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
   Widget _buildDadosDoProduto() {
     return SectionCard(
-      title: 'Dados do produto',
+      title: 'Dados do item',
       child: Column(
         spacing: AppSpacing.sm,
         children: [
           const AppTextField(
             name: 'nome',
-            label: 'Nome do produto',
+            label: 'Nome do item',
             icon: Icons.cake_outlined,
+          ),
+          FormBuilderDropdown<TipoItem>(
+            name: 'tipo',
+            decoration: AppInputDecoration.of(
+              'Tipo do item',
+              icon: Icons.category_outlined,
+            ),
+            validator: FormBuilderValidators.required(
+              errorText: 'Selecione o tipo do item',
+            ),
+            items: (widget.tiposDisponiveis ?? TipoItem.values)
+                .map(
+                  (tipo) => DropdownMenuItem(
+                    value: tipo,
+                    child: Text(tipo.label),
+                  ),
+                )
+                .toList(),
+            onChanged: _alterarTipo,
           ),
           _linha([
             _buildSwitch('ativo', 'Ativo'),
-            _buildSwitch(
-              'isEmbalagem',
-              'É embalagem',
-              onChanged: _alterarIsEmbalagem,
-            ),
-          ]),
-          _linha([
-            _buildSwitch('podeSerComprado', 'Pode ser comprado'),
-            _buildSwitch(
-              'podeSerVendido',
-              'Pode ser vendido',
-              onChanged: (value) =>
-                  setState(() => _podeSerVendido = value ?? false),
-            ),
           ]),
           if (!_isEmbalagem) ...[
             _linha([
               _buildUnidadeEstoqueDropdown(),
               _buildUnidadeConsumoDropdown(),
             ]),
-            _buildSwitch(
-              'possuiFichaTecnica',
-              'Possui ficha técnica',
-              onChanged: (value) =>
-                  setState(() => _possuiFichaTecnica = value ?? false),
-            ),
+            if (TipoItem.tiposFabricacao.contains(_tipo))
+              _buildSwitch(
+                'possuiFichaTecnica',
+                'Possui ficha técnica',
+                initialValue: _possuiFichaTecnica,
+                onChanged: (value) => setState(
+                  () => _possuiFichaTecnica = value ?? false,
+                ),
+              ),
           ],
           if (_possuiFichaTecnica)
             _buildSaldoEstoque()
@@ -257,8 +279,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       child: _buildListaItens(
         disponiveis: _embalagensDisponiveis,
         quantidade: _embalagens.length,
-        mensagemSemProdutos:
-            'Cadastre produtos marcados como "É embalagem" para usá-los aqui.',
+        mensagemSemProdutos: 'Cadastre itens do tipo embalagem para usá-los aqui.',
         mensagemVazia: 'Nenhum item de embalagem foi adicionado. Use "Adicionar item" para começar.',
         buildLinha: _buildLinhaEmbalagem,
       ),
@@ -274,7 +295,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
         disponiveis: _ingredientesDisponiveis,
         quantidade: _ingredientes.length,
         mensagemSemProdutos:
-            'Cadastre outros produtos para poder montar a ficha técnica.',
+            'Cadastre itens do tipo insumo, material ou preparo para montar a ficha técnica.',
         mensagemVazia:
             'Nenhum item adicionado. Use "Adicionar item" para começar.',
         buildLinha: _buildLinhaIngrediente,
@@ -349,11 +370,13 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   Widget _buildSwitch(
     String name,
     String titulo, {
+    bool? initialValue,
     ValueChanged<bool?>? onChanged,
   }) {
     return FormBuilderSwitch(
       name: name,
       title: Text(titulo),
+      initialValue: initialValue,
       onChanged: onChanged,
     );
   }
@@ -575,9 +598,20 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     return grupos;
   }
 
-  void _alterarIsEmbalagem(bool? value) {
+  void _alterarTipo(TipoItem? value) {
+    if (value == null) return;
     setState(() {
-      _isEmbalagem = value ?? false;
+      final tinhaFicha = _possuiFichaTecnica;
+      _tipo = value;
+      _possuiFichaTecnica =
+          value == TipoItem.preparo ||
+          (value == TipoItem.produto && tinhaFicha);
+      _isEmbalagem = value == TipoItem.embalagem;
+      _podeSerVendido = value == TipoItem.produto;
+      _formKey.currentState?.fields['tipo']?.didChange(value);
+      _formKey.currentState?.fields['possuiFichaTecnica']?.didChange(
+        _possuiFichaTecnica,
+      );
       if (_isEmbalagem) {
         final campos = _formKey.currentState?.fields;
         campos?['unidadeEstoqueId']?.didChange(_unidadeEmbalagem);
@@ -623,6 +657,10 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           _ingredientes.removeAt(i);
           _chavesIngredientes.removeAt(i);
         }),
+        onMoverParaCima: i == 0 ? null : () => _moverIngrediente(i, -1),
+        onMoverParaBaixo: i == _ingredientes.length - 1
+            ? null
+            : () => _moverIngrediente(i, 1),
       );
     }
 
@@ -670,6 +708,17 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     });
   }
 
+  void _moverIngrediente(int indice, int deslocamento) {
+    final novoIndice = indice + deslocamento;
+    if (novoIndice < 0 || novoIndice >= _ingredientes.length) return;
+    _alterarItens(() {
+      final item = _ingredientes.removeAt(indice);
+      _ingredientes.insert(novoIndice, item);
+      final chave = _chavesIngredientes.removeAt(indice);
+      _chavesIngredientes.insert(novoIndice, chave);
+    });
+  }
+
   /// Aplica a alteração nas listas de itens e recalcula os custos.
   void _alterarItens(VoidCallback alteracao) {
     alteracao();
@@ -695,6 +744,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       custoFicha.toDecimal(),
     );
 
+    final precoVendaAtual = _calculadoraPrecoVenda.precoVenda;
     setState(() {
       _custos = CalculadoraCustoProduto(
         rendimentoReceita: _lerNumero('rendimentoReceita').round(),
@@ -703,6 +753,12 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
             _repo.empresa.custoOperacionalPorHora * horasDePreparo,
         custoUnitarioEmbalagem: custoEmbalagem,
       );
+      _calculadoraPrecoVenda = _calcularPrecoVendaUsandoMargemLucro
+          ? _calculadoraPrecoVenda.recalcular(custos: _custos)
+          : CalculadoraPrecoVendaProduto.calcularMargemLucro(
+              custos: _custos,
+              precoVenda: precoVendaAtual,
+            );
     });
   }
 
@@ -730,7 +786,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   Future<void> _salvar({required ValueChanged<Produto> onSuccess}) async {
     final form = _formKey.currentState;
     if (form == null || !form.saveAndValidate()) {
-      _mostrarMensagem('Revise os campos obrigatórios do produto.');
+      _mostrarMensagem('Revise os campos obrigatórios do item.');
       return;
     }
 
@@ -739,20 +795,19 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       await _repo.salvarProduto(produto);
       onSuccess(produto);
     } catch (error) {
-      _mostrarMensagem('Não foi possível salvar o produto: $error');
+      _mostrarMensagem('Não foi possível salvar o item: $error');
     }
   }
 
   Produto _montarProduto(Map<String, dynamic> valores) {
-    final possuiFicha = !_isEmbalagem && _possuiFichaTecnica;
+    final possuiFicha =
+        TipoItem.tiposFabricacao.contains(_tipo) && _possuiFichaTecnica;
 
     return Produto(
       id: _produtoOriginal?.id ?? _repo.novoId(),
       nome: valores['nome']?.toString().trim() ?? '',
       ativo: valores['ativo'] == true,
-      podeSerVendido: valores['podeSerVendido'] != false,
-      podeSerComprado: valores['podeSerComprado'] != false,
-      isEmbalagem: _isEmbalagem,
+      tipo: _tipo,
       possuiFichaTecnica: possuiFicha,
       tempoPreparoMinutos: _isEmbalagem
           ? 0
@@ -790,7 +845,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
     final confirmar = await confirmarExclusao(
       context,
-      titulo: 'Excluir produto',
+      titulo: 'Excluir item',
       mensagem:
           'Deseja excluir "${produto.nome}"? Essa ação não pode ser desfeita.',
     );

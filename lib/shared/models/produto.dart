@@ -1,16 +1,15 @@
 import 'item_ficha_tecnica.dart';
 import 'item_ficha_tecnica_embalagem.dart';
+import 'tipo_item.dart';
 
-class Produto {
+class Item {
   String id;
   String nome;
   bool ativo;
   double custoMedio;
   double saldoEstoque;
-  bool podeSerVendido;
-  bool podeSerComprado;
+  TipoItem tipo;
   bool possuiFichaTecnica;
-  bool isEmbalagem;
   int tempoPreparoMinutos;
   int rendimentoReceita;
   double custoOperacional;
@@ -20,16 +19,17 @@ class Produto {
   List<ItemFichaTecnicaEmbalagem> fichaTecnicaEmbalagem;
   double precoVenda;
 
-  Produto({
+  Item({
     required this.id,
     required this.nome,
     required this.ativo,
     required this.custoMedio,
     required this.custoOperacional,
     this.saldoEstoque = 0,
-    this.podeSerVendido = true,
-    this.podeSerComprado = true,
-    this.isEmbalagem = false,
+    TipoItem? tipo,
+    bool? podeSerVendido,
+    bool? podeSerComprado,
+    bool? isEmbalagem,
     this.possuiFichaTecnica = false,
     this.tempoPreparoMinutos = 0,
     this.rendimentoReceita = 0,
@@ -38,8 +38,33 @@ class Produto {
     required this.fichaTecnica,
     required this.fichaTecnicaEmbalagem,
     this.precoVenda = 0,
-  });
+  }) : tipo = tipo ??
+           _inferirTipo(
+             isEmbalagem: isEmbalagem ?? false,
+             podeSerVendido: podeSerVendido ?? true,
+             podeSerComprado: podeSerComprado ?? true,
+             possuiFichaTecnica: possuiFichaTecnica,
+           );
+
+  bool get podeSerVendido => tipo == TipoItem.produto;
+  bool get podeSerComprado => TipoItem.tiposCompra.contains(tipo);
+  bool get isEmbalagem => tipo == TipoItem.embalagem;
+
+  static TipoItem _inferirTipo({
+    required bool isEmbalagem,
+    required bool podeSerVendido,
+    required bool podeSerComprado,
+    required bool possuiFichaTecnica,
+  }) {
+    if (isEmbalagem) return TipoItem.embalagem;
+    if (podeSerVendido) return TipoItem.produto;
+    if (possuiFichaTecnica) return TipoItem.preparo;
+    if (podeSerComprado) return TipoItem.insumo;
+    return TipoItem.produto;
+  }
 }
+
+typedef Produto = Item;
 
 class CalculadoraCustoProduto {
   final int rendimentoReceita;
@@ -70,21 +95,23 @@ class CalculadoraCustoProduto {
 class CalculadoraPrecoVendaProduto {
   final CalculadoraCustoProduto custos;
   final double margemLucro;
+  final double? precoVendaInformado;
 
   CalculadoraPrecoVendaProduto({
     required this.custos,
     required this.margemLucro,
+    this.precoVendaInformado,
   });
 
-  double get lucroReal => (custos.custoRendimentoUnitario == 0 || margemLucro == 0)
-      ? 0
-      : precoVenda - custos.custoRendimentoUnitario;
+  double get lucroReal => precoVenda - custos.custoRendimentoUnitario;
 
-  double get precoVenda =>
-      (custos.custoRendimentoUnitario == 0 || margemLucro == 0)
-      ? 0
-      : custos.custoRendimentoUnitario +
-            (custos.custoRendimentoUnitario * (margemLucro / 100));
+  double get precoVenda {
+    if (custos.custoRendimentoUnitario == 0) {
+      return precoVendaInformado ?? 0;
+    }
+    return custos.custoRendimentoUnitario +
+        (custos.custoRendimentoUnitario * (margemLucro / 100));
+  }
 
   factory CalculadoraPrecoVendaProduto.calcularMargemLucro({
     required CalculadoraCustoProduto custos,
@@ -102,13 +129,18 @@ class CalculadoraPrecoVendaProduto {
     return CalculadoraPrecoVendaProduto(
       custos: custos,
       margemLucro: novaMargemLucro,
+      precoVendaInformado: precoVenda,
     );
   }
 
-  CalculadoraPrecoVendaProduto recalcular({double? margemLucro}) {
+  CalculadoraPrecoVendaProduto recalcular({
+    double? margemLucro,
+    CalculadoraCustoProduto? custos,
+  }) {
     return CalculadoraPrecoVendaProduto(
-      custos: custos,
+      custos: custos ?? this.custos,
       margemLucro: margemLucro ?? this.margemLucro,
+      precoVendaInformado: precoVendaInformado,
     );
   }
 }

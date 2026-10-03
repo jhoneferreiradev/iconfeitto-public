@@ -340,7 +340,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
           ],
           secondary: [
             SectionCard(
-              title: 'Produtos',
+              title: 'Itens',
               trailing: IconButton(
                 icon: const Icon(Icons.add),
                 tooltip: 'Adicionar produto',
@@ -348,7 +348,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
               ),
               child: Column(
                 children: [
-                  for (final id in _itens) _buildItem(id, produtos),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
@@ -357,6 +356,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                       label: const Text('Novo produto'),
                     ),
                   ),
+                  for (final id in _itens) _buildItem(id, produtos),
                 ],
               ),
             ),
@@ -475,7 +475,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
               Expanded(
                 child: FormBuilderSearchableDropdownField<String>(
                   name: 'produto_$id',
-                  label: 'Produto',
+                  label: 'Item',
                   initialValue: _produtoInicial(id),
                   items: [
                     ...produtos.map((produto) => produto.id),
@@ -644,7 +644,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       final novoId = _proximoId++;
       setState(() {
         _produtoPreSelecionado[novoId] = rascunho.id;
-        _itens.add(novoId);
+        _itens.insert(0, novoId);
       });
     }
   }
@@ -758,7 +758,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   }
 
   void _adicionarItem() {
-    setState(() => _itens.add(_proximoId++));
+    setState(() => _itens.insert(0, _proximoId++));
   }
 
   Future<void> _criarFornecedor() async {

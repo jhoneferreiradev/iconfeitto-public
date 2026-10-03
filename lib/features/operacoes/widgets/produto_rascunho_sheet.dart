@@ -4,13 +4,15 @@ import 'package:iconfeitto/core/theme/app_spacing.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/widgets/app_grouped_dropdown.dart';
+import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/form_builder_grouped_dropdown_field.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/produto_compra_rascunho.dart';
+import '../../../shared/models/tipo_item.dart';
 
-/// Abre o formulário simplificado de novo produto a partir do rodapé.
+/// Abre o formulário simplificado de novo item a partir do formulário de compra.
 /// Retorna o rascunho (novo ou editado) sem persistir nada.
 Future<ProdutoCompraRascunho?> mostrarProdutoRascunhoSheet(
   BuildContext context, {
@@ -38,7 +40,7 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
 
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;
-  late bool _isEmbalagem = widget.rascunho?.isEmbalagem ?? false;
+  late TipoItem _tipo = widget.rascunho?.tipo ?? TipoItem.insumo;
 
   @override
   Widget build(BuildContext context) {
@@ -53,37 +55,44 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
       child: SingleChildScrollView(
         child: FormBuilder(
           key: _formKey,
-          initialValue: {
-            'nome': rascunho?.nome,
-            'isEmbalagem': rascunho?.isEmbalagem ?? false,
-            'podeSerVendido': rascunho?.podeSerVendido ?? false,
-          },
+          initialValue: {'nome': rascunho?.nome, 'tipo': _tipo},
           child: Column(
             spacing: AppSpacing.md,
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                rascunho == null ? 'Novo produto' : 'Editar novo produto',
+                rascunho == null ? 'Novo item' : 'Editar novo item',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
               const AppTextField(
                 name: 'nome',
                 label: 'Nome',
-                icon: Icons.cake_outlined,
+                icon: Icons.inventory_2_outlined,
               ),
-              FormBuilderSwitch(
-                name: 'isEmbalagem',
-                title: const Text('É embalagem'),
-                onChanged: (valor) =>
-                    setState(() => _isEmbalagem = valor ?? false),
+              FormBuilderDropdown<TipoItem>(
+                name: 'tipo',
+                decoration: AppInputDecoration.of(
+                  'Tipo',
+                  icon: Icons.category_outlined,
+                ),
+                validator: FormBuilderValidators.required(
+                  errorText: 'Selecione o tipo',
+                ),
+                items: TipoItem.tiposCompra
+                    .map(
+                      (tipo) => DropdownMenuItem(
+                        value: tipo,
+                        child: Text(tipo.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (tipo) {
+                  if (tipo != null) setState(() => _tipo = tipo);
+                },
               ),
-              FormBuilderSwitch(
-                name: 'podeSerVendido',
-                title: const Text('Pode ser vendido'),
-              ),
-              if (!_isEmbalagem)
+              if (_tipo != TipoItem.embalagem)
                 FormBuilderGroupedDropdownField<String>(
                   name: 'unidadeConsumoId',
                   label: 'Unidade de consumo',
@@ -138,7 +147,7 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
     if (form == null || !form.saveAndValidate()) return;
     final valores = form.value;
     final existente = widget.rascunho;
-    final unidadeConsumoId = _isEmbalagem
+    final unidadeConsumoId = _tipo == TipoItem.embalagem
         ? _unidadeEmbalagem
         : valores['unidadeConsumoId'] as String;
     Navigator.pop(
@@ -146,8 +155,7 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
       ProdutoCompraRascunho(
         id: existente?.id ?? _repo.novoId(),
         nome: (valores['nome'] as String).trim(),
-        isEmbalagem: _isEmbalagem,
-        podeSerVendido: valores['podeSerVendido'] as bool? ?? false,
+        tipo: _tipo,
         unidadeConsumoId: unidadeConsumoId,
       ),
     );

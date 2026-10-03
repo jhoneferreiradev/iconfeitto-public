@@ -17,6 +17,7 @@ import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
 import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
+import '../../../shared/models/tipo_item.dart';
 import '../pdf/fabricacao_pdf.dart';
 import 'cozinha_list_screen.dart';
 
@@ -62,6 +63,7 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
 
   bool _temFicha(Produto? produto) =>
       produto != null &&
+      TipoItem.tiposFabricacao.contains(produto.tipo) &&
       produto.possuiFichaTecnica &&
       produto.fichaTecnica.isNotEmpty;
 

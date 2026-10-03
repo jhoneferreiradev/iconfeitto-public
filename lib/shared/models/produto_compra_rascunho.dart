@@ -1,34 +1,32 @@
 import 'produto.dart';
+import 'tipo_item.dart';
 
-/// Produto informado durante uma compra que só é persistido ao salvá-la.
+/// Item informado durante uma compra que só é persistido ao salvá-la.
 class ProdutoCompraRascunho {
   final String id;
   String nome;
-  bool isEmbalagem;
-  bool podeSerVendido;
+  TipoItem tipo;
   String unidadeConsumoId;
 
   ProdutoCompraRascunho({
     required this.id,
     required this.nome,
-    required this.isEmbalagem,
-    required this.podeSerVendido,
+    required this.tipo,
     required this.unidadeConsumoId,
   });
 
-  /// Cria o produto definitivo; a unidade de estoque é a usada na compra.
+  /// Cria o item definitivo, normalizando embalagens para unidade individual.
   Produto paraProduto({required String unidadeEstoqueId}) {
+    final unidadeEmbalagem = tipo == TipoItem.embalagem;
     return Produto(
       id: id,
       nome: nome,
       ativo: true,
       custoMedio: 0,
       custoOperacional: 0,
-      podeSerComprado: true,
-      podeSerVendido: podeSerVendido,
-      isEmbalagem: isEmbalagem,
-      unidadeEstoqueId: unidadeEstoqueId,
-      unidadeConsumoId: unidadeConsumoId,
+      tipo: tipo,
+      unidadeEstoqueId: unidadeEmbalagem ? 'un' : unidadeEstoqueId,
+      unidadeConsumoId: unidadeEmbalagem ? 'un' : unidadeConsumoId,
       fichaTecnica: [],
       fichaTecnicaEmbalagem: [],
     );

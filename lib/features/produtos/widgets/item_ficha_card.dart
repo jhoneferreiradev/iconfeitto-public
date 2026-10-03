@@ -12,6 +12,7 @@ class ItemFichaCard extends StatelessWidget {
   final VoidCallback onRemover;
   final double custoLinha;
   final List<Widget> children;
+  final List<Widget> acoes;
 
   const ItemFichaCard({
     super.key,
@@ -19,6 +20,7 @@ class ItemFichaCard extends StatelessWidget {
     required this.onRemover,
     required this.custoLinha,
     this.children = const [],
+    this.acoes = const [],
   });
 
   @override
@@ -45,6 +47,8 @@ class ItemFichaCard extends StatelessWidget {
               ),
             ],
           ),
+          if (acoes.isNotEmpty)
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: acoes),
           ...children,
           Align(
             alignment: Alignment.centerRight,
