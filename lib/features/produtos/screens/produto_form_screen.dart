@@ -19,7 +19,9 @@ import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
 import '../../../shared/models/item_ficha_tecnica_embalagem.dart';
 import '../../../shared/models/produto.dart';
+import '../../../shared/models/produto_compra_rascunho.dart';
 import '../../../shared/models/tipo_item.dart';
+import '../../operacoes/widgets/produto_rascunho_sheet.dart';
 import '../pdf/ficha_tecnica_pdf.dart';
 import '../widgets/item_ficha_embalagem_row.dart';
 import '../widgets/item_ficha_row.dart';
@@ -47,8 +49,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   final _repo = AppRepository.instance;
 
   late final Produto? _produtoOriginal;
-  late final List<Produto> _ingredientesDisponiveis;
-  late final List<Produto> _embalagensDisponiveis;
+  late List<Produto> _ingredientesDisponiveis;
+  late List<Produto> _embalagensDisponiveis;
+
+  /// Itens criados nesta tela, só persistidos ao salvar o item.
+  final _rascunhos = <String, ProdutoCompraRascunho>{};
   late final Map<String, dynamic> _dadosIniciais;
 
   late List<ItemFichaTecnica> _ingredientes;
@@ -272,6 +277,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       titulo: 'Embalagem',
       disponiveis: _embalagensDisponiveis,
       onAdicionar: _adicionarEmbalagem,
+      onNovoItem: () => _novoItem(TipoItem.embalagem),
       child: _buildListaItens(
         disponiveis: _embalagensDisponiveis,
         quantidade: _embalagens.length,
@@ -288,6 +294,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       titulo: 'Itens da ficha técnica',
       disponiveis: _ingredientesDisponiveis,
       onAdicionar: _adicionarIngrediente,
+      onNovoItem: () => _novoItem(null),
       child: _buildListaItens(
         disponiveis: _ingredientesDisponiveis,
         quantidade: _ingredientes.length,
@@ -382,14 +389,24 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     required String titulo,
     required List<Produto> disponiveis,
     required VoidCallback onAdicionar,
+    required VoidCallback onNovoItem,
     required Widget child,
   }) {
     return SectionCard(
       title: titulo,
-      trailing: TextButton.icon(
-        onPressed: disponiveis.isEmpty ? null : onAdicionar,
-        icon: const Icon(Icons.add),
-        label: const Text('Adicionar item'),
+      trailing: Wrap(
+        children: [
+          TextButton.icon(
+            onPressed: onNovoItem,
+            icon: const Icon(Icons.fiber_new_outlined),
+            label: const Text('Novo item'),
+          ),
+          TextButton.icon(
+            onPressed: disponiveis.isEmpty ? null : onAdicionar,
+            icon: const Icon(Icons.add),
+            label: const Text('Adicionar item'),
+          ),
+        ],
       ),
       child: child,
     );
@@ -621,13 +638,22 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
   Widget? _buildLinhaEmbalagem(int i) {
     final item = _embalagens[i];
-    if (_repo.produtoPorId(item.produtoEmbalagemId) == null) return null;
+    if (_produtoPorId(item.produtoEmbalagemId) == null) return null;
+    final rascunho = _rascunhos[item.produtoEmbalagemId];
 
     return ItemFichaEmbalagemRow(
       key: _chavesEmbalagens[i],
       item: item,
       embalagens: _embalagensDisponiveis,
-      custoLinha: _repo.custoItemFichaEmbalagem(item),
+      custoLinha: _custoItemFichaEmbalagem(item),
+      acoes: [
+        if (rascunho != null)
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Editar novo item',
+            onPressed: () => _editarRascunho(rascunho),
+          ),
+      ],
       onChanged: (novo) => _alterarItens(() => _embalagens[i] = novo),
       onRemover: () => _alterarItens(() {
         _embalagens.removeAt(i);
@@ -659,23 +685,132 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       );
     }
 
-    final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
+    final ingrediente = _produtoPorId(item.produtoIngredienteId);
     if (ingrediente == null) return null;
 
     final grupo = _repo.unidadePorId(ingrediente.unidadeConsumoId).grupo;
+    final rascunho = _rascunhos[item.produtoIngredienteId];
 
     return ItemFichaRow(
       key: _chavesIngredientes[i],
       item: item,
       ingredientes: _ingredientesDisponiveis,
       unidadesCompativeis: _repo.unidadesDoGrupo(grupo),
-      custoLinha: _repo.custoItemFicha(item),
+      custoLinha: _custoItemFicha(item),
+      onEditarNovoItem: rascunho == null
+          ? null
+          : () => _editarRascunho(rascunho),
       onChanged: (novo) => _alterarItens(() => _ingredientes[i] = novo),
       onRemover: () => _alterarItens(() {
         _ingredientes.removeAt(i);
         _chavesIngredientes.removeAt(i);
       }),
+      onMoverParaCima: i == 0 ? null : () => _moverIngrediente(i, -1),
+      onMoverParaBaixo: i == _ingredientes.length - 1
+          ? null
+          : () => _moverIngrediente(i, 1),
     );
+  }
+
+  Produto? _produtoPorId(String id) =>
+      _rascunhos[id]?.paraProduto(
+        unidadeEstoqueId: _rascunhos[id]!.unidadeConsumoId,
+      ) ??
+      _repo.produtoPorId(id);
+
+  // Itens novos ainda não têm custo (nem estoque) até serem comprados.
+  double _custoItemFicha(ItemFichaTecnica item) =>
+      _rascunhos.containsKey(item.produtoIngredienteId)
+      ? 0
+      : _repo.custoItemFicha(item);
+
+  double _custoItemFichaEmbalagem(ItemFichaTecnicaEmbalagem item) =>
+      _rascunhos.containsKey(item.produtoEmbalagemId)
+      ? 0
+      : _repo.custoItemFichaEmbalagem(item);
+
+  /// [tipoFixo] nulo significa ingrediente (insumo ou material).
+  Future<void> _novoItem(TipoItem? tipoFixo) async {
+    final rascunho = await mostrarProdutoRascunhoSheet(
+      context,
+      tipos: tipoFixo == null
+          ? const [TipoItem.insumo, TipoItem.material]
+          : [tipoFixo],
+    );
+    if (rascunho == null || !mounted) return;
+    _rascunhos[rascunho.id] = rascunho;
+    _atualizarDisponiveis();
+
+    _alterarItens(() {
+      if (rascunho.tipo == TipoItem.embalagem) {
+        _embalagens.insert(
+          0,
+          ItemFichaTecnicaEmbalagem(produtoEmbalagemId: rascunho.id),
+        );
+        _chavesEmbalagens.insert(0, UniqueKey());
+        return;
+      }
+      final vazio = _ingredientes.indexWhere(
+        (i) => i.produtoIngredienteId.isEmpty,
+      );
+      final novo = ItemFichaTecnica(
+        produtoIngredienteId: rascunho.id,
+        quantidade: vazio >= 0 ? _ingredientes[vazio].quantidade : 0,
+        unidadeId: rascunho.unidadeConsumoId,
+      );
+      if (vazio >= 0) {
+        _ingredientes[vazio] = novo;
+        _chavesIngredientes[vazio] = UniqueKey();
+      } else {
+        _ingredientes.insert(0, novo);
+        _chavesIngredientes.insert(0, UniqueKey());
+      }
+    });
+  }
+
+  Future<void> _editarRascunho(ProdutoCompraRascunho rascunho) async {
+    final editado = await mostrarProdutoRascunhoSheet(
+      context,
+      rascunho: rascunho,
+      tipos: rascunho.tipo == TipoItem.embalagem
+          ? const [TipoItem.embalagem]
+          : const [TipoItem.insumo, TipoItem.material],
+    );
+    if (editado == null || !mounted) return;
+    _rascunhos[editado.id] = editado;
+    _atualizarDisponiveis();
+    _alterarItens(() {
+      for (var i = 0; i < _ingredientes.length; i++) {
+        final item = _ingredientes[i];
+        if (item.produtoIngredienteId != editado.id) continue;
+        _ingredientes[i] = ItemFichaTecnica(
+          produtoIngredienteId: item.produtoIngredienteId,
+          quantidade: item.quantidade,
+          unidadeId: editado.unidadeConsumoId,
+        );
+        _chavesIngredientes[i] = UniqueKey();
+      }
+    });
+  }
+
+  /// Recria as listas de opções incluindo os itens novos desta tela.
+  void _atualizarDisponiveis() {
+    final id = widget.produtoId;
+    final novos = _rascunhos.values.map(
+      (r) => r.paraProduto(unidadeEstoqueId: r.unidadeConsumoId),
+    );
+    _ingredientesDisponiveis = [
+      ..._repo.produtos.where(
+        (p) => p.id != id && TipoItem.tiposFichaTecnica.contains(p.tipo),
+      ),
+      ...novos.where((p) => TipoItem.tiposFichaTecnica.contains(p.tipo)),
+    ]..sort((a, b) => a.nome.compareTo(b.nome));
+    _embalagensDisponiveis = [
+      ..._repo.produtos.where(
+        (p) => p.id != id && p.tipo == TipoItem.embalagem,
+      ),
+      ...novos.where((p) => p.tipo == TipoItem.embalagem),
+    ]..sort((a, b) => a.nome.compareTo(b.nome));
   }
 
   void _adicionarEmbalagem() {
@@ -727,11 +862,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   void _atualizarCustos() {
     final custoFicha = _ingredientes.fold<double>(
       0,
-      (soma, item) => soma + _repo.custoItemFicha(item),
+      (soma, item) => soma + _custoItemFicha(item),
     );
     final custoEmbalagem = _embalagens.fold<double>(
       0,
-      (soma, item) => soma + _repo.custoItemFichaEmbalagem(item),
+      (soma, item) => soma + _custoItemFichaEmbalagem(item),
     );
     final horasDePreparo = _lerNumero('tempoPreparoMinutos') / 60;
 
@@ -787,7 +922,27 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
     try {
       final produto = _montarProduto(form.value);
-      await _repo.salvarProduto(produto);
+      final criados = <String>[];
+      try {
+        final usados = {
+          ...produto.fichaTecnica.map((i) => i.produtoIngredienteId),
+          ...produto.fichaTecnicaEmbalagem.map((i) => i.produtoEmbalagemId),
+        };
+        for (final id in usados.where(_rascunhos.containsKey)) {
+          final rascunho = _rascunhos[id]!;
+          await _repo.salvarProduto(
+            rascunho.paraProduto(unidadeEstoqueId: rascunho.unidadeConsumoId),
+          );
+          criados.add(id);
+        }
+        await _repo.salvarProduto(produto);
+      } catch (_) {
+        for (final id in criados) {
+          await _repo.excluirProduto(id);
+        }
+        rethrow;
+      }
+      _rascunhos.removeWhere((id, _) => criados.contains(id));
       onSuccess(produto);
     } catch (error) {
       _mostrarMensagem('Não foi possível salvar o item: $error');

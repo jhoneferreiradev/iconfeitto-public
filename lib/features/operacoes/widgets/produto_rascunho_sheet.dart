@@ -17,19 +17,22 @@ import '../../../shared/models/tipo_item.dart';
 Future<ProdutoCompraRascunho?> mostrarProdutoRascunhoSheet(
   BuildContext context, {
   ProdutoCompraRascunho? rascunho,
+  List<TipoItem> tipos = TipoItem.tiposCompra,
 }) {
   return showModalBottomSheet<ProdutoCompraRascunho>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (context) => _ProdutoRascunhoSheet(rascunho: rascunho),
+    builder: (context) =>
+        _ProdutoRascunhoSheet(rascunho: rascunho, tipos: tipos),
   );
 }
 
 class _ProdutoRascunhoSheet extends StatefulWidget {
   final ProdutoCompraRascunho? rascunho;
+  final List<TipoItem> tipos;
 
-  const _ProdutoRascunhoSheet({this.rascunho});
+  const _ProdutoRascunhoSheet({this.rascunho, required this.tipos});
 
   @override
   State<_ProdutoRascunhoSheet> createState() => _ProdutoRascunhoSheetState();
@@ -40,7 +43,7 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
 
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;
-  late TipoItem _tipo = widget.rascunho?.tipo ?? TipoItem.insumo;
+  late TipoItem _tipo = widget.rascunho?.tipo ?? widget.tipos.first;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +83,7 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
                 validator: FormBuilderValidators.required(
                   errorText: 'Selecione o tipo',
                 ),
-                items: TipoItem.tiposCompra
+                items: widget.tipos
                     .map(
                       (tipo) => DropdownMenuItem(
                         value: tipo,

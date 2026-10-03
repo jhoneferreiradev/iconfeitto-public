@@ -11,6 +11,7 @@ class ItemFichaEmbalagemRow extends StatelessWidget {
   final List<Produto> embalagens;
   final ValueChanged<ItemFichaTecnicaEmbalagem> onChanged;
   final VoidCallback onRemover;
+  final List<Widget> acoes;
 
   const ItemFichaEmbalagemRow({
     super.key,
@@ -19,6 +20,7 @@ class ItemFichaEmbalagemRow extends StatelessWidget {
     required this.embalagens,
     required this.onChanged,
     required this.onRemover,
+    this.acoes = const [],
   });
 
   @override
@@ -26,6 +28,7 @@ class ItemFichaEmbalagemRow extends StatelessWidget {
     return ItemFichaCard(
       custoLinha: custoLinha,
       onRemover: onRemover,
+      acoes: acoes,
       seletor: SeletorDeProduto(
         label: 'Item da embalagem',
         produtos: embalagens,

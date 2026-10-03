@@ -21,6 +21,7 @@ class ItemFichaRow extends StatefulWidget {
   final VoidCallback onRemover;
   final VoidCallback? onMoverParaCima;
   final VoidCallback? onMoverParaBaixo;
+  final VoidCallback? onEditarNovoItem;
 
   const ItemFichaRow({
     super.key,
@@ -32,6 +33,7 @@ class ItemFichaRow extends StatefulWidget {
     required this.onRemover,
     this.onMoverParaCima,
     this.onMoverParaBaixo,
+    this.onEditarNovoItem,
   });
 
   @override
@@ -101,6 +103,12 @@ class _ItemFichaRowState extends State<ItemFichaRow> {
       custoLinha: widget.custoLinha,
       onRemover: widget.onRemover,
       acoes: [
+        if (widget.onEditarNovoItem != null)
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Editar novo item',
+            onPressed: widget.onEditarNovoItem,
+          ),
         IconButton(
           icon: const Icon(Icons.arrow_upward),
           tooltip: 'Mover para cima',
