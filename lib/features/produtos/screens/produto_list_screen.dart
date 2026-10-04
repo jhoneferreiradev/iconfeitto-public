@@ -9,6 +9,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/produto.dart';
 import '../../../shared/models/tipo_item.dart';
+import '../pdf/ficha_tecnica_pdf.dart';
 import '../pdf/item_list_pdf.dart';
 
 class ProdutoListScreen extends StatefulWidget {
@@ -148,10 +149,35 @@ class _ProdutoListScreenState extends State<ProdutoListScreen> {
             custoOperacional: item.custoOperacional,
             custoUnitarioEmbalagem: repo.custoEmbalagem(item),
           ).custoRendimentoUnitario;
+
+    final bool isProduto = TipoItem.produto == item.tipo;
     return Card(
       margin: EdgeInsets.zero,
       child: ListTile(
-        title: Text(item.nome),
+        title: Row(
+          children: [
+            Expanded(child: Text(item.nome)),
+            if (isProduto)
+              IconButton(
+                icon: const Icon(Icons.print_outlined),
+                tooltip: 'Imprimir ficha técnica',
+                onPressed: () => FichaTecnicaPdf.imprimir(item),
+              ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Excluir item',
+              onPressed: () async {
+                final confirmar = await confirmarExclusao(
+                  context,
+                  titulo: 'Excluir item',
+                  mensagem:
+                      'Deseja excluir "${item.nome}"? Essa ação não pode ser desfeita.',
+                );
+                if (confirmar) await repo.excluirProduto(item.id);
+              },
+            ),
+          ],
+        ),
         subtitle: _listaDeEstoque
             ? Text(
                 'Custo médio: ${custo.toCurrency()}  •  '
@@ -159,25 +185,12 @@ class _ProdutoListScreenState extends State<ProdutoListScreen> {
                 '${repo.unidadePorId(item.unidadeEstoqueId).sigla}',
               )
             : Text(
-                TipoItem.produto == item.tipo
+                isProduto
                     ? 'Custo: ${custo.toCurrency()}  •  Venda: ${item.precoVenda.toCurrency()}'
                     : 'Custo para 1 rendimento: ${custo.toCurrency()}',
               ),
         onTap: () => context.push(
           '/produtos/${item.id}/editar?grupo=${_listaDeEstoque ? 'estoque' : 'produto'}',
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline),
-          tooltip: 'Excluir item',
-          onPressed: () async {
-            final confirmar = await confirmarExclusao(
-              context,
-              titulo: 'Excluir item',
-              mensagem:
-                  'Deseja excluir "${item.nome}"? Essa ação não pode ser desfeita.',
-            );
-            if (confirmar) await repo.excluirProduto(item.id);
-          },
         ),
       ),
     );

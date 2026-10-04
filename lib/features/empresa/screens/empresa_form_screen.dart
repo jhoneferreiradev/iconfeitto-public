@@ -260,6 +260,7 @@ class _EmpresaFormScreenState extends State<EmpresaFormScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.md,
         children: [
           if (custos.isEmpty)
             const EmptyState(

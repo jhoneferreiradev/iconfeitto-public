@@ -94,9 +94,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
             )
             .toList()
           ..sort((a, b) => a.nome.compareTo(b.nome));
-    _embalagensDisponiveis = _ingredientesDisponiveis
-        .where((p) => p.isEmbalagem)
-        .toList();
+
+    _embalagensDisponiveis = _repo.produtos.where((p) => p.isEmbalagem).toList()
+      ..sort((a, b) => a.nome.compareTo(b.nome));
 
     _ingredientes = original?.fichaTecnica.map((i) => i.copy()).toList() ?? [];
     _embalagens =
