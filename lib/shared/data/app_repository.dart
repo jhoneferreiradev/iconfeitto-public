@@ -99,17 +99,26 @@ class AppRepository extends ChangeNotifier {
     final produtosData = await _db.query('produtos');
     for (final row in produtosData) {
       final produtoId = row['id'] as String;
-      final fichaTecnicaRows = await _db.query(
-        'itens_ficha_tecnica',
-        where: 'produtoId = ?',
-        whereArgs: [produtoId],
-        orderBy: 'id',
+      final fichaTecnicaRows = await _db.rawQuery(
+        '''
+        SELECT ift.*
+        FROM itens_ficha_tecnica ift
+        JOIN produtos ingrediente ON ift.produtoIngredienteId = ingrediente.id
+        WHERE ift.produtoId = ?
+        AND ingrediente.tipo <> ?
+        ''',
+        [produtoId, 'embalagem'],
       );
 
-      final fichaTecnicaEmbalagemRows = await _db.query(
-        'itens_ficha_tecnica_embalagem',
-        where: 'produtoId = ?',
-        whereArgs: [produtoId],
+      final fichaTecnicaEmbalagemRows = await _db.rawQuery(
+        '''
+        SELECT ift.*
+        FROM itens_ficha_tecnica ift
+        JOIN produtos embalagem ON ift.produtoIngredienteId = embalagem.id
+        WHERE ift.produtoId = ?
+        AND embalagem.tipo = 'embalagem'
+        ''',
+        [produtoId],
       );
 
       final fichaTecnica = [
@@ -124,7 +133,7 @@ class AppRepository extends ChangeNotifier {
       final fichaTecnicaEmbalagem = [
         for (final fichaRow in fichaTecnicaEmbalagemRows)
           ItemFichaTecnicaEmbalagem(
-            produtoEmbalagemId: fichaRow['produtoEmbalagemId'] as String,
+            produtoEmbalagemId: fichaRow['produtoIngredienteId'] as String,
             quantidade: fichaRow['quantidade'] as double,
             unidadeId: fichaRow['unidadeId'] as String,
           ),
@@ -418,12 +427,6 @@ class AppRepository extends ChangeNotifier {
       whereArgs: [produto.id],
     );
 
-    await _db.delete(
-      'itens_ficha_tecnica_embalagem',
-      where: 'produtoId = ?',
-      whereArgs: [produto.id],
-    );
-
     if (idx >= 0) {
       produtos[idx] = produto;
       await _db.update(
@@ -447,11 +450,11 @@ class AppRepository extends ChangeNotifier {
     }
 
     for (final item in produto.fichaTecnicaEmbalagem) {
-      await _db.insert('itens_ficha_tecnica_embalagem', {
+      await _db.insert('itens_ficha_tecnica', {
         'produtoId': produto.id,
-        'produtoEmbalagemId': item.produtoEmbalagemId,
+        'produtoIngredienteId': item.produtoEmbalagemId,
         'quantidade': item.quantidade,
-        'unidadeId': item.unidadeId
+        'unidadeId': item.unidadeId,
       });
     }
 
@@ -465,11 +468,11 @@ class AppRepository extends ChangeNotifier {
       where: 'produtoId = ?',
       whereArgs: [id],
     );
-    await _db.delete(
-      'itens_ficha_tecnica_embalagem',
-      where: 'produtoId = ?',
-      whereArgs: [id],
-    );
+    // await _db.delete(
+    //   'itens_ficha_tecnica_embalagem',
+    //   where: 'produtoId = ?',
+    //   whereArgs: [id],
+    // );
     await _db.delete('produtos', where: 'id = ?', whereArgs: [id]);
     notifyListeners();
   }

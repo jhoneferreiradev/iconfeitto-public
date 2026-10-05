@@ -38,7 +38,8 @@ class Item {
     required this.fichaTecnica,
     required this.fichaTecnicaEmbalagem,
     this.precoVenda = 0,
-  }) : tipo = tipo ??
+  }) : tipo =
+           tipo ??
            _inferirTipo(
              isEmbalagem: isEmbalagem ?? false,
              podeSerVendido: podeSerVendido ?? true,
@@ -117,8 +118,7 @@ class CalculadoraPrecoVendaProduto {
     required CalculadoraCustoProduto custos,
     required double precoVenda,
   }) {
-    final lucro =
-        (precoVenda == 0 || custos.custoRendimentoUnitario == 0)
+    final lucro = (precoVenda == 0 || custos.custoRendimentoUnitario == 0)
         ? 0.0
         : precoVenda - custos.custoRendimentoUnitario;
 

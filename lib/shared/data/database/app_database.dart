@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 11,
+      version: 12,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -180,7 +180,7 @@ class AppDatabase {
     ''');
 
     await _createCustosOperacionaisTable(db);
-    await _createFichaTecnicaEmbalagem(db);
+    // await _createFichaTecnicaEmbalagem(db);
   }
 
   /// Schema atual da tabela de produtos (v5+). [nome] permite criar uma
@@ -224,21 +224,21 @@ class AppDatabase {
     ''');
   }
 
-  Future<void> _createFichaTecnicaEmbalagem(Database db) async {
-    // Embalagem
-    await db.execute('''
-      CREATE TABLE itens_ficha_tecnica_embalagem (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        produtoId TEXT NOT NULL,
-        produtoEmbalagemId TEXT NOT NULL,
-        quantidade REAL NOT NULL,
-        unidadeId TEXT NOT NULL,
-        FOREIGN KEY (produtoId) REFERENCES produtos(id),
-        FOREIGN KEY (produtoEmbalagemId) REFERENCES produtos(id),
-        FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
-      )
-    ''');
-  }
+  // Future<void> _createFichaTecnicaEmbalagem(Database db) async {
+  //   // Embalagem
+  //   await db.execute('''
+  //     CREATE TABLE itens_ficha_tecnica_embalagem (
+  //       id INTEGER PRIMARY KEY AUTOINCREMENT,
+  //       produtoId TEXT NOT NULL,
+  //       produtoEmbalagemId TEXT NOT NULL,
+  //       quantidade REAL NOT NULL,
+  //       unidadeId TEXT NOT NULL,
+  //       FOREIGN KEY (produtoId) REFERENCES produtos(id),
+  //       FOREIGN KEY (produtoEmbalagemId) REFERENCES produtos(id),
+  //       FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
+  //     )
+  //   ''');
+  // }
 
   Future<void> _addDadosEmbalagemColumnInProdutosTable(Database db) async {
     await db.execute('''
@@ -258,7 +258,7 @@ class AppDatabase {
     }
 
     if (oldVersion < 3) {
-      await _createFichaTecnicaEmbalagem(db);
+      // await _createFichaTecnicaEmbalagem(db);
     }
 
     if (oldVersion < 4) {
@@ -340,6 +340,10 @@ class AppDatabase {
         ALTER COLUMN unidadeId SET NOT NULL
       ''');
     }
+
+    if (oldVersion < 12) {
+      await _ajustarEmbalagensDaFichaTecnica(db);
+    }
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.
@@ -376,6 +380,19 @@ class AppDatabase {
     await db.execute('''
       ALTER TABLE produtos
       ADD COLUMN precoVenda REAL NOT NULL DEFAULT 0
+    ''');
+  }
+
+  Future<void> _ajustarEmbalagensDaFichaTecnica(Database db) async {
+    await db.execute('''
+
+      INSERT INTO itens_ficha_tecnica(
+        produtoId, produtoIngredienteId, quantidade, unidadeId
+      )
+      SELECT
+        produtoId, produtoEmbalagemId, quantidade, unidadeId
+      FROM itens_ficha_tecnica_embalagem
+
     ''');
   }
 
