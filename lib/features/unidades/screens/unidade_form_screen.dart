@@ -118,9 +118,12 @@ class _UnidadeFormScreenState extends State<UnidadeFormScreen> {
     if (_formKey.currentState?.saveAndValidate() != true) return;
     final valores = _formKey.currentState!.value;
     final sigla = (valores['sigla'] as String).trim();
-    final id = _original?.id ?? sigla.toLowerCase().replaceAll(' ', '-');
+    final id = _original?.id ?? _repo.novoId();
 
-    if (_original == null && _repo.unidades.any((u) => u.id == id)) {
+    if (_original == null &&
+        _repo.unidades.any(
+          (u) => u.sigla.toLowerCase() == sigla.toLowerCase(),
+        )) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Já existe uma unidade com essa sigla.')),
       );

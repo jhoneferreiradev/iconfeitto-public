@@ -20,17 +20,21 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 13,
+      version: 14,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
-  Future<void> _onCreate(Database db, int version) async {
+  Future<void> _onCreate(
+    Database db,
+    int version, {
+    bool seedUnidades = true,
+  }) async {
     // Unidades de medida (base data, not mutable typically)
     await db.execute('''
       CREATE TABLE unidades_medida (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         sigla TEXT NOT NULL,
         grupo TEXT NOT NULL,
@@ -45,10 +49,10 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE itens_ficha_tecnica (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        produtoId TEXT NOT NULL,
-        produtoIngredienteId TEXT NOT NULL,
+        produtoId INTEGER NOT NULL,
+        produtoIngredienteId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
-        unidadeId TEXT NOT NULL,
+        unidadeId INTEGER NOT NULL,
         FOREIGN KEY (produtoId) REFERENCES produtos(id),
         FOREIGN KEY (produtoIngredienteId) REFERENCES produtos(id),
         FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
@@ -58,7 +62,7 @@ class AppDatabase {
     // Fornecedores (suppliers)
     await db.execute('''
       CREATE TABLE fornecedores (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         ativo INTEGER NOT NULL
       )
@@ -67,7 +71,7 @@ class AppDatabase {
     // Clientes (clients)
     await db.execute('''
       CREATE TABLE clientes (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         ativo INTEGER NOT NULL
       )
@@ -76,9 +80,9 @@ class AppDatabase {
     // Compras (purchases)
     await db.execute('''
       CREATE TABLE compras (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         data TEXT NOT NULL,
-        fornecedorId TEXT NOT NULL,
+        fornecedorId INTEGER NOT NULL,
         FOREIGN KEY (fornecedorId) REFERENCES fornecedores(id)
       )
     ''');
@@ -87,11 +91,11 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE itens_compra (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        compraId TEXT NOT NULL,
-        produtoId TEXT NOT NULL,
+        compraId INTEGER NOT NULL,
+        produtoId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
         valorUnitario REAL NOT NULL,
-        unidadeId TEXT NOT NULL,
+        unidadeId INTEGER NOT NULL,
         FOREIGN KEY (compraId) REFERENCES compras(id),
         FOREIGN KEY (produtoId) REFERENCES produtos(id),
         FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
@@ -101,9 +105,9 @@ class AppDatabase {
     // Vendas (sales)
     await db.execute('''
       CREATE TABLE vendas (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         data TEXT NOT NULL,
-        clienteId TEXT NOT NULL,
+        clienteId INTEGER NOT NULL,
         FOREIGN KEY (clienteId) REFERENCES clientes(id)
       )
     ''');
@@ -112,11 +116,11 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE itens_venda (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        vendaId TEXT NOT NULL,
-        produtoId TEXT NOT NULL,
+        vendaId INTEGER NOT NULL,
+        produtoId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
         valorUnitario REAL NOT NULL,
-        unidadeId TEXT NOT NULL,
+        unidadeId INTEGER NOT NULL,
         FOREIGN KEY (vendaId) REFERENCES vendas(id),
         FOREIGN KEY (produtoId) REFERENCES produtos(id),
         FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
@@ -126,9 +130,9 @@ class AppDatabase {
     // Fabricação (manufacturing/production)
     await db.execute('''
       CREATE TABLE fabricacoes (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         data TEXT NOT NULL,
-        produtoId TEXT NOT NULL,
+        produtoId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
         FOREIGN KEY (produtoId) REFERENCES produtos(id)
       )
@@ -138,10 +142,10 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE itens_fabricacao_registro (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fabricacaoId TEXT NOT NULL,
-        produtoIngredienteId TEXT NOT NULL,
+        fabricacaoId INTEGER NOT NULL,
+        produtoIngredienteId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
-        unidadeId TEXT NOT NULL,
+        unidadeId INTEGER NOT NULL,
         FOREIGN KEY (fabricacaoId) REFERENCES fabricacoes(id),
         FOREIGN KEY (produtoIngredienteId) REFERENCES produtos(id),
         FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
@@ -151,14 +155,14 @@ class AppDatabase {
     // Stock movements history
     await db.execute('''
       CREATE TABLE movimentos_estoque (
-        id TEXT PRIMARY KEY,
-        operacaoId TEXT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operacaoId INTEGER,
         data TEXT NOT NULL,
-        produtoId TEXT NOT NULL,
+        produtoId INTEGER NOT NULL,
         tipo TEXT NOT NULL,
         quantidade REAL NOT NULL,
         valorUnitario REAL NOT NULL,
-        unidadeId TEXT NOT NULL,
+        unidadeId INTEGER NOT NULL,
         FOREIGN KEY (produtoId) REFERENCES produtos(id),
         FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
       )
@@ -167,7 +171,7 @@ class AppDatabase {
     // Company info (single row)
     await db.execute('''
       CREATE TABLE empresa (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT,
         cnpjCpf TEXT,
         telefone TEXT,
@@ -181,14 +185,23 @@ class AppDatabase {
 
     await _createCustosOperacionaisTable(db);
     // await _createFichaTecnicaEmbalagem(db);
+    if (seedUnidades) await _seedUnidades(db);
   }
 
   /// Schema atual da tabela de produtos (v5+). [nome] permite criar uma
   /// tabela temporária durante a migração.
-  Future<void> _createProdutosTable(Database db, {String nome = 'produtos'}) {
+  Future<void> _createProdutosTable(
+    Database db, {
+    String nome = 'produtos',
+    bool legacyTextId = false,
+  }) {
+    final idColumn = legacyTextId
+        ? 'TEXT PRIMARY KEY'
+        : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+    final unidadeIdType = legacyTextId ? 'TEXT' : 'INTEGER';
     return db.execute('''
       CREATE TABLE $nome (
-        id TEXT PRIMARY KEY,
+        id $idColumn,
         nome TEXT NOT NULL,
         ativo INTEGER NOT NULL,
         custoMedio REAL NOT NULL,
@@ -200,8 +213,8 @@ class AppDatabase {
         tempoPreparoMinutos INTEGER NOT NULL,
         rendimentoReceita INTEGER NOT NULL,
         custoOperacional REAL NOT NULL,
-        unidadeEstoqueId TEXT NOT NULL,
-        unidadeConsumoId TEXT NOT NULL,
+        unidadeEstoqueId $unidadeIdType NOT NULL,
+        unidadeConsumoId $unidadeIdType NOT NULL,
         isEmbalagem INTEGER NOT NULL DEFAULT 0,
         custoEmbalagem REAL NOT NULL DEFAULT 0,
         precoVenda REAL NOT NULL DEFAULT 0,
@@ -215,8 +228,8 @@ class AppDatabase {
     // Custos operacionais da empresa (add/remove only)
     await db.execute('''
       CREATE TABLE custos_operacionais (
-        id TEXT PRIMARY KEY,
-        empresaId TEXT NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresaId INTEGER NOT NULL,
         nome TEXT NOT NULL,
         valor REAL NOT NULL,
         FOREIGN KEY (empresaId) REFERENCES empresa(id)
@@ -348,6 +361,10 @@ class AppDatabase {
     if (oldVersion < 13) {
       await db.execute('DROP TABLE IF EXISTS itens_ficha_tecnica_embalagem');
     }
+
+    if (oldVersion < 14) {
+      await _migrarChavesPrimariasParaInteiro(db);
+    }
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.
@@ -358,7 +375,7 @@ class AppDatabase {
   Future<void> _tornarUnidadeConsumoObrigatoria(Database db) async {
     const tabelaTemporaria = 'produtos_v5';
     await db.execute('DROP TABLE IF EXISTS $tabelaTemporaria');
-    await _createProdutosTable(db, nome: tabelaTemporaria);
+    await _createProdutosTable(db, nome: tabelaTemporaria, legacyTextId: true);
 
     await db.execute('''
       INSERT INTO $tabelaTemporaria (
@@ -398,6 +415,312 @@ class AppDatabase {
       FROM itens_ficha_tecnica_embalagem
 
     ''');
+  }
+
+  Future<void> _migrarChavesPrimariasParaInteiro(Database db) async {
+    const tabelas = [
+      'unidades_medida',
+      'produtos',
+      'fornecedores',
+      'clientes',
+      'compras',
+      'vendas',
+      'fabricacoes',
+      'movimentos_estoque',
+      'empresa',
+      'custos_operacionais',
+      'itens_ficha_tecnica',
+      'itens_compra',
+      'itens_venda',
+      'itens_fabricacao_registro',
+    ];
+
+    for (final tabela in tabelas) {
+      await db.execute(
+        'CREATE TEMP TABLE migracao_$tabela AS SELECT * FROM $tabela',
+      );
+    }
+
+    const idsUnidades = {
+      'g': 1,
+      'kg': 2,
+      'mg': 3,
+      'ml': 4,
+      'l': 5,
+      'xicara': 6,
+      'colher-sopa': 7,
+      'colher-cha': 8,
+      'un': 9,
+      'dz': 10,
+      'm': 11,
+      'cm': 12,
+    };
+    await _criarMapaIds(db, 'unidades_medida', idsUnidades);
+    for (final tabela in [
+      'produtos',
+      'fornecedores',
+      'clientes',
+      'compras',
+      'vendas',
+      'fabricacoes',
+      'movimentos_estoque',
+      'custos_operacionais',
+    ]) {
+      await _criarMapaIds(db, tabela);
+    }
+    await _criarMapaIds(db, 'empresa', const {'empresa': 1});
+
+    for (final tabela in [
+      'itens_ficha_tecnica',
+      'itens_compra',
+      'itens_venda',
+      'itens_fabricacao_registro',
+      'custos_operacionais',
+      'movimentos_estoque',
+      'fabricacoes',
+      'vendas',
+      'compras',
+      'produtos',
+      'fornecedores',
+      'clientes',
+      'empresa',
+      'unidades_medida',
+    ]) {
+      await db.execute('DROP TABLE $tabela');
+    }
+    await _onCreate(db, 14, seedUnidades: false);
+
+    await db.execute('''
+      INSERT INTO unidades_medida (id, nome, sigla, grupo, fatorParaBase)
+      SELECT ids.newId, old.nome, old.sigla,
+        REPLACE(old.grupo, 'GrupoUnidade.', ''), old.fatorParaBase
+      FROM migracao_unidades_medida old
+      JOIN migracao_ids_unidades_medida ids ON ids.oldId = old.id
+    ''');
+    await db.execute('''
+      INSERT INTO empresa (
+        id, nome, cnpjCpf, telefone, endereco, instagram, facebook,
+        logoPath, despesasGlobais
+      )
+      SELECT ids.newId, old.nome, old.cnpjCpf, old.telefone, old.endereco,
+        old.instagram, old.facebook, old.logoPath, old.despesasGlobais
+      FROM migracao_empresa old
+      JOIN migracao_ids_empresa ids ON ids.oldId = old.id
+    ''');
+    await db.execute('''
+      INSERT INTO fornecedores (id, nome, ativo)
+      SELECT ids.newId, old.nome, old.ativo
+      FROM migracao_fornecedores old
+      JOIN migracao_ids_fornecedores ids ON ids.oldId = old.id
+    ''');
+    await db.execute('''
+      INSERT INTO clientes (id, nome, ativo)
+      SELECT ids.newId, old.nome, old.ativo
+      FROM migracao_clientes old
+      JOIN migracao_ids_clientes ids ON ids.oldId = old.id
+    ''');
+    await db.execute('''
+      INSERT INTO produtos (
+        id, nome, ativo, custoMedio, saldoEstoque, podeSerVendido,
+        podeSerComprado, tipo, possuiFichaTecnica, tempoPreparoMinutos,
+        rendimentoReceita, custoOperacional, unidadeEstoqueId,
+        unidadeConsumoId, isEmbalagem, custoEmbalagem, precoVenda
+      )
+      SELECT ids.newId, old.nome, old.ativo, old.custoMedio, old.saldoEstoque,
+        old.podeSerVendido, old.podeSerComprado,
+        REPLACE(old.tipo, 'TipoItem.', ''), old.possuiFichaTecnica,
+        old.tempoPreparoMinutos, old.rendimentoReceita, old.custoOperacional,
+        estoque.newId, consumo.newId, old.isEmbalagem, old.custoEmbalagem,
+        old.precoVenda
+      FROM migracao_produtos old
+      JOIN migracao_ids_produtos ids ON ids.oldId = old.id
+      JOIN migracao_ids_unidades_medida estoque
+        ON estoque.oldId = old.unidadeEstoqueId
+      JOIN migracao_ids_unidades_medida consumo
+        ON consumo.oldId = old.unidadeConsumoId
+    ''');
+    await db.execute('''
+      INSERT INTO compras (id, data, fornecedorId)
+      SELECT ids.newId, old.data, fornecedor.newId
+      FROM migracao_compras old
+      JOIN migracao_ids_compras ids ON ids.oldId = old.id
+      JOIN migracao_ids_fornecedores fornecedor
+        ON fornecedor.oldId = old.fornecedorId
+    ''');
+    await db.execute('''
+      INSERT INTO vendas (id, data, clienteId)
+      SELECT ids.newId, old.data, cliente.newId
+      FROM migracao_vendas old
+      JOIN migracao_ids_vendas ids ON ids.oldId = old.id
+      JOIN migracao_ids_clientes cliente ON cliente.oldId = old.clienteId
+    ''');
+    await db.execute('''
+      INSERT INTO fabricacoes (id, data, produtoId, quantidade)
+      SELECT ids.newId, old.data, produto.newId, old.quantidade
+      FROM migracao_fabricacoes old
+      JOIN migracao_ids_fabricacoes ids ON ids.oldId = old.id
+      JOIN migracao_ids_produtos produto ON produto.oldId = old.produtoId
+    ''');
+    await db.execute('''
+      INSERT INTO itens_ficha_tecnica (
+        produtoId, produtoIngredienteId, quantidade, unidadeId
+      )
+      SELECT produto.newId, ingrediente.newId, old.quantidade, unidade.newId
+      FROM migracao_itens_ficha_tecnica old
+      JOIN migracao_ids_produtos produto ON produto.oldId = old.produtoId
+      JOIN migracao_ids_produtos ingrediente
+        ON ingrediente.oldId = old.produtoIngredienteId
+      JOIN migracao_ids_unidades_medida unidade ON unidade.oldId = old.unidadeId
+    ''');
+    await db.execute('''
+      INSERT INTO itens_compra (
+        compraId, produtoId, quantidade, valorUnitario, unidadeId
+      )
+      SELECT compra.newId, produto.newId, old.quantidade, old.valorUnitario,
+        unidade.newId
+      FROM migracao_itens_compra old
+      JOIN migracao_ids_compras compra ON compra.oldId = old.compraId
+      JOIN migracao_ids_produtos produto ON produto.oldId = old.produtoId
+      JOIN migracao_ids_unidades_medida unidade ON unidade.oldId = old.unidadeId
+    ''');
+    await db.execute('''
+      INSERT INTO itens_venda (
+        vendaId, produtoId, quantidade, valorUnitario, unidadeId
+      )
+      SELECT venda.newId, produto.newId, old.quantidade, old.valorUnitario,
+        unidade.newId
+      FROM migracao_itens_venda old
+      JOIN migracao_ids_vendas venda ON venda.oldId = old.vendaId
+      JOIN migracao_ids_produtos produto ON produto.oldId = old.produtoId
+      JOIN migracao_ids_unidades_medida unidade ON unidade.oldId = old.unidadeId
+    ''');
+    await db.execute('''
+      INSERT INTO itens_fabricacao_registro (
+        fabricacaoId, produtoIngredienteId, quantidade, unidadeId
+      )
+      SELECT fabricacao.newId, ingrediente.newId, old.quantidade, unidade.newId
+      FROM migracao_itens_fabricacao_registro old
+      JOIN migracao_ids_fabricacoes fabricacao
+        ON fabricacao.oldId = old.fabricacaoId
+      JOIN migracao_ids_produtos ingrediente
+        ON ingrediente.oldId = old.produtoIngredienteId
+      JOIN migracao_ids_unidades_medida unidade ON unidade.oldId = old.unidadeId
+    ''');
+    await db.execute('''
+      INSERT INTO movimentos_estoque (
+        id, operacaoId, data, produtoId, tipo, quantidade, valorUnitario,
+        unidadeId
+      )
+      SELECT ids.newId,
+        CASE
+          WHEN old.operacaoId IS NULL THEN NULL
+          WHEN old.tipo LIKE '%compra%' THEN compra.newId
+          WHEN old.tipo LIKE '%venda%' THEN venda.newId
+          WHEN old.tipo LIKE '%Fabricacao%'
+            OR old.tipo LIKE '%producao%'
+            OR old.tipo LIKE '%consumoFabricacao%'
+            THEN fabricacao.newId
+          ELSE NULL
+        END,
+        old.data, produto.newId,
+        REPLACE(old.tipo, 'TipoMovimentoEstoque.', ''), old.quantidade,
+        old.valorUnitario, unidade.newId
+      FROM migracao_movimentos_estoque old
+      JOIN migracao_ids_movimentos_estoque ids ON ids.oldId = old.id
+      JOIN migracao_ids_produtos produto ON produto.oldId = old.produtoId
+      JOIN migracao_ids_unidades_medida unidade ON unidade.oldId = old.unidadeId
+      LEFT JOIN migracao_ids_compras compra ON compra.oldId = old.operacaoId
+      LEFT JOIN migracao_ids_vendas venda ON venda.oldId = old.operacaoId
+      LEFT JOIN migracao_ids_fabricacoes fabricacao
+        ON fabricacao.oldId = old.operacaoId
+    ''');
+    await db.execute('''
+      INSERT INTO custos_operacionais (id, empresaId, nome, valor)
+      SELECT ids.newId, empresa.newId, old.nome, old.valor
+      FROM migracao_custos_operacionais old
+      JOIN migracao_ids_custos_operacionais ids ON ids.oldId = old.id
+      JOIN migracao_ids_empresa empresa ON empresa.oldId = old.empresaId
+    ''');
+
+    final totalUnidades = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM unidades_medida'),
+    );
+    if (totalUnidades == 0) await _seedUnidades(db);
+
+    for (final tabela in tabelas) {
+      final antigos = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM migracao_$tabela'),
+      );
+      final migrados = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM $tabela'),
+      );
+      if (antigos != migrados) {
+        throw StateError(
+          'Migração de $tabela incompleta: $migrados de $antigos registros.',
+        );
+      }
+    }
+  }
+
+  Future<void> _criarMapaIds(
+    Database db,
+    String tabela, [
+    Map<String, int> idsFixos = const {},
+  ]) async {
+    final nomeTabela = 'migracao_ids_$tabela';
+    await db.execute(
+      'CREATE TEMP TABLE $nomeTabela (oldId TEXT PRIMARY KEY, newId INTEGER NOT NULL)',
+    );
+    final linhas = await db.query('migracao_$tabela', columns: ['id']);
+    var proximoId = idsFixos.values.fold<int>(
+      0,
+      (maior, id) => id > maior ? id : maior,
+    );
+    final idsExistentes = <String>{};
+    for (final linha in linhas) {
+      final idAntigo = linha['id'].toString();
+      idsExistentes.add(idAntigo);
+      await db.insert(nomeTabela, {
+        'oldId': idAntigo,
+        'newId': idsFixos[idAntigo] ?? ++proximoId,
+      });
+    }
+    for (final entrada in idsFixos.entries) {
+      if (!idsExistentes.contains(entrada.key)) {
+        await db.insert(nomeTabela, {
+          'oldId': entrada.key,
+          'newId': entrada.value,
+        });
+      }
+    }
+  }
+
+  Future<void> _seedUnidades(Database db) async {
+    const unidades = [
+      (1, 'Grama', 'g', 'peso', 1.0),
+      (2, 'Quilograma', 'kg', 'peso', 1000.0),
+      (3, 'Miligrama', 'mg', 'peso', 0.001),
+      (4, 'Mililitro', 'ml', 'volume', 1.0),
+      (5, 'Litro', 'L', 'volume', 1000.0),
+      (6, 'Xícara', 'xíc', 'volume', 240.0),
+      (7, 'Colher de sopa', 'c.sopa', 'volume', 15.0),
+      (8, 'Colher de chá', 'c.chá', 'volume', 5.0),
+      (9, 'Unidade', 'und', 'unidade', 1.0),
+      (10, 'Dúzia', 'dz', 'unidade', 12.0),
+      (11, 'Metro', 'm', 'comprimento', 1.0),
+      (12, 'Centímetro', 'cm', 'comprimento', 0.01),
+    ];
+    final batch = db.batch();
+    for (final unidade in unidades) {
+      batch.insert('unidades_medida', {
+        'id': unidade.$1,
+        'nome': unidade.$2,
+        'sigla': unidade.$3,
+        'grupo': unidade.$4,
+        'fatorParaBase': unidade.$5,
+      });
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> close() async {

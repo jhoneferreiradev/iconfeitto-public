@@ -39,7 +39,7 @@ class _ProdutoRascunhoSheet extends StatefulWidget {
 }
 
 class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
-  static const _unidadeEmbalagem = 'un';
+  static const _unidadeEmbalagem = '9';
 
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;

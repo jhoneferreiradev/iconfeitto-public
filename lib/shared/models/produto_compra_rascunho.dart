@@ -25,8 +25,8 @@ class ProdutoCompraRascunho {
       custoMedio: 0,
       custoOperacional: 0,
       tipo: tipo,
-      unidadeEstoqueId: unidadeEmbalagem ? 'un' : unidadeEstoqueId,
-      unidadeConsumoId: unidadeEmbalagem ? 'un' : unidadeConsumoId,
+      unidadeEstoqueId: unidadeEmbalagem ? '9' : unidadeEstoqueId,
+      unidadeConsumoId: unidadeEmbalagem ? '9' : unidadeConsumoId,
       fichaTecnica: [],
       fichaTecnicaEmbalagem: [],
     );

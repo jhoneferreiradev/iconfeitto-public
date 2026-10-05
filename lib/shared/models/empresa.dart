@@ -12,7 +12,7 @@ class Empresa {
   final List<CustoOperacional> custosOperacionais;
 
   const Empresa({
-    this.id = 'empresa',
+    this.id = '1',
     this.nome,
     this.cnpjCpf,
     this.telefone,
@@ -64,7 +64,7 @@ class Empresa {
   };
 
   static Empresa fromMap(Map<String, dynamic> map) => Empresa(
-    id: map['id'] ?? 'empresa',
+    id: map['id']?.toString() ?? '1',
     nome: map['nome'],
     cnpjCpf: map['cnpjCpf'],
     telefone: map['telefone'],

@@ -43,7 +43,7 @@ class ProdutoFormScreen extends StatefulWidget {
 
 class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   /// Unidade fixa usada por produtos do tipo embalagem.
-  static const _unidadeEmbalagem = 'un';
+  static const _unidadeEmbalagem = '9';
 
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;

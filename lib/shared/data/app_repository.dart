@@ -31,13 +31,14 @@ class AppRepository extends ChangeNotifier {
 
   late final Database _db;
   bool _initialized = false;
-  int _contador = 0;
+  int _ultimoIdGerado = 0;
 
   bool get isInitialized => _initialized;
 
   String novoId() {
-    _contador++;
-    return 'id-${DateTime.now().microsecondsSinceEpoch}-$_contador';
+    final agora = DateTime.now().microsecondsSinceEpoch;
+    _ultimoIdGerado = agora > _ultimoIdGerado ? agora : _ultimoIdGerado + 1;
+    return _ultimoIdGerado.toString();
   }
 
   /// Initialize the database and load all data from SQLite.
@@ -66,17 +67,12 @@ class AppRepository extends ChangeNotifier {
       unidades.add(_unidadeFromRow(row));
     }
 
-    // If no unidades exist, seed them
-    if (unidades.isEmpty) {
-      await _seedUnidades();
-    }
-
     // Load fornecedores
     final fornecedoresData = await _db.query('fornecedores');
     for (final row in fornecedoresData) {
       fornecedores.add(
         Fornecedor(
-          id: row['id'] as String,
+          id: _idString(row['id']),
           nome: row['nome'] as String,
           ativo: (row['ativo'] as int) == 1,
         ),
@@ -88,7 +84,7 @@ class AppRepository extends ChangeNotifier {
     for (final row in clientesData) {
       clientes.add(
         Cliente(
-          id: row['id'] as String,
+          id: _idString(row['id']),
           nome: row['nome'] as String,
           ativo: (row['ativo'] as int) == 1,
         ),
@@ -98,7 +94,7 @@ class AppRepository extends ChangeNotifier {
     // Load produtos (including ficha técnica)
     final produtosData = await _db.query('produtos');
     for (final row in produtosData) {
-      final produtoId = row['id'] as String;
+      final produtoId = _idString(row['id']);
       final fichaTecnicaRows = await _db.rawQuery(
         '''
         SELECT ift.*
@@ -124,18 +120,18 @@ class AppRepository extends ChangeNotifier {
       final fichaTecnica = [
         for (final fichaRow in fichaTecnicaRows)
           ItemFichaTecnica(
-            produtoIngredienteId: fichaRow['produtoIngredienteId'] as String,
+            produtoIngredienteId: _idString(fichaRow['produtoIngredienteId']),
             quantidade: fichaRow['quantidade'] as double,
-            unidadeId: fichaRow['unidadeId'] as String,
+            unidadeId: _idString(fichaRow['unidadeId']),
           ),
       ];
 
       final fichaTecnicaEmbalagem = [
         for (final fichaRow in fichaTecnicaEmbalagemRows)
           ItemFichaTecnicaEmbalagem(
-            produtoEmbalagemId: fichaRow['produtoIngredienteId'] as String,
+            produtoEmbalagemId: _idString(fichaRow['produtoIngredienteId']),
             quantidade: fichaRow['quantidade'] as double,
-            unidadeId: fichaRow['unidadeId'] as String,
+            unidadeId: _idString(fichaRow['unidadeId']),
           ),
       ];
 
@@ -154,8 +150,8 @@ class AppRepository extends ChangeNotifier {
           possuiFichaTecnica: (row['possuiFichaTecnica'] as int) == 1,
           tempoPreparoMinutos: row['tempoPreparoMinutos'] as int,
           rendimentoReceita: row['rendimentoReceita'] as int,
-          unidadeEstoqueId: row['unidadeEstoqueId'] as String,
-          unidadeConsumoId: row['unidadeConsumoId'] as String,
+          unidadeEstoqueId: _idString(row['unidadeEstoqueId']),
+          unidadeConsumoId: _idString(row['unidadeConsumoId']),
           fichaTecnica: fichaTecnica,
           fichaTecnicaEmbalagem: fichaTecnicaEmbalagem,
           custoOperacional: row['custoOperacional'] as double,
@@ -168,7 +164,7 @@ class AppRepository extends ChangeNotifier {
     // Load compras (including items)
     final comprasData = await _db.query('compras');
     for (final row in comprasData) {
-      final compraId = row['id'] as String;
+      final compraId = _idString(row['id']);
       final itensData = await _db.query(
         'itens_compra',
         where: 'compraId = ?',
@@ -178,10 +174,10 @@ class AppRepository extends ChangeNotifier {
       final itens = [
         for (final itemRow in itensData)
           ItemOperacao(
-            produtoId: itemRow['produtoId'] as String,
+            produtoId: _idString(itemRow['produtoId']),
             quantidade: itemRow['quantidade'] as double,
             valorUnitario: itemRow['valorUnitario'] as double,
-            unidadeId: itemRow['unidadeId'] as String,
+            unidadeId: _idString(itemRow['unidadeId']),
           ),
       ];
 
@@ -189,7 +185,7 @@ class AppRepository extends ChangeNotifier {
         Compra(
           id: compraId,
           data: DateTime.parse(row['data'] as String),
-          fornecedorId: row['fornecedorId'] as String,
+          fornecedorId: _idString(row['fornecedorId']),
           itens: itens,
         ),
       );
@@ -198,7 +194,7 @@ class AppRepository extends ChangeNotifier {
     // Load vendas (including items)
     final vendasData = await _db.query('vendas');
     for (final row in vendasData) {
-      final vendaId = row['id'] as String;
+      final vendaId = _idString(row['id']);
       final itensData = await _db.query(
         'itens_venda',
         where: 'vendaId = ?',
@@ -207,10 +203,10 @@ class AppRepository extends ChangeNotifier {
       final itens = [
         for (final itemRow in itensData)
           ItemOperacao(
-            produtoId: itemRow['produtoId'] as String,
+            produtoId: _idString(itemRow['produtoId']),
             quantidade: itemRow['quantidade'] as double,
             valorUnitario: itemRow['valorUnitario'] as double,
-            unidadeId: itemRow['unidadeId'] as String,
+            unidadeId: _idString(itemRow['unidadeId']),
           ),
       ];
 
@@ -218,7 +214,7 @@ class AppRepository extends ChangeNotifier {
         Venda(
           id: vendaId,
           data: DateTime.parse(row['data'] as String),
-          clienteId: row['clienteId'] as String,
+          clienteId: _idString(row['clienteId']),
           itens: itens,
         ),
       );
@@ -227,7 +223,7 @@ class AppRepository extends ChangeNotifier {
     // Load fabricacoes (including items)
     final fabricacoesData = await _db.query('fabricacoes');
     for (final row in fabricacoesData) {
-      final fabricacaoId = row['id'] as String;
+      final fabricacaoId = _idString(row['id']);
       final itensData = await _db.query(
         'itens_fabricacao_registro',
         where: 'fabricacaoId = ?',
@@ -236,9 +232,9 @@ class AppRepository extends ChangeNotifier {
       final fichaTecnica = [
         for (final itemRow in itensData)
           ItemFichaTecnica(
-            produtoIngredienteId: itemRow['produtoIngredienteId'] as String,
+            produtoIngredienteId: _idString(itemRow['produtoIngredienteId']),
             quantidade: itemRow['quantidade'] as double,
-            unidadeId: itemRow['unidadeId'] as String,
+            unidadeId: _idString(itemRow['unidadeId']),
           ),
       ];
 
@@ -246,7 +242,7 @@ class AppRepository extends ChangeNotifier {
         Fabricacao(
           id: fabricacaoId,
           data: DateTime.parse(row['data'] as String),
-          produtoId: row['produtoId'] as String,
+          produtoId: _idString(row['produtoId']),
           quantidade: row['quantidade'] as double,
           fichaTecnica: fichaTecnica,
         ),
@@ -258,14 +254,14 @@ class AppRepository extends ChangeNotifier {
     for (final row in movimentosData) {
       movimentacoes.add(
         MovimentoEstoque(
-          id: row['id'] as String,
-          operacaoId: row['operacaoId'] as String?,
+          id: _idString(row['id']),
+          operacaoId: row['operacaoId']?.toString(),
           data: DateTime.parse(row['data'] as String),
-          produtoId: row['produtoId'] as String,
+          produtoId: _idString(row['produtoId']),
           tipo: _tipoMovimentoFromString(row['tipo'] as String),
           quantidade: row['quantidade'] as double,
           valorUnitario: row['valorUnitario'] as double,
-          unidadeId: row['unidadeId'] as String,
+          unidadeId: _idString(row['unidadeId']),
         ),
       );
     }
@@ -289,106 +285,6 @@ class AppRepository extends ChangeNotifier {
     }
 
     recalcularEstoque();
-  }
-
-  Future<void> _seedUnidades() async {
-    const seedData = [
-      UnidadeMedida(
-        id: 'g',
-        nome: 'Grama',
-        sigla: 'g',
-        grupo: GrupoUnidade.peso,
-        fatorParaBase: 1,
-      ),
-      UnidadeMedida(
-        id: 'kg',
-        nome: 'Quilograma',
-        sigla: 'kg',
-        grupo: GrupoUnidade.peso,
-        fatorParaBase: 1000,
-      ),
-      UnidadeMedida(
-        id: 'mg',
-        nome: 'Miligrama',
-        sigla: 'mg',
-        grupo: GrupoUnidade.peso,
-        fatorParaBase: 0.001,
-      ),
-      UnidadeMedida(
-        id: 'ml',
-        nome: 'Mililitro',
-        sigla: 'ml',
-        grupo: GrupoUnidade.volume,
-        fatorParaBase: 1,
-      ),
-      UnidadeMedida(
-        id: 'l',
-        nome: 'Litro',
-        sigla: 'L',
-        grupo: GrupoUnidade.volume,
-        fatorParaBase: 1000,
-      ),
-      UnidadeMedida(
-        id: 'xicara',
-        nome: 'Xícara',
-        sigla: 'xíc',
-        grupo: GrupoUnidade.volume,
-        fatorParaBase: 240,
-      ),
-      UnidadeMedida(
-        id: 'colher-sopa',
-        nome: 'Colher de sopa',
-        sigla: 'c.sopa',
-        grupo: GrupoUnidade.volume,
-        fatorParaBase: 15,
-      ),
-      UnidadeMedida(
-        id: 'colher-cha',
-        nome: 'Colher de chá',
-        sigla: 'c.chá',
-        grupo: GrupoUnidade.volume,
-        fatorParaBase: 5,
-      ),
-      UnidadeMedida(
-        id: 'un',
-        nome: 'Unidade',
-        sigla: 'und',
-        grupo: GrupoUnidade.unidade,
-        fatorParaBase: 1,
-      ),
-      UnidadeMedida(
-        id: 'dz',
-        nome: 'Dúzia',
-        sigla: 'dz',
-        grupo: GrupoUnidade.unidade,
-        fatorParaBase: 12,
-      ),
-      UnidadeMedida(
-        id: 'm',
-        nome: 'Metro',
-        sigla: 'm',
-        grupo: GrupoUnidade.comprimento,
-        fatorParaBase: 1,
-      ),
-      UnidadeMedida(
-        id: 'cm',
-        nome: 'Centímetro',
-        sigla: 'cm',
-        grupo: GrupoUnidade.comprimento,
-        fatorParaBase: 0.01,
-      ),
-    ];
-
-    for (final unidade in seedData) {
-      await _db.insert('unidades_medida', {
-        'id': unidade.id,
-        'nome': unidade.nome,
-        'sigla': unidade.sigla,
-        'grupo': unidade.grupo.toString(),
-        'fatorParaBase': unidade.fatorParaBase,
-      });
-      unidades.add(unidade);
-    }
   }
 
   UnidadeMedida unidadePorId(String id) =>
@@ -487,7 +383,7 @@ class AppRepository extends ChangeNotifier {
           'id': unidade.id,
           'nome': unidade.nome,
           'sigla': unidade.sigla,
-          'grupo': unidade.grupo.toString(),
+          'grupo': unidade.grupo.name,
           'fatorParaBase': unidade.fatorParaBase,
         },
         where: 'id = ?',
@@ -499,7 +395,7 @@ class AppRepository extends ChangeNotifier {
         'id': unidade.id,
         'nome': unidade.nome,
         'sigla': unidade.sigla,
-        'grupo': unidade.grupo.toString(),
+        'grupo': unidade.grupo.name,
         'fatorParaBase': unidade.fatorParaBase,
       });
     }
@@ -1338,7 +1234,7 @@ class AppRepository extends ChangeNotifier {
     'operacaoId': movimento.operacaoId,
     'data': movimento.data.toIso8601String(),
     'produtoId': movimento.produtoId,
-    'tipo': movimento.tipo.toString(),
+    'tipo': movimento.tipo.name,
     'quantidade': movimento.quantidade,
     'valorUnitario': movimento.valorUnitario,
     'unidadeId': movimento.unidadeId,
@@ -1363,7 +1259,7 @@ class AppRepository extends ChangeNotifier {
   };
 
   UnidadeMedida _unidadeFromRow(Map<String, dynamic> row) => UnidadeMedida(
-    id: row['id'] as String,
+    id: _idString(row['id']),
     nome: row['nome'] as String,
     sigla: row['sigla'] as String,
     grupo: _grupoUnidadeFromString(row['grupo'] as String),
@@ -1371,19 +1267,18 @@ class AppRepository extends ChangeNotifier {
   );
 
   GrupoUnidade _grupoUnidadeFromString(String s) {
-    if (s.contains('peso')) return GrupoUnidade.peso;
-    if (s.contains('volume')) return GrupoUnidade.volume;
-    if (s.contains('comprimento')) return GrupoUnidade.comprimento;
-    return GrupoUnidade.unidade;
+    return GrupoUnidade.values.firstWhere(
+      (grupo) => grupo.name == s || s.endsWith('.${grupo.name}'),
+      orElse: () => GrupoUnidade.unidade,
+    );
   }
 
   TipoMovimentoEstoque _tipoMovimentoFromString(String s) {
-    if (s.contains('compra')) return TipoMovimentoEstoque.compra;
-    if (s.contains('venda')) return TipoMovimentoEstoque.venda;
-    if (s.contains('consumoFabricacao')) {
-      return TipoMovimentoEstoque.consumoFabricacao;
-    }
-    if (s.contains('producao')) return TipoMovimentoEstoque.producao;
-    return TipoMovimentoEstoque.ajuste;
+    return TipoMovimentoEstoque.values.firstWhere(
+      (tipo) => tipo.name == s || s.endsWith('.${tipo.name}'),
+      orElse: () => TipoMovimentoEstoque.ajuste,
+    );
   }
+
+  String _idString(Object? value) => value.toString();
 }

@@ -13,7 +13,7 @@ class CustoOperacional {
   Map<String, dynamic> toMap() => {'id': id, 'nome': nome, 'valor': valor};
 
   static CustoOperacional fromMap(Map<String, dynamic> map) => CustoOperacional(
-    id: map['id'],
+    id: map['id'].toString(),
     nome: map['nome'],
     valor: map['valor'] ?? 0.0,
   );
