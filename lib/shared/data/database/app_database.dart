@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 12,
+      version: 13,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -343,6 +343,10 @@ class AppDatabase {
 
     if (oldVersion < 12) {
       await _ajustarEmbalagensDaFichaTecnica(db);
+    }
+
+    if (oldVersion < 13) {
+      await db.execute('DROP TABLE IF EXISTS itens_ficha_tecnica_embalagem');
     }
   }
 
