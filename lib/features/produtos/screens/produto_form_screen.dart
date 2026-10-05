@@ -198,7 +198,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
             ],
           ],
           secondary: [
-            if (!_isEmbalagem && _podeSerVendido) _buildEmbalagem(),
+            if (_podeSerVendido) _buildEmbalagem(),
             if (_possuiFichaTecnica && !_isEmbalagem) _buildFichaTecnica(),
           ],
           footer: FilledButton.icon(
@@ -249,7 +249,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
             onChanged: _alterarTipo,
           ),
           _linha([_buildSwitch('ativo', 'Ativo')]),
-          if (!_isEmbalagem) ...[
+          ...[
             _linha([
               _buildUnidadeEstoqueDropdown(),
               _buildUnidadeConsumoDropdown(),
@@ -638,27 +638,51 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
 
   Widget? _buildLinhaEmbalagem(int i) {
     final item = _embalagens[i];
-    if (_produtoPorId(item.produtoEmbalagemId) == null) return null;
+
+    // Item recém-adicionado, ainda sem ingrediente escolhido.
+    if (item.produtoEmbalagemId.isEmpty) {
+      return ItemFichaEmbalagemRow(
+        key: _chavesEmbalagens[i],
+        item: item,
+        embalagens: _embalagensDisponiveis,
+        unidadesCompativeis: const [],
+        custoLinha: 0,
+        onChanged: (novo) => _alterarItens(() => _embalagens[i] = novo),
+        onRemover: () => _alterarItens(() {
+          _embalagens.removeAt(i);
+          _chavesEmbalagens.removeAt(i);
+        }),
+        onMoverParaCima: i == 0 ? null : () => _moverEmbalagem(i, -1),
+        onMoverParaBaixo: i == _embalagens.length - 1
+            ? null
+            : () => _moverEmbalagem(i, 1),
+      );
+    }
+
+    final embalagem = _produtoPorId(item.produtoEmbalagemId);
+    if (embalagem == null) return null;
+
+    final grupo = _repo.unidadePorId(embalagem.unidadeConsumoId).grupo;
     final rascunho = _rascunhos[item.produtoEmbalagemId];
 
     return ItemFichaEmbalagemRow(
       key: _chavesEmbalagens[i],
       item: item,
       embalagens: _embalagensDisponiveis,
+      unidadesCompativeis: _repo.unidadesDoGrupo(grupo),
       custoLinha: _custoItemFichaEmbalagem(item),
-      acoes: [
-        if (rascunho != null)
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Editar novo item',
-            onPressed: () => _editarRascunho(rascunho),
-          ),
-      ],
+      onEditarNovoItem: rascunho == null
+          ? null
+          : () => _editarRascunho(rascunho),
       onChanged: (novo) => _alterarItens(() => _embalagens[i] = novo),
       onRemover: () => _alterarItens(() {
         _embalagens.removeAt(i);
         _chavesEmbalagens.removeAt(i);
       }),
+      onMoverParaCima: i == 0 ? null : () => _moverEmbalagem(i, -1),
+      onMoverParaBaixo: i == _embalagens.length - 1
+          ? null
+          : () => _moverEmbalagem(i, 1),
     );
   }
 
@@ -745,7 +769,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       if (rascunho.tipo == TipoItem.embalagem) {
         _embalagens.insert(
           0,
-          ItemFichaTecnicaEmbalagem(produtoEmbalagemId: rascunho.id),
+          ItemFichaTecnicaEmbalagem(
+            produtoEmbalagemId: rascunho.id,
+            quantidade: 0,
+            unidadeId: rascunho.unidadeConsumoId,
+          ),
         );
         _chavesEmbalagens.insert(0, UniqueKey());
         return;
@@ -818,7 +846,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
     _alterarItens(() {
       _embalagens.insert(
         0,
-        ItemFichaTecnicaEmbalagem(produtoEmbalagemId: primeiro.id),
+        ItemFichaTecnicaEmbalagem(
+          produtoEmbalagemId: primeiro.id,
+          quantidade: 0,
+          unidadeId: primeiro.unidadeConsumoId,
+        ),
       );
       _chavesEmbalagens.insert(0, UniqueKey());
     });
@@ -835,6 +867,17 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
         ),
       );
       _chavesIngredientes.insert(0, UniqueKey());
+    });
+  }
+
+  void _moverEmbalagem(int indice, int deslocamento) {
+    final novoIndice = indice + deslocamento;
+    if (novoIndice < 0 || novoIndice >= _embalagens.length) return;
+    _alterarItens(() {
+      final item = _embalagens.removeAt(indice);
+      _embalagens.insert(novoIndice, item);
+      final chave = _chavesEmbalagens.removeAt(indice);
+      _chavesEmbalagens.insert(novoIndice, chave);
     });
   }
 
@@ -967,12 +1010,8 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           : _numero(valores['custoMedio']),
       // Campo somente leitura: preserva o valor real em vez de reparsear o texto.
       saldoEstoque: _produtoOriginal?.saldoEstoque ?? 0,
-      unidadeEstoqueId: _isEmbalagem
-          ? _unidadeEmbalagem
-          : valores['unidadeEstoqueId'] as String,
-      unidadeConsumoId: _isEmbalagem
-          ? _unidadeEmbalagem
-          : valores['unidadeConsumoId'] as String,
+      unidadeEstoqueId: valores['unidadeEstoqueId'] as String,
+      unidadeConsumoId: valores['unidadeConsumoId'] as String,
       rendimentoReceita: _isEmbalagem
           ? 0
           : _numero(valores['rendimentoReceita']).round(),

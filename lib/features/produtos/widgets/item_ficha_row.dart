@@ -174,4 +174,5 @@ class _ItemFichaRowState extends State<ItemFichaRow> {
       },
     );
   }
+
 }

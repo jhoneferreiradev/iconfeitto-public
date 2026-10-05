@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 9,
+      version: 11,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -231,8 +231,11 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         produtoId TEXT NOT NULL,
         produtoEmbalagemId TEXT NOT NULL,
+        quantidade REAL NOT NULL,
+        unidadeId TEXT NOT NULL,
         FOREIGN KEY (produtoId) REFERENCES produtos(id),
-        FOREIGN KEY (produtoEmbalagemId) REFERENCES produtos(id)
+        FOREIGN KEY (produtoEmbalagemId) REFERENCES produtos(id),
+        FOREIGN KEY (unidadeId) REFERENCES unidades_medida(id)
       )
     ''');
   }
@@ -300,6 +303,41 @@ class AppDatabase {
         UPDATE produtos
         SET unidadeEstoqueId = 'un', unidadeConsumoId = 'un'
         WHERE tipo = 'embalagem' OR isEmbalagem = 1
+      ''');
+    }
+
+    if (oldVersion < 10) {
+      await db.execute('''
+      INSERT INTO unidades_medida (id, nome, sigla, grupo, fatorParaBase) VALUES
+        ('m', 'Metro', 'm', 'GrupoUnidade.comprimento', 1),
+        ('cm', 'Centímetro', 'cm', 'GrupoUnidade.comprimento', 0.01);
+    ''');
+    }
+
+    if (oldVersion < 11) {
+      await db.execute('''
+        UPDATE unidades_medida
+        SET sigla = 'und'
+        WHERE sigla = 'un'
+      ''');
+
+      await db.execute('''
+        ALTER TABLE itens_ficha_tecnica_embalagem ADD COLUMN quantidade REAL NOT NULL DEFAULT 0
+      ''');
+
+      await db.execute('''
+        ALTER TABLE itens_ficha_tecnica_embalagem ADD COLUMN unidadeId TEXT NULL REFERENCES unidades_medida(id)
+      ''');
+
+      await db.execute('''
+        UPDATE itens_ficha_tecnica_embalagem
+        SET unidadeId = (SELECT id FROM unidades_medida WHERE sigla = 'und' LIMIT 1)
+        WHERE unidadeId IS NULL
+      ''');
+
+      await db.execute('''
+        ALTER TABLE itens_ficha_tecnica_embalagem
+        ALTER COLUMN unidadeId SET NOT NULL
       ''');
     }
   }

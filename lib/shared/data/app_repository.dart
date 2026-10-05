@@ -125,6 +125,8 @@ class AppRepository extends ChangeNotifier {
         for (final fichaRow in fichaTecnicaEmbalagemRows)
           ItemFichaTecnicaEmbalagem(
             produtoEmbalagemId: fichaRow['produtoEmbalagemId'] as String,
+            quantidade: fichaRow['quantidade'] as double,
+            unidadeId: fichaRow['unidadeId'] as String,
           ),
       ];
 
@@ -341,7 +343,7 @@ class AppRepository extends ChangeNotifier {
       UnidadeMedida(
         id: 'un',
         nome: 'Unidade',
-        sigla: 'un',
+        sigla: 'und',
         grupo: GrupoUnidade.unidade,
         fatorParaBase: 1,
       ),
@@ -351,6 +353,20 @@ class AppRepository extends ChangeNotifier {
         sigla: 'dz',
         grupo: GrupoUnidade.unidade,
         fatorParaBase: 12,
+      ),
+      UnidadeMedida(
+        id: 'm',
+        nome: 'Metro',
+        sigla: 'm',
+        grupo: GrupoUnidade.comprimento,
+        fatorParaBase: 1,
+      ),
+      UnidadeMedida(
+        id: 'cm',
+        nome: 'Centímetro',
+        sigla: 'cm',
+        grupo: GrupoUnidade.comprimento,
+        fatorParaBase: 0.01,
       ),
     ];
 
@@ -434,6 +450,8 @@ class AppRepository extends ChangeNotifier {
       await _db.insert('itens_ficha_tecnica_embalagem', {
         'produtoId': produto.id,
         'produtoEmbalagemId': item.produtoEmbalagemId,
+        'quantidade': item.quantidade,
+        'unidadeId': item.unidadeId
       });
     }
 
@@ -1271,7 +1289,9 @@ class AppRepository extends ChangeNotifier {
   double custoItemFichaEmbalagem(ItemFichaTecnicaEmbalagem item) {
     final embalagem = produtoPorId(item.produtoEmbalagemId);
     if (embalagem == null) return 0;
-    return embalagem.custoMedio;
+    final unidadeItem = unidadePorId(item.unidadeId);
+    final custoBase = custoPorUnidadeBase(embalagem);
+    return custoBase * item.quantidade * unidadeItem.fatorParaBase;
   }
 
   double custoEmbalagem(Produto produto) {
@@ -1336,7 +1356,6 @@ class AppRepository extends ChangeNotifier {
     'unidadeConsumoId': produto.unidadeConsumoId,
     'rendimentoReceita': produto.rendimentoReceita,
     'custoOperacional': produto.custoOperacional,
-    'isEmbalagem': produto.isEmbalagem ? 1 : 0,
     'precoVenda': produto.precoVenda,
   };
 
@@ -1351,6 +1370,7 @@ class AppRepository extends ChangeNotifier {
   GrupoUnidade _grupoUnidadeFromString(String s) {
     if (s.contains('peso')) return GrupoUnidade.peso;
     if (s.contains('volume')) return GrupoUnidade.volume;
+    if (s.contains('comprimento')) return GrupoUnidade.comprimento;
     return GrupoUnidade.unidade;
   }
 

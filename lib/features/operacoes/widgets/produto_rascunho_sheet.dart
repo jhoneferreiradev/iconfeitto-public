@@ -95,18 +95,17 @@ class _ProdutoRascunhoSheetState extends State<_ProdutoRascunhoSheet> {
                   if (tipo != null) setState(() => _tipo = tipo);
                 },
               ),
-              if (_tipo != TipoItem.embalagem)
-                FormBuilderGroupedDropdownField<String>(
-                  name: 'unidadeConsumoId',
-                  label: 'Unidade de consumo',
-                  icon: Icons.sell,
-                  initialValue: rascunho?.unidadeConsumoId,
-                  validator: FormBuilderValidators.required(
-                    errorText: 'Selecione a unidade',
-                  ),
-                  groups: _grupos(),
-                  itemBuilder: (id) => _repo.unidadePorId(id).sigla,
+              FormBuilderGroupedDropdownField<String>(
+                name: 'unidadeConsumoId',
+                label: 'Unidade de consumo',
+                icon: Icons.sell,
+                initialValue: rascunho?.unidadeConsumoId,
+                validator: FormBuilderValidators.required(
+                  errorText: 'Selecione a unidade',
                 ),
+                groups: _grupos(),
+                itemBuilder: (id) => _repo.unidadePorId(id).sigla,
+              ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
