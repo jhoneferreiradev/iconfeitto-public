@@ -8,48 +8,67 @@ import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
 import '../pdf/movimentos_pdf.dart';
 
-class EstoqueScreen extends StatelessWidget {
+class EstoqueScreen extends StatefulWidget {
   const EstoqueScreen({super.key});
+
+  @override
+  State<EstoqueScreen> createState() => _EstoqueScreenState();
+}
+
+class _EstoqueScreenState extends State<EstoqueScreen> {
+  String _busca = '';
 
   @override
   Widget build(BuildContext context) {
     final repo = AppRepository.instance;
+
+    final produtosFiltrados = repo.produtos
+        .where((p) => p.nome.toLowerCase().contains(_busca.toLowerCase()))
+        .toList();
+
     return AnimatedBuilder(
       animation: repo,
       builder: (context, _) {
         return AppScaffold(
           title: 'Estoque',
-          body: ResponsiveCardList(
-            itemCount: repo.produtos.length,
-            itemBuilder: (context, index) {
-              final produto = repo.produtos[index];
-              final unidade = repo.unidadePorId(produto.unidadeEstoqueId);
-              return Card(
-                margin: EdgeInsets.zero,
-                child: ListTile(
-                  leading: const Icon(Icons.inventory_2_outlined),
-                  title: Text(produto.nome),
-                  subtitle: Text(
-                    'Saldo: ${produto.saldoEstoque.toDecimal()} ${unidade.sigla}  •  Custo: ${produto.custoMedio.toCurrency()}',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.print_outlined),
-                        tooltip: 'Imprimir últimas movimentações',
-                        onPressed: () => MovimentosPdf.imprimir(produto),
+          body: Column(
+            children: [
+              _buildFiltros(context),
+              Expanded(
+                child: ResponsiveCardList(
+                  itemCount: produtosFiltrados.length,
+                  itemBuilder: (context, index) {
+                    final produto = produtosFiltrados[index];
+                    final unidade = repo.unidadePorId(produto.unidadeEstoqueId);
+                    return Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(Icons.inventory_2_outlined),
+                        title: Text(produto.nome),
+                        subtitle: Text(
+                          'Saldo: ${produto.saldoEstoque.toDecimal()} ${unidade.sigla}  •  Custo: ${produto.custoMedio.toCurrency()}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.print_outlined),
+                              tooltip: 'Imprimir últimas movimentações',
+                              onPressed: () => MovimentosPdf.imprimir(produto),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              tooltip: 'Ajustar estoque',
+                              onPressed: () => _ajustar(context, repo, produto),
+                            ),
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        tooltip: 'Ajustar estoque',
-                        onPressed: () => _ajustar(context, repo, produto),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           ),
         );
       },
@@ -120,5 +139,30 @@ class EstoqueScreen extends StatelessWidget {
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
+  }
+
+  Widget _buildFiltros(BuildContext context) {
+    return ContentWidth(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Buscar por nome',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _busca.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _busca = ''),
+                      ),
+              ),
+              onChanged: (value) => setState(() => _busca = value),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
