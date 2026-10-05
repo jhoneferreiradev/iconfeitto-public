@@ -245,6 +245,7 @@ class AppRepository extends ChangeNotifier {
           produtoId: _idString(row['produtoId']),
           quantidade: row['quantidade'] as double,
           fichaTecnica: fichaTecnica,
+          fabricacaoPaiId: row['fabricacaoPaiId']?.toString(),
         ),
       );
     }
@@ -678,53 +679,185 @@ class AppRepository extends ChangeNotifier {
   }
 
   Future<void> salvarVenda(Venda venda) async {
-    final movimentosNovos = <MovimentoEstoque>[];
-    for (final item in venda.itens) {
-      movimentosNovos.add(
-        MovimentoEstoque(
-          id: novoId(),
-          operacaoId: venda.id,
-          data: venda.data,
-          produtoId: item.produtoId,
-          tipo: TipoMovimentoEstoque.venda,
-          quantidade: item.quantidade,
-          valorUnitario: item.valorUnitario,
-          unidadeId: item.unidadeId,
-        ),
-      );
-    }
-
+    final movimentosNovos = _criarMovimentosVenda(venda);
     final saldosIniciais = _capturarSaldosIniciais(
       movimentosNovos.map((movimento) => movimento.produtoId),
     );
     _validarSaldoEstoque(movimentosNovos);
-    await _db.transaction((transaction) async {
-      await transaction.insert('vendas', {
-        'id': venda.id,
-        'data': venda.data.toIso8601String(),
-        'clienteId': venda.clienteId,
-      });
-      for (final item in venda.itens) {
-        await transaction.insert('itens_venda', {
-          'vendaId': venda.id,
-          'produtoId': item.produtoId,
-          'quantidade': item.quantidade,
-          'valorUnitario': item.valorUnitario,
-          'unidadeId': item.unidadeId,
-        });
-      }
-      for (final movimento in movimentosNovos) {
-        await transaction.insert(
-          'movimentos_estoque',
-          _movimentoToRow(movimento),
-        );
-      }
-    });
+    await _db.transaction(
+      (transaction) => _inserirVenda(transaction, venda, movimentosNovos),
+    );
     vendas.add(venda);
     movimentacoes.addAll(movimentosNovos);
     recalcularEstoque(saldosIniciais: saldosIniciais);
     await _persistirProdutos();
     notifyListeners();
+  }
+
+  Future<void> atualizarVenda(Venda venda) async {
+    final indice = vendas.indexWhere((existente) => existente.id == venda.id);
+    if (indice < 0) {
+      throw StateError('A venda que você tentou editar não foi encontrada.');
+    }
+
+    final movimentosAntigos = _movimentosDaVenda(vendas[indice]);
+    final movimentosNovos = _criarMovimentosVenda(venda);
+    final idsAntigos = movimentosAntigos
+        .map((movimento) => movimento.id)
+        .toSet();
+    final produtosAfetados = {
+      ...movimentosAntigos.map((movimento) => movimento.produtoId),
+      ...movimentosNovos.map((movimento) => movimento.produtoId),
+    };
+    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
+    _validarSaldoEstoque(movimentosNovos, removerIds: idsAntigos);
+    await _db.transaction((transaction) async {
+      await _removerVendaDoBanco(transaction, venda.id, movimentosAntigos);
+      await _inserirVenda(transaction, venda, movimentosNovos);
+    });
+
+    movimentacoes.removeWhere((movimento) => idsAntigos.contains(movimento.id));
+    movimentacoes.addAll(movimentosNovos);
+    vendas[indice] = venda;
+    recalcularEstoque(
+      produtosSemMovimentacoes: produtosAfetados,
+      saldosIniciais: saldosIniciais,
+    );
+    await _persistirProdutos();
+    notifyListeners();
+  }
+
+  Future<void> excluirVenda(String vendaId) async {
+    final indice = vendas.indexWhere((venda) => venda.id == vendaId);
+    if (indice < 0) return;
+
+    final movimentosDaVenda = _movimentosDaVenda(vendas[indice]);
+    final idsRemovidos = movimentosDaVenda
+        .map((movimento) => movimento.id)
+        .toSet();
+    final produtosAfetados = movimentosDaVenda
+        .map((movimento) => movimento.produtoId)
+        .toSet();
+    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
+    _validarSaldoEstoque(const [], removerIds: idsRemovidos);
+    await _db.transaction(
+      (transaction) =>
+          _removerVendaDoBanco(transaction, vendaId, movimentosDaVenda),
+    );
+
+    movimentacoes.removeWhere(
+      (movimento) => idsRemovidos.contains(movimento.id),
+    );
+    vendas.removeAt(indice);
+    recalcularEstoque(
+      produtosSemMovimentacoes: produtosAfetados,
+      saldosIniciais: saldosIniciais,
+    );
+    await _persistirProdutos();
+    notifyListeners();
+  }
+
+  Future<void> _removerVendaDoBanco(
+    DatabaseExecutor database,
+    String vendaId,
+    List<MovimentoEstoque> movimentos,
+  ) async {
+    for (final movimento in movimentos) {
+      await database.delete(
+        'movimentos_estoque',
+        where: 'id = ?',
+        whereArgs: [movimento.id],
+      );
+    }
+    await database.delete(
+      'itens_venda',
+      where: 'vendaId = ?',
+      whereArgs: [vendaId],
+    );
+    await database.delete('vendas', where: 'id = ?', whereArgs: [vendaId]);
+  }
+
+  Future<void> _inserirVenda(
+    DatabaseExecutor database,
+    Venda venda,
+    List<MovimentoEstoque> movimentos,
+  ) async {
+    await database.insert('vendas', {
+      'id': venda.id,
+      'data': venda.data.toIso8601String(),
+      'clienteId': venda.clienteId,
+    });
+    for (final item in venda.itens) {
+      await database.insert('itens_venda', {
+        'vendaId': venda.id,
+        'produtoId': item.produtoId,
+        'quantidade': item.quantidade,
+        'valorUnitario': item.valorUnitario,
+        'unidadeId': item.unidadeId,
+      });
+    }
+    for (final movimento in movimentos) {
+      await database.insert('movimentos_estoque', _movimentoToRow(movimento));
+    }
+  }
+
+  List<MovimentoEstoque> _criarMovimentosVenda(Venda venda) => [
+    for (final item in venda.itens)
+      MovimentoEstoque(
+        id: novoId(),
+        operacaoId: venda.id,
+        data: venda.data,
+        produtoId: item.produtoId,
+        tipo: TipoMovimentoEstoque.venda,
+        quantidade: item.quantidade,
+        valorUnitario: item.valorUnitario,
+        unidadeId: item.unidadeId,
+      ),
+  ];
+
+  List<MovimentoEstoque> _movimentosDaVenda(Venda venda) {
+    final vinculados = movimentacoes
+        .where(
+          (movimento) =>
+              movimento.operacaoId == venda.id &&
+              movimento.tipo == TipoMovimentoEstoque.venda,
+        )
+        .toList();
+    if (vinculados.isNotEmpty) {
+      if (vinculados.length != venda.itens.length) {
+        throw StateError(
+          'Não foi possível localizar todas as movimentações da venda.',
+        );
+      }
+      return vinculados;
+    }
+
+    // Registros antigos, sem vínculo com a operação.
+    final candidatos = movimentacoes
+        .where(
+          (movimento) =>
+              movimento.operacaoId == null &&
+              movimento.tipo == TipoMovimentoEstoque.venda,
+        )
+        .toList();
+    final correspondentes = <MovimentoEstoque>[];
+    for (final item in venda.itens) {
+      final indice = candidatos.indexWhere(
+        (movimento) =>
+            movimento.produtoId == item.produtoId &&
+            movimento.data == venda.data &&
+            movimento.quantidade == item.quantidade &&
+            movimento.valorUnitario == item.valorUnitario &&
+            movimento.unidadeId == item.unidadeId,
+      );
+      if (indice >= 0) correspondentes.add(candidatos.removeAt(indice));
+    }
+    if (correspondentes.length != venda.itens.length) {
+      throw StateError(
+        'Não foi possível localizar todas as movimentações da venda.',
+      );
+    }
+    return correspondentes;
   }
 
   Future<void> salvarFabricacao(Fabricacao fabricacao) =>
@@ -811,6 +944,7 @@ class AppRepository extends ChangeNotifier {
           'data': fabricacao.data.toIso8601String(),
           'produtoId': fabricacao.produtoId,
           'quantidade': fabricacao.quantidade,
+          'fabricacaoPaiId': fabricacao.fabricacaoPaiId,
         });
         for (final item in fabricacao.fichaTecnica) {
           await transaction.insert('itens_fabricacao_registro', {
@@ -835,45 +969,77 @@ class AppRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Fabricações geradas a partir de [fabricacaoId] (preparos da ficha
+  /// técnica), incluindo os níveis seguintes.
+  List<Fabricacao> fabricacoesVinculadas(String fabricacaoId) {
+    final vinculadas = <Fabricacao>[];
+    final pendentes = [fabricacaoId];
+    while (pendentes.isNotEmpty) {
+      final paiId = pendentes.removeLast();
+      for (final fabricacao in fabricacoes) {
+        if (fabricacao.fabricacaoPaiId == paiId &&
+            !vinculadas.any((v) => v.id == fabricacao.id)) {
+          vinculadas.add(fabricacao);
+          pendentes.add(fabricacao.id);
+        }
+      }
+    }
+    return vinculadas;
+  }
+
+  /// Exclui a fabricação e todas as vinculadas a ela.
   Future<void> excluirFabricacao(String fabricacaoId) async {
     final indice = fabricacoes.indexWhere((f) => f.id == fabricacaoId);
     if (indice < 0) return;
 
     final fabricacao = fabricacoes[indice];
-    final movimentosDaFabricacao = _movimentosDaFabricacao(fabricacao);
-    final idsRemovidos = movimentosDaFabricacao.map((m) => m.id).toSet();
-    final saldosIniciais = _capturarSaldosIniciais(
-      movimentosDaFabricacao.map((movimento) => movimento.produtoId),
-    );
+    final paiId = fabricacao.fabricacaoPaiId;
+    if (paiId != null && fabricacoes.any((f) => f.id == paiId)) {
+      throw StateError(
+        'Esta fabricação foi gerada por outra. '
+        'Exclua a fabricação principal para removê-la.',
+      );
+    }
+
+    final removidas = [fabricacao, ...fabricacoesVinculadas(fabricacaoId)];
+    final idsDasFabricacoes = removidas.map((f) => f.id).toSet();
+    final movimentosRemovidos = [
+      for (final f in removidas) ..._movimentosDaFabricacao(f),
+    ];
+    final idsRemovidos = movimentosRemovidos.map((m) => m.id).toSet();
+    final produtosAfetados = movimentosRemovidos
+        .map((movimento) => movimento.produtoId)
+        .toSet();
+    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(const [], removerIds: idsRemovidos);
     await _db.transaction((transaction) async {
-      for (final movimento in movimentosDaFabricacao) {
+      for (final movimento in movimentosRemovidos) {
         await transaction.delete(
           'movimentos_estoque',
           where: 'id = ?',
           whereArgs: [movimento.id],
         );
       }
-      await transaction.delete(
-        'itens_fabricacao_registro',
-        where: 'fabricacaoId = ?',
-        whereArgs: [fabricacaoId],
-      );
-      await transaction.delete(
-        'fabricacoes',
-        where: 'id = ?',
-        whereArgs: [fabricacaoId],
-      );
+      for (final id in idsDasFabricacoes) {
+        await transaction.delete(
+          'itens_fabricacao_registro',
+          where: 'fabricacaoId = ?',
+          whereArgs: [id],
+        );
+        await transaction.delete(
+          'fabricacoes',
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
     });
 
     movimentacoes.removeWhere(
       (movimento) => idsRemovidos.contains(movimento.id),
     );
-    fabricacoes.removeAt(indice);
+    fabricacoes.removeWhere((f) => idsDasFabricacoes.contains(f.id));
     recalcularEstoque(
-      produtosSemMovimentacoes: movimentosDaFabricacao
-          .map((movimento) => movimento.produtoId)
-          .toSet(),
+      produtosSemMovimentacoes: produtosAfetados,
       saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();

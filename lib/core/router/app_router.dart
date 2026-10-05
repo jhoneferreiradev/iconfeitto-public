@@ -143,6 +143,11 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const VendaFormScreen(),
         ),
         GoRoute(
+          path: '/vendas/:id/editar',
+          builder: (context, state) =>
+              VendaFormScreen(vendaId: state.pathParameters['id']),
+        ),
+        GoRoute(
           path: '/cozinha',
           builder: (context, state) => const CozinhaListScreen(),
         ),

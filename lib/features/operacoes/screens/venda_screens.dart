@@ -64,6 +64,8 @@ class _VendaListScreenState extends State<VendaListScreen> {
                             child: ListTile(
                               title: Text(cliente),
                               subtitle: Text(_formatarData(venda.data)),
+                              onTap: () =>
+                                  context.push('/vendas/${venda.id}/editar'),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -77,6 +79,28 @@ class _VendaListScreenState extends State<VendaListScreen> {
                                     icon: const Icon(Icons.print_outlined),
                                     tooltip: 'Imprimir',
                                     onPressed: () => VendaPdf.imprimir(venda),
+                                  ),
+                                  PopupMenuButton<String>(
+                                    tooltip: 'Ações da venda',
+                                    onSelected: (acao) {
+                                      if (acao == 'editar') {
+                                        context.push(
+                                          '/vendas/${venda.id}/editar',
+                                        );
+                                      } else {
+                                        _confirmarExclusao(venda);
+                                      }
+                                    },
+                                    itemBuilder: (context) => const [
+                                      PopupMenuItem(
+                                        value: 'editar',
+                                        child: Text('Editar'),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'excluir',
+                                        child: Text('Excluir'),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -159,10 +183,60 @@ class _VendaListScreenState extends State<VendaListScreen> {
           return nome.contains(busca);
         });
   }
+
+  Future<void> _confirmarExclusao(Venda venda) async {
+    final excluida = await confirmarExclusaoVenda(context, venda);
+    if (excluida && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Venda excluída.')));
+    }
+  }
 }
 
+/// Pede confirmação e exclui a venda, devolvendo os itens ao estoque.
+Future<bool> confirmarExclusaoVenda(BuildContext context, Venda venda) async {
+  final confirmou = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Excluir venda?'),
+      content: const Text(
+        'A venda será removida e o estoque e o custo médio serão recalculados.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Excluir'),
+        ),
+      ],
+    ),
+  );
+  if (confirmou != true || !context.mounted) return false;
+  try {
+    await AppRepository.instance.excluirVenda(venda.id);
+    return true;
+  } on SaldoEstoqueInsuficienteException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  } on StateError catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+  return false;
+}
+
+/// Cadastro de venda. Com [vendaId] a tela abre para edição.
 class VendaFormScreen extends StatefulWidget {
-  const VendaFormScreen({super.key});
+  final String? vendaId;
+
+  const VendaFormScreen({super.key, this.vendaId});
 
   @override
   State<VendaFormScreen> createState() => _VendaFormScreenState();
@@ -171,24 +245,112 @@ class VendaFormScreen extends StatefulWidget {
 class _VendaFormScreenState extends State<VendaFormScreen> {
   final _formKey = GlobalKey<FormBuilderState>();
   final _repo = AppRepository.instance;
-  final _itens = <int>[0];
-  int _proximoId = 1;
+  final _itens = <int>[];
+  int _proximoId = 0;
   String? _clienteId;
+
+  Venda? get _vendaOriginal {
+    final id = widget.vendaId;
+    if (id == null) return null;
+    for (final venda in _repo.vendas) {
+      if (venda.id == id) return venda;
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final venda = _vendaOriginal;
+    _clienteId = venda?.clienteId;
+    if (venda == null) {
+      _itens.add(_proximoId++);
+    } else {
+      for (var i = 0; i < venda.itens.length; i++) {
+        _itens.add(_proximoId++);
+      }
+      // instantValue só fica disponível após o primeiro frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  Map<String, dynamic> _valoresIniciais(Venda? venda) {
+    final valores = <String, dynamic>{
+      'data': venda?.data ?? DateTime.now(),
+      'cliente': venda?.clienteId,
+    };
+    if (venda != null) {
+      for (var i = 0; i < venda.itens.length; i++) {
+        final item = venda.itens[i];
+        valores['produto_$i'] = item.produtoId;
+        valores['quantidade_$i'] = formatarParaCampo(item.quantidade);
+        valores['preco_$i'] = formatarParaCampo(item.valorUnitario);
+      }
+    }
+    return valores;
+  }
+
+  String? _produtoInicial(int id) {
+    final venda = _vendaOriginal;
+    if (venda == null || id >= venda.itens.length) return null;
+    return venda.itens[id].produtoId;
+  }
+
+  /// Preenche o preço unitário com o preço de venda cadastrado no produto.
+  void _selecionarProduto(int id, String? produtoId) {
+    if (produtoId == null) return;
+    final produto = _repo.produtoPorId(produtoId);
+    if (produto == null || produto.precoVenda <= 0) return;
+    _formKey.currentState?.fields['preco_$id']?.didChange(
+      formatarParaCampo(produto.precoVenda),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final venda = _vendaOriginal;
+    if (venda == null && widget.vendaId != null) {
+      return const AppScaffold(
+        title: 'Venda não encontrada',
+        body: EmptyState(mensagem: 'A venda solicitada não existe.'),
+      );
+    }
+    final idsDaVenda = {for (final item in venda?.itens ?? []) item.produtoId};
     final produtos =
         _repo.produtos
-            .where((produto) => produto.ativo && produto.podeSerVendido)
+            .where(
+              (produto) =>
+                  idsDaVenda.contains(produto.id) ||
+                  (produto.ativo && produto.podeSerVendido),
+            )
             .toList()
           ..sort((a, b) => a.nome.compareTo(b.nome));
     final resumo = _calcularResumo();
     return AppScaffold(
-      title: 'Nova venda',
+      title: venda == null ? 'Nova venda' : 'Editar venda',
+      actions: [
+        if (venda != null) ...[
+          IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Imprimir',
+            onPressed: () => VendaPdf.imprimir(venda),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Excluir venda',
+            onPressed: () async {
+              final excluida = await confirmarExclusaoVenda(context, venda);
+              if (excluida && context.mounted) context.pop();
+            },
+          ),
+        ],
+      ],
       body: FormBuilder(
         key: _formKey,
         onChanged: () => setState(() {}),
-        initialValue: {'data': DateTime.now()},
+        initialValue: _valoresIniciais(venda),
         child: CenteredListView(
           children: [
             SectionCard(
@@ -285,12 +447,14 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
                 child: FormBuilderSearchableDropdownField<String>(
                   name: 'produto_$id',
                   label: 'Produto',
+                  initialValue: _produtoInicial(id),
                   items: produtos.map((produto) => produto.id).toList(),
                   itemBuilder: (pid) =>
                       produtos.firstWhere((produto) => produto.id == pid).nome,
                   validator: FormBuilderValidators.required(
                     errorText: 'Selecione o produto',
                   ),
+                  onChanged: (pid) => _selecionarProduto(id, pid),
                 ),
               ),
               IconButton(
@@ -446,22 +610,31 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
         unidadeId: produto.unidadeConsumoId,
       );
     }).toList();
+    final vendaOriginal = _vendaOriginal;
+    final venda = Venda(
+      id: vendaOriginal?.id ?? _repo.novoId(),
+      data: valores['data'] as DateTime,
+      clienteId: valores['cliente'] as String,
+      itens: itens,
+    );
     try {
-      await _repo.salvarVenda(
-        Venda(
-          id: _repo.novoId(),
-          data: valores['data'] as DateTime,
-          clienteId: valores['cliente'] as String,
-          itens: itens,
-        ),
-      );
+      if (vendaOriginal == null) {
+        await _repo.salvarVenda(venda);
+      } else {
+        await _repo.atualizarVenda(venda);
+      }
       if (mounted) context.pop();
     } on SaldoEstoqueInsuficienteException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
-      }
+      _avisar(error.message);
+    } on StateError catch (error) {
+      _avisar(error.message);
     }
+  }
+
+  void _avisar(String mensagem) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensagem)));
   }
 }
 

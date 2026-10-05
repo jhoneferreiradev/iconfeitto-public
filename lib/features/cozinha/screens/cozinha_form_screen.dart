@@ -40,6 +40,9 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
   List<ItemFichaTecnica> _ficha = [];
   // Muda a cada produto escolhido para recriar os campos da ficha.
   int _geracao = 0;
+  // Itens adicionados no ato da fabricação (ids estáveis para os campos).
+  final _extras = <int>[];
+  int _proximoExtra = 0;
 
   bool get _somenteLeitura => widget.fabricacaoId != null;
 
@@ -93,17 +96,18 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
             tooltip: 'Imprimir',
             onPressed: () => FabricacaoPdf.imprimir(fabricacao),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Excluir',
-            onPressed: () async {
-              final excluida = await confirmarExclusaoFabricacao(
-                context,
-                fabricacao,
-              );
-              if (excluida && context.mounted) context.pop();
-            },
-          ),
+          if (!_ehVinculada(fabricacao))
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Excluir',
+              onPressed: () async {
+                final excluida = await confirmarExclusaoFabricacao(
+                  context,
+                  fabricacao,
+                );
+                if (excluida && context.mounted) context.pop();
+              },
+            ),
         ],
       ],
       body: FormBuilder(
@@ -159,6 +163,11 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
                 ),
               ),
             ],
+            if (!_somenteLeitura && _produtoId != null) ...[
+              const SizedBox(height: 12),
+              _buildExtras(),
+            ],
+            if (fabricacao != null) ..._buildVinculos(fabricacao),
             if (!_somenteLeitura) ...[
               const SizedBox(height: 8),
               FilledButton.icon(
@@ -244,12 +253,15 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
 
   String _campo(String tipo, int indice) => 'f${_geracao}_${tipo}_$indice';
 
-  Widget _buildUnidadeFichaDropdown(int index) {
+  Widget _buildUnidadeFichaDropdown(int index) =>
+      _buildUnidadeDropdown(_campo('u', index), _ficha[index].unidadeId);
+
+  Widget _buildUnidadeDropdown(String nome, String? inicial) {
     final unidades = {for (final u in _repo.unidades) u.id: u};
     return FormBuilderGroupedDropdownField<String>(
-      name: _campo('u', index),
+      name: nome,
       label: 'Unidade',
-      initialValue: _ficha[index].unidadeId,
+      initialValue: inicial,
       validator: FormBuilderValidators.required(
         errorText: 'Selecione a unidade',
       ),
@@ -269,12 +281,179 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
     );
   }
 
+  bool _ehVinculada(Fabricacao fabricacao) =>
+      _repo.fabricacoes.any((f) => f.id == fabricacao.fabricacaoPaiId);
+
+  List<Produto> _candidatosExtras(int idAtual) {
+    final usados = <String>{
+      ..._ficha.map((item) => item.produtoIngredienteId),
+      for (final id in _extras)
+        if (id != idAtual)
+          if (_formKey.currentState?.fields['x_i_$id']?.value
+              case final String escolhido)
+            escolhido,
+    };
+    return _repo.produtos
+        .where(
+          (p) =>
+              p.ativo &&
+              TipoItem.tiposFichaTecnica.contains(p.tipo) &&
+              p.id != _produtoId &&
+              !usados.contains(p.id),
+        )
+        .toList()
+      ..sort((a, b) => a.nome.compareTo(b.nome));
+  }
+
+  Widget _buildExtras() {
+    final tema = Theme.of(context).textTheme;
+    return SectionCard(
+      title: 'Itens adicionais',
+      trailing: IconButton(
+        icon: const Icon(Icons.add),
+        tooltip: 'Adicionar item',
+        onPressed: () => setState(() => _extras.add(_proximoExtra++)),
+      ),
+      child: _extras.isEmpty
+          ? Text(
+              'Usou um ingrediente que não está na ficha técnica? Adicione-o '
+              'aqui. Marque "Incluir na ficha técnica" para que ele passe a '
+              'fazer parte da receita deste produto.',
+              style: tema.bodySmall,
+            )
+          : Column(children: [for (final id in _extras) _buildExtra(id)]),
+    );
+  }
+
+  Widget _buildExtra(int id) {
+    final candidatos = _candidatosExtras(id);
+    return Padding(
+      key: ValueKey('extra_${_geracao}_$id'),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: FormBuilderSearchableDropdownField<String>(
+                  name: 'x_i_$id',
+                  label: 'Item',
+                  items: candidatos.map((p) => p.id).toList(),
+                  itemBuilder: (pid) => _repo.produtoPorId(pid)?.nome ?? '',
+                  validator: FormBuilderValidators.required(
+                    errorText: 'Selecione o item',
+                  ),
+                  onChanged: (pid) => _selecionarExtra(id, pid),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Remover item',
+                onPressed: () => setState(() => _extras.remove(id)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: AppNumberField(
+                  name: 'x_q_$id',
+                  label: 'Quantidade',
+                  min: 0.0001,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _buildUnidadeDropdown('x_u_$id', null)),
+            ],
+          ),
+          FormBuilderSwitch(
+            name: 'x_f_$id',
+            initialValue: false,
+            title: const Text('Incluir na ficha técnica do produto'),
+            decoration: const InputDecoration(
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selecionarExtra(int id, String? produtoId) {
+    final produto = produtoId == null ? null : _repo.produtoPorId(produtoId);
+    if (produto != null) {
+      _formKey.currentState?.fields['x_u_$id']?.didChange(
+        produto.unidadeConsumoId,
+      );
+    }
+    setState(() {});
+  }
+
+  List<Widget> _buildVinculos(Fabricacao fabricacao) {
+    final principal = _repo.fabricacoes
+        .where((f) => f.id == fabricacao.fabricacaoPaiId)
+        .firstOrNull;
+    final vinculadas = _repo.fabricacoesVinculadas(fabricacao.id);
+    if (principal == null && vinculadas.isEmpty) return const [];
+
+    Widget item(Fabricacao f) {
+      final produto = _repo.produtoPorId(f.produtoId);
+      final unidade = produto == null
+          ? null
+          : _repo.unidadePorId(produto.unidadeEstoqueId);
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.link),
+        title: Text(produto?.nome ?? 'Produto removido'),
+        subtitle: Text(
+          '${formatarNumero(f.quantidade)}'
+          '${unidade != null ? ' ${unidade.sigla}' : ''}',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push('/cozinha/${f.id}'),
+      );
+    }
+
+    return [
+      const SizedBox(height: 12),
+      SectionCard(
+        title: principal != null
+            ? 'Fabricação principal'
+            : 'Fabricações vinculadas',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              principal != null
+                  ? 'Esta fabricação foi gerada automaticamente por outra. '
+                        'Para excluí-la, exclua a fabricação principal.'
+                  : 'Preparos fabricados automaticamente junto com esta '
+                        'fabricação. Ao excluí-la, eles também serão excluídos.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            if (principal != null) item(principal),
+            for (final f in vinculadas) item(f),
+          ],
+        ),
+      ),
+    ];
+  }
+
   void _selecionarProduto(String? id) {
     if (id == null || _somenteLeitura) return;
     final produto = _repo.produtoPorId(id);
     setState(() {
       _geracao++;
       _produtoId = id;
+      _extras.clear();
       _ficha = produto?.fichaTecnica.map((item) => item.copy()).toList() ?? [];
     });
   }
@@ -287,7 +466,7 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
     final valores = _formKey.currentState!.value;
     final data = valores['data'] as DateTime;
     final quantidade = valores['quantidade'] as double;
-    final ficha = [
+    final fichaBase = [
       for (var i = 0; i < _ficha.length; i++)
         ItemFichaTecnica(
           produtoIngredienteId: _ficha[i].produtoIngredienteId,
@@ -295,10 +474,22 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
           unidadeId: valores[_campo('u', i)] as String,
         ),
     ];
+    final extras = [
+      for (final id in _extras)
+        ItemFichaTecnica(
+          produtoIngredienteId: valores['x_i_$id'] as String,
+          quantidade: valores['x_q_$id'] as double? ?? 0,
+          unidadeId: valores['x_u_$id'] as String,
+        ),
+    ];
+    final extrasParaFicha = [
+      for (var i = 0; i < _extras.length; i++)
+        if (valores['x_f_${_extras[i]}'] == true) extras[i],
+    ];
+    final ficha = [...fichaBase, ...extras];
 
     final quantidadePorIngrediente = <String, double>{};
-    for (var i = 0; i < ficha.length; i++) {
-      final item = ficha[i];
+    for (final item in ficha) {
       final ingrediente = _repo.produtoPorId(item.produtoIngredienteId);
       if (ingrediente == null || !_temFicha(ingrediente)) continue;
       final necessaria =
@@ -313,6 +504,8 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
       );
     }
 
+    // As fabricações dos preparos ficam vinculadas à principal.
+    final principalId = _repo.novoId();
     final fabricacoes = <Fabricacao>[
       for (final entrada in quantidadePorIngrediente.entries)
         if (entrada.value > 0)
@@ -321,6 +514,7 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
             data: data,
             produtoId: entrada.key,
             quantidade: entrada.value,
+            fabricacaoPaiId: principalId,
             fichaTecnica: _repo
                 .produtoPorId(entrada.key)!
                 .fichaTecnica
@@ -328,7 +522,7 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
                 .toList(),
           ),
       Fabricacao(
-        id: _repo.novoId(),
+        id: principalId,
         data: data,
         produtoId: _produtoId!,
         quantidade: quantidade,
@@ -338,6 +532,11 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
 
     try {
       await _repo.salvarFabricacoes(fabricacoes);
+      if (extrasParaFicha.isNotEmpty) {
+        final produto = _repo.produtoPorId(_produtoId!)!;
+        produto.fichaTecnica.addAll(extrasParaFicha.map((item) => item.copy()));
+        await _repo.salvarProduto(produto);
+      }
       if (mounted) context.pop();
     } on SaldoEstoqueInsuficienteException catch (error) {
       _avisar(error.message);

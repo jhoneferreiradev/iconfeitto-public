@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 14,
+      version: 15,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -134,7 +134,9 @@ class AppDatabase {
         data TEXT NOT NULL,
         produtoId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
-        FOREIGN KEY (produtoId) REFERENCES produtos(id)
+        fabricacaoPaiId INTEGER,
+        FOREIGN KEY (produtoId) REFERENCES produtos(id),
+        FOREIGN KEY (fabricacaoPaiId) REFERENCES fabricacoes(id)
       )
     ''');
 
@@ -364,6 +366,18 @@ class AppDatabase {
 
     if (oldVersion < 14) {
       await _migrarChavesPrimariasParaInteiro(db);
+    }
+
+    if (oldVersion < 15) {
+      // A migração para v14 já cria a coluna nas tabelas recriadas.
+      final colunas = await db.rawQuery('PRAGMA table_info(fabricacoes)');
+      final existe = colunas.any((c) => c['name'] == 'fabricacaoPaiId');
+      if (!existe) {
+        await db.execute(
+          'ALTER TABLE fabricacoes ADD COLUMN fabricacaoPaiId INTEGER '
+          'REFERENCES fabricacoes(id)',
+        );
+      }
     }
   }
 

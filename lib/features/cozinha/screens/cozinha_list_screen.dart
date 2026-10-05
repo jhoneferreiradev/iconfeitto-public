@@ -19,8 +19,13 @@ class CozinhaListScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: repo,
       builder: (context, _) {
-        final fabricacoes = repo.fabricacoes.toList()
-          ..sort((a, b) => b.data.compareTo(a.data));
+        // Vinculadas aparecem dentro da fabricação principal.
+        final idsExistentes = {for (final f in repo.fabricacoes) f.id};
+        final fabricacoes =
+            repo.fabricacoes
+                .where((f) => !idsExistentes.contains(f.fabricacaoPaiId))
+                .toList()
+              ..sort((a, b) => b.data.compareTo(a.data));
         return AppScaffold(
           title: 'Fabricação',
           floatingActionButton: FloatingActionButton.extended(
@@ -41,15 +46,36 @@ class CozinhaListScreen extends StatelessWidget {
                     final unidade = produto == null
                         ? null
                         : repo.unidadePorId(produto.unidadeEstoqueId);
+                    final vinculadas = repo.fabricacoesVinculadas(
+                      fabricacao.id,
+                    );
                     return Card(
                       margin: EdgeInsets.zero,
                       child: ListTile(
                         leading: const Icon(Icons.factory_outlined),
                         title: Text(produto?.nome ?? 'Produto removido'),
-                        subtitle: Text(
-                          '${_formatarData(fabricacao.data)}  •  '
-                          '${formatarNumero(fabricacao.quantidade)}'
-                          '${unidade != null ? ' ${unidade.sigla}' : ''}',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_formatarData(fabricacao.data)}  •  '
+                              '${formatarNumero(fabricacao.quantidade)}'
+                              '${unidade != null ? ' ${unidade.sigla}' : ''}',
+                            ),
+                            if (vinculadas.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Chip(
+                                  avatar: const Icon(Icons.link, size: 16),
+                                  label: Text(
+                                    vinculadas.length == 1
+                                        ? '1 preparo vinculado'
+                                        : '${vinculadas.length} preparos vinculados',
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                          ],
                         ),
                         onTap: () => context.push('/cozinha/${fabricacao.id}'),
                         trailing: Row(
@@ -89,12 +115,18 @@ Future<bool> confirmarExclusaoFabricacao(
   BuildContext context,
   Fabricacao fabricacao,
 ) async {
+  final vinculadas = AppRepository.instance.fabricacoesVinculadas(
+    fabricacao.id,
+  );
   final confirmou = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Excluir fabricação?'),
-      content: const Text(
-        'A fabricação será removida e o estoque e o custo médio serão recalculados.',
+      content: Text(
+        vinculadas.isEmpty
+            ? 'A fabricação será removida e o estoque e o custo médio serão recalculados.'
+            : 'A fabricação será removida junto com ${vinculadas.length == 1 ? 'o preparo vinculado' : 'os ${vinculadas.length} preparos vinculados'}: ${vinculadas.map((v) => AppRepository.instance.produtoPorId(v.produtoId)?.nome ?? 'Produto removido').join(', ')}. '
+                  'O estoque e o custo médio serão recalculados.',
       ),
       actions: [
         TextButton(

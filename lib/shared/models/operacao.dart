@@ -59,12 +59,17 @@ class Fabricacao {
   final double quantidade;
   final List<ItemFichaTecnica> fichaTecnica;
 
+  /// Fabricação principal que gerou esta (preparo da ficha técnica). Ao
+  /// excluir a principal, as vinculadas também são excluídas.
+  final String? fabricacaoPaiId;
+
   const Fabricacao({
     required this.id,
     required this.data,
     required this.produtoId,
     required this.quantidade,
     required this.fichaTecnica,
+    this.fabricacaoPaiId,
   });
 }
 

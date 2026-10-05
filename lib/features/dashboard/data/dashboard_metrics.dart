@@ -250,7 +250,7 @@ class DashboardMetrics {
           titulo: 'Venda para ${nomeCliente(v.clienteId)}',
           data: v.data,
           valor: v.total,
-          rota: '/vendas',
+          rota: '/vendas/${v.id}/editar',
         ),
       for (final c in compras)
         Atividade(
