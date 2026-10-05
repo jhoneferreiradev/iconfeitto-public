@@ -8,6 +8,7 @@ import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_grouped_dropdown.dart';
 import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/form_builder_grouped_dropdown_field.dart';
 import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
@@ -114,8 +115,7 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
               ? ''
               : formatarParaCampo(fabricacao.quantidade),
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: CenteredListView(
           children: [
             SectionCard(
               title: 'Produção',

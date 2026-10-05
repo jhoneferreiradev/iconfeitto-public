@@ -45,6 +45,8 @@ dependencies:
 
   material_ui: any
   sqflite_common_ffi: ^2.4.3
+  fl_chart: ^1.2.0
+  flutter_animate: ^4.5.2
 dependency_overrides:
   intl: 0.18.1
 

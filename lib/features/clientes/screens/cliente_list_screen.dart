@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/data/app_repository.dart';
@@ -27,13 +28,12 @@ class ClienteListScreen extends StatelessWidget {
                   mensagem: 'Nenhum cliente cadastrado ainda.',
                   icon: Icons.person_outline,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              : ResponsiveCardList(
                   itemCount: repo.clientes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final cliente = repo.clientes[index];
                     return Card(
+                      margin: EdgeInsets.zero,
                       child: ListTile(
                         leading: Icon(
                           Icons.person_outline,

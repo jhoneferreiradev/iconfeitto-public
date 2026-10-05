@@ -7,6 +7,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
 import '../../../core/widgets/section_card.dart';
@@ -51,16 +52,15 @@ class _VendaListScreenState extends State<VendaListScreen> {
                         mensagem: 'Nenhum resultado encontrado.',
                         icon: Icons.point_of_sale_outlined,
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                    : ResponsiveCardList(
                         itemCount: vendas.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final venda = vendas[index];
                           final cliente =
                               repo.clientePorId(venda.clienteId)?.nome ??
                               'Cliente removido';
                           return Card(
+                            margin: EdgeInsets.zero,
                             child: ListTile(
                               title: Text(cliente),
                               subtitle: Text(_formatarData(venda.data)),
@@ -150,10 +150,12 @@ class _VendaListScreenState extends State<VendaListScreen> {
     final busca = _busca.trim().toLowerCase();
     if (busca.isEmpty) return true;
     final repo = AppRepository.instance;
-    final cliente = repo.clientePorId(venda.clienteId)?.nome.toLowerCase() ?? '';
+    final cliente =
+        repo.clientePorId(venda.clienteId)?.nome.toLowerCase() ?? '';
     return cliente.contains(busca) ||
         venda.itens.any((item) {
-          final nome = repo.produtoPorId(item.produtoId)?.nome.toLowerCase() ?? '';
+          final nome =
+              repo.produtoPorId(item.produtoId)?.nome.toLowerCase() ?? '';
           return nome.contains(busca);
         });
   }
@@ -175,10 +177,11 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final produtos = _repo.produtos
-        .where((produto) => produto.ativo && produto.podeSerVendido)
-        .toList()
-      ..sort((a, b) => a.nome.compareTo(b.nome));
+    final produtos =
+        _repo.produtos
+            .where((produto) => produto.ativo && produto.podeSerVendido)
+            .toList()
+          ..sort((a, b) => a.nome.compareTo(b.nome));
     final resumo = _calcularResumo();
     return AppScaffold(
       title: 'Nova venda',
@@ -186,8 +189,7 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
         key: _formKey,
         onChanged: () => setState(() {}),
         initialValue: {'data': DateTime.now()},
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: CenteredListView(
           children: [
             SectionCard(
               title: 'Dados da venda',
@@ -341,7 +343,11 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
     children: [
       _linhaResumo('Total venda', resumo.total, bold: true),
       _linhaResumo('Total custo', resumo.totalCusto),
-      _linhaResumo('Lucro/Prejuízo', resumo.total - resumo.totalCusto, bold: true),
+      _linhaResumo(
+        'Lucro/Prejuízo',
+        resumo.total - resumo.totalCusto,
+        bold: true,
+      ),
     ],
   );
 
@@ -351,7 +357,10 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: estilo), Text(valor.toCurrency(), style: estilo)],
+        children: [
+          Text(label, style: estilo),
+          Text(valor.toCurrency(), style: estilo),
+        ],
       ),
     );
   }
@@ -420,7 +429,8 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
     final cliente = Cliente(id: _repo.novoId(), nome: nome, ativo: true);
     await _repo.salvarCliente(cliente);
     _clienteId = cliente.id;
-    if (mounted) _formKey.currentState?.fields['cliente']?.didChange(cliente.id);
+    if (mounted)
+      _formKey.currentState?.fields['cliente']?.didChange(cliente.id);
   }
 
   Future<void> _salvar() async {

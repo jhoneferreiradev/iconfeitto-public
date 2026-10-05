@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
@@ -42,8 +43,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
           'nome': _original?.nome ?? '',
           'ativo': _original?.ativo ?? true,
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: CenteredListView(
           children: [
             SectionCard(
               title: 'Dados do cliente',

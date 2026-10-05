@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/operacao.dart';
@@ -32,10 +33,8 @@ class CozinhaListScreen extends StatelessWidget {
                   mensagem: 'Nenhuma fabricação registrada ainda.',
                   icon: Icons.factory_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              : ResponsiveCardList(
                   itemCount: fabricacoes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final fabricacao = fabricacoes[index];
                     final produto = repo.produtoPorId(fabricacao.produtoId);
@@ -43,6 +42,7 @@ class CozinhaListScreen extends StatelessWidget {
                         ? null
                         : repo.unidadePorId(produto.unidadeEstoqueId);
                     return Card(
+                      margin: EdgeInsets.zero,
                       child: ListTile(
                         leading: const Icon(Icons.factory_outlined),
                         title: Text(produto?.nome ?? 'Produto removido'),
@@ -64,8 +64,10 @@ class CozinhaListScreen extends StatelessWidget {
                             IconButton(
                               icon: const Icon(Icons.delete_outline),
                               tooltip: 'Excluir',
-                              onPressed: () =>
-                                  confirmarExclusaoFabricacao(context, fabricacao),
+                              onPressed: () => confirmarExclusaoFabricacao(
+                                context,
+                                fabricacao,
+                              ),
                             ),
                           ],
                         ),
@@ -112,15 +114,13 @@ Future<bool> confirmarExclusaoFabricacao(
     return true;
   } on SaldoEstoqueInsuficienteException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     }
   } on StateError catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
   return false;

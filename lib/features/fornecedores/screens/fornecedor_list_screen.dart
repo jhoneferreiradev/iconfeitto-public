@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/data/app_repository.dart';
@@ -29,15 +30,14 @@ class FornecedorListScreen extends StatelessWidget {
                   mensagem: 'Nenhum fornecedor cadastrado ainda.\nToque em "Novo fornecedor" para começar.',
                   icon: Icons.business_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              : ResponsiveCardList(
                   itemCount: fornecedores.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final fornecedor = fornecedores[index];
                     return _FornecedorTile(
                       fornecedor: fornecedor,
-                      onEditar: () => context.push('/fornecedores/${fornecedor.id}/editar'),
+                      onEditar: () =>
+                          context.push('/fornecedores/${fornecedor.id}/editar'),
                       onExcluir: () => _excluir(context, repo, fornecedor),
                     );
                   },
@@ -76,6 +76,7 @@ class _FornecedorTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final corStatus = fornecedor.ativo ? Colors.green : Colors.grey;
     return Card(
+      margin: EdgeInsets.zero,
       child: ListTile(
         leading: Icon(Icons.business_outlined, color: corStatus),
         title: Text(fornecedor.nome),

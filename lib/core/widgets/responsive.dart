@@ -1,4 +1,11 @@
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:material_ui/material_ui.dart';
+
+/// Largura a partir da qual o menu lateral substitui a gaveta (tablet).
+const double kLarguraTablet = 840;
+
+/// Largura a partir da qual o menu lateral aparece expandido (desktop).
+const double kLarguraDesktop = 1200;
 
 /// Largura a partir da qual formulários passam a usar duas colunas.
 const double kLarguraTelaGrande = 900;
@@ -54,8 +61,11 @@ class ResponsiveCardGrid extends StatelessWidget {
           spacing: spacing,
           runSpacing: spacing,
           children: [
-            for (final filho in children)
-              SizedBox(width: larguraItem, child: filho),
+            for (var i = 0; i < children.length; i++)
+              SizedBox(
+                width: larguraItem,
+                child: children[i],
+              ).entranceAnimation(i),
           ],
         );
       },
@@ -137,6 +147,90 @@ class ResponsiveFormLayout extends StatelessWidget {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+/// Animação de entrada padrão: surge com leve deslize, em cascata pelo [indice].
+extension EntranceAnimation on Widget {
+  Widget entranceAnimation(int indice, {Duration? duracao}) {
+    final atraso = Duration(milliseconds: 45 * (indice > 12 ? 12 : indice));
+    return animate()
+        .fadeIn(
+          duration: duracao ?? 350.ms,
+          delay: atraso,
+          curve: Curves.easeOut,
+        )
+        .slideY(
+          begin: 0.08,
+          end: 0,
+          duration: duracao ?? 350.ms,
+          delay: atraso,
+          curve: Curves.easeOutCubic,
+        );
+  }
+}
+
+/// Lista rolável de cartões que vira grade conforme a largura disponível.
+class ResponsiveCardList extends StatelessWidget {
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+  final double minItemWidth;
+
+  const ResponsiveCardList({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.minItemWidth = 420,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: ContentWidth(
+        child: ResponsiveCardGrid(
+          minItemWidth: minItemWidth,
+          children: [
+            for (var i = 0; i < itemCount; i++) itemBuilder(context, i),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// [ListView] com conteúdo centralizado e limitado a [maxWidth]; a barra de
+/// rolagem continua na borda da tela.
+class CenteredListView extends StatelessWidget {
+  final List<Widget> children;
+  final double maxWidth;
+  final double verticalPadding;
+
+  const CenteredListView({
+    super.key,
+    required this.children,
+    this.maxWidth = 760,
+    this.verticalPadding = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontal = ((constraints.maxWidth - maxWidth) / 2).clamp(
+          16.0,
+          double.infinity,
+        );
+        return ListView(
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            verticalPadding,
+            horizontal,
+            verticalPadding + 16,
+          ),
+          children: children,
         );
       },
     );

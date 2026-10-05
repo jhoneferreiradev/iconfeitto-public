@@ -1,11 +1,26 @@
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
+import '../../../shared/models/produto.dart';
+import '../data/dashboard_metrics.dart';
+import '../widgets/dashboard_activity.dart';
+import '../widgets/dashboard_cards.dart';
+import '../widgets/dashboard_charts.dart';
+import '../widgets/dashboard_common.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
+
+  static double _custoUnitario(AppRepository repo, Produto produto) =>
+      CalculadoraCustoProduto(
+        rendimentoReceita: produto.rendimentoReceita,
+        custoFichaTecnica: repo.custoTotalFicha(produto),
+        custoOperacional: produto.custoOperacional,
+        custoUnitarioEmbalagem: repo.custoEmbalagem(produto),
+      ).custoRendimentoUnitario;
 
   @override
   Widget build(BuildContext context) {
@@ -13,208 +28,148 @@ class DashboardScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: repo,
       builder: (context, _) {
+        final metrics = DashboardMetrics(
+          agora: DateTime.now(),
+          vendas: repo.vendas,
+          compras: repo.compras,
+          fabricacoes: repo.fabricacoes,
+          produtos: repo.produtos,
+          custoUnitario: (p) => _custoUnitario(repo, p),
+        );
+        final atividades = metrics.atividadesRecentes(
+          nomeCliente: (id) =>
+              repo.clientePorId(id)?.nome ?? 'cliente removido',
+          nomeFornecedor: (id) =>
+              repo.fornecedorPorId(id)?.nome ?? 'fornecedor removido',
+          nomeProduto: (id) =>
+              repo.produtoPorId(id)?.nome ?? 'produto removido',
+        );
+
+        final blocos = <Widget>[
+          DashboardHero(nomeEmpresa: repo.empresa.nome, metrics: metrics),
+          _kpis(metrics),
+          _acoesRapidas(),
+          LinhaResponsiva(
+            esquerda: VendasComprasChart(serie: metrics.serieMensal()),
+            direita: TopProdutosChart(produtos: metrics.topProdutos()),
+          ),
+          LinhaResponsiva(
+            esquerda: FaturamentoDiarioChart(metrics: metrics),
+            direita: MargensCard(margens: metrics.margens()),
+          ),
+          LinhaResponsiva(
+            esquerda: AtividadesCard(atividades: atividades),
+            direita: EstoqueCard(
+              valorEmEstoque: metrics.valorEmEstoque,
+              totalItens: metrics.totalItensEstoque,
+              semSaldo: metrics.itensSemSaldo,
+            ),
+          ),
+        ];
+
         return AppScaffold(
           title: 'Visão geral',
-          drawer: _buildDrawer(context),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-            children: [
-              Text(
-                'Acessos rápidos',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.45,
+          body: SingleChildScrollView(
+            child: ContentWidth(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _QuickAccess(
-                    label: 'Nova compra',
-                    icon: Icons.shopping_cart_outlined,
-                    onTap: () => context.push('/compras/nova'),
-                  ),
-                  _QuickAccess(
-                    label: 'Nova venda',
-                    icon: Icons.point_of_sale_outlined,
-                    onTap: () => context.push('/vendas/nova'),
-                  ),
-                  _QuickAccess(
-                    label: 'Registrar fabricação',
-                    icon: Icons.factory_outlined,
-                    onTap: () => context.push('/cozinha/nova'),
-                  ),
-                  _QuickAccess(
-                    label: 'Ver estoque',
-                    icon: Icons.inventory_2_outlined,
-                    onTap: () => context.push('/estoque'),
-                  ),
+                  for (var i = 0; i < blocos.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 16),
+                    blocos[i].entranceAnimation(i),
+                  ],
                 ],
               ),
-              const SizedBox(height: 24),
-              Text('Resumo', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryTile(
-                      label: 'Itens',
-                      value: '${repo.produtos.length}',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryTile(
-                      label: 'Clientes',
-                      value: '${repo.clientes.length}',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryTile(
-                      label: 'Fornecedores',
-                      value: '${repo.fornecedores.length}',
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const DrawerHeader(child: Text('Confeitaria Admin')),
-          _drawerItem(context, 'Dashboard', Icons.dashboard_outlined, '/'),
-          _drawerItem(
-            context,
-            'Insumos, materiais e embalagens',
-            Icons.inventory_2_outlined,
-            '/itens/insumos',
+  Widget _kpis(DashboardMetrics m) {
+    return ResponsiveCardGrid(
+      minItemWidth: 150,
+      children: [
+        KpiCard(
+          titulo: 'Faturamento do mês',
+          icon: Icons.payments_outlined,
+          cor: const Color(0xFFE85D75),
+          valor: m.faturamentoMes,
+          variacao: DashboardMetrics.variacao(
+            m.faturamentoMes,
+            m.faturamentoMesAnterior,
           ),
-          _drawerItem(
-            context,
-            'Produtos e preparos',
-            Icons.cake_outlined,
-            '/itens/produtos',
-          ),
-          _drawerItem(
-            context,
-            'Compras',
-            Icons.shopping_cart_outlined,
-            '/compras',
-          ),
-          _drawerItem(
-            context,
-            'Vendas',
-            Icons.point_of_sale_outlined,
-            '/vendas',
-          ),
-          _drawerItem(context, 'Cozinha', Icons.factory_outlined, '/cozinha'),
-          _drawerItem(
-            context,
-            'Estoque',
-            Icons.inventory_2_outlined,
-            '/estoque',
-          ),
-          _drawerItem(context, 'Clientes', Icons.person_outline, '/clientes'),
-          _drawerItem(
-            context,
-            'Fornecedores',
-            Icons.business_outlined,
-            '/fornecedores',
-          ),
-          _drawerItem(context, 'Unidades', Icons.straighten, '/unidades'),
-          const Divider(),
-          _drawerItem(
-            context,
-            'Empresa',
-            Icons.storefront_outlined,
-            '/empresa',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _drawerItem(
-    BuildContext context,
-    String label,
-    IconData icon,
-    String route,
-  ) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      onTap: () {
-        Navigator.pop(context);
-        context.push(route);
-      },
-    );
-  }
-}
-
-class _QuickAccess extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _QuickAccess({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 30),
-              const SizedBox(height: 8),
-              Text(label, textAlign: TextAlign.center),
-            ],
-          ),
+          dica: 'Soma de todas as vendas registradas neste mês.',
         ),
-      ),
+        KpiCard(
+          titulo: 'Lucro estimado',
+          icon: Icons.trending_up,
+          cor: const Color(0xFF2E9E5B),
+          valor: m.lucroMes,
+          variacao: DashboardMetrics.variacao(m.lucroMes, m.lucroMesAnterior),
+          dica:
+              'Vendas do mês menos o custo atual dos produtos vendidos '
+              '(ficha técnica).',
+        ),
+        KpiCard(
+          titulo: 'Compras do mês',
+          icon: Icons.shopping_cart_outlined,
+          cor: const Color(0xFF7C6BD6),
+          valor: m.comprasMes,
+          altaEhRuim: true,
+          variacao: DashboardMetrics.variacao(
+            m.comprasMes,
+            m.comprasMesAnterior,
+          ),
+          dica: 'Quanto foi gasto com compras de insumos neste mês.',
+        ),
+        KpiCard(
+          titulo: 'Ticket médio',
+          icon: Icons.receipt_long_outlined,
+          cor: const Color(0xFFFF9F5A),
+          valor: m.ticketMedioMes,
+          formatar: formatarMoeda,
+          variacao: DashboardMetrics.variacao(
+            m.ticketMedioMes,
+            m.ticketMedioMesAnterior,
+          ),
+          dica: 'Valor médio de cada venda do mês.',
+        ),
+      ],
     );
   }
-}
 
-class _SummaryTile extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _SummaryTile({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Text(value, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(label, textAlign: TextAlign.center),
-          ],
+  Widget _acoesRapidas() {
+    return ResponsiveCardGrid(
+      minItemWidth: 150,
+      children: const [
+        AcaoRapida(
+          titulo: 'Nova venda',
+          descricao: 'Registre e baixe o estoque',
+          icon: Icons.point_of_sale,
+          rota: '/vendas/nova',
         ),
-      ),
+        AcaoRapida(
+          titulo: 'Nova compra',
+          descricao: 'Dê entrada nos insumos',
+          icon: Icons.shopping_cart,
+          rota: '/compras/nova',
+        ),
+        AcaoRapida(
+          titulo: 'Fabricação',
+          descricao: 'Produza e baixe insumos',
+          icon: Icons.soup_kitchen,
+          rota: '/cozinha/nova',
+        ),
+        AcaoRapida(
+          titulo: 'Novo produto',
+          descricao: 'Ficha técnica e preço',
+          icon: Icons.cake,
+          rota: '/produtos/novo?tipo=produto&grupo=produto',
+        ),
+      ],
     );
   }
 }

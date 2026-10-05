@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
@@ -18,14 +19,13 @@ class EstoqueScreen extends StatelessWidget {
       builder: (context, _) {
         return AppScaffold(
           title: 'Estoque',
-          body: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          body: ResponsiveCardList(
             itemCount: repo.produtos.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final produto = repo.produtos[index];
               final unidade = repo.unidadePorId(produto.unidadeEstoqueId);
               return Card(
+                margin: EdgeInsets.zero,
                 child: ListTile(
                   leading: const Icon(Icons.inventory_2_outlined),
                   title: Text(produto.nome),
