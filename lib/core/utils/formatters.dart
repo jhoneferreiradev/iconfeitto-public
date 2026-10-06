@@ -21,6 +21,11 @@ double numeroOuZero(dynamic valor) {
   };
 }
 
+
+  double getNumeroDoFormulario(dynamic formKey, String campo) {
+    return numeroOuZero(formKey.currentState?.fields[campo]?.value);
+  }
+
 extension DoubleFormatters on double {
   String toCurrency() => _moedaFormatter.format(this);
 

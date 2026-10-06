@@ -15,6 +15,7 @@ class AppSearchableDropdown<T> extends StatefulWidget {
   final ItemComparator<T>? itemComparator;
   final IconData? icon;
   final String? Function(T?)? validator;
+  final bool readOnly;
 
   const AppSearchableDropdown({
     super.key,
@@ -26,6 +27,7 @@ class AppSearchableDropdown<T> extends StatefulWidget {
     this.itemComparator,
     this.icon,
     this.validator,
+    this.readOnly = false,
   });
 
   @override
@@ -113,7 +115,7 @@ class _AppSearchableDropdownState<T> extends State<AppSearchableDropdown<T>> {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _openDialog,
+      onTap: widget.readOnly ? null : _openDialog,
       child: InputDecorator(
         decoration: InputDecoration(
           label: Text(widget.label),

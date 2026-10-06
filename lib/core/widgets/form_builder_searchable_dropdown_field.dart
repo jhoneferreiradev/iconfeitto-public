@@ -16,12 +16,14 @@ class FormBuilderSearchableDropdownField<T> extends FormBuilderField<T> {
     super.onChanged,
     super.initialValue,
     super.key,
+    bool readOnly = false,
   }) : super(
          builder: (FormFieldState<T> field) {
            return AppSearchableDropdown<T>(
              label: label,
              value: field.value,
              items: items,
+             readOnly: readOnly,
              itemBuilder: itemBuilder,
              itemComparator: itemComparator,
              icon: icon,

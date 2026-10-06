@@ -98,6 +98,7 @@ class KpiCard extends StatelessWidget {
   final double valor;
   final String Function(double valor) formatar;
   final double? variacao;
+  final bool exibeVariacao;
 
   /// Quando `true`, aumentar o valor é ruim (ex.: gastos com compras).
   final bool altaEhRuim;
@@ -111,6 +112,7 @@ class KpiCard extends StatelessWidget {
     required this.valor,
     this.formatar = formatarMoeda,
     this.variacao,
+    this.exibeVariacao = true,
     this.altaEhRuim = false,
     required this.dica,
   });
@@ -161,7 +163,7 @@ class KpiCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              _Variacao(variacao: variacao, altaEhRuim: altaEhRuim),
+              if (exibeVariacao) _Variacao(variacao: variacao, altaEhRuim: altaEhRuim),
             ],
           ),
         ),

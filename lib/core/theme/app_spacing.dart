@@ -20,6 +20,7 @@ class AppSpacing {
   static const SizedBox fieldGap = SizedBox(height: sm);
   static const SizedBox rowGap = SizedBox(width: sm);
   static const SizedBox smallGap = SizedBox(height: sm);
+  static const SizedBox mediumGap = SizedBox(height: md);
   static const SizedBox largeGap = SizedBox(height: lg);
 
   // Border radius values

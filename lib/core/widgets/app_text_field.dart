@@ -11,6 +11,7 @@ class AppTextField extends StatelessWidget {
   final IconData? icon;
   final bool required;
   final int maxLines;
+  final bool readOnly;
 
   const AppTextField({
     super.key,
@@ -19,6 +20,7 @@ class AppTextField extends StatelessWidget {
     this.icon,
     this.required = true,
     this.maxLines = 1,
+    this.readOnly = false,
   });
 
   @override
@@ -27,6 +29,7 @@ class AppTextField extends StatelessWidget {
       name: name,
       maxLines: maxLines,
       decoration: AppInputDecoration.of(label, icon: icon),
+      readOnly: readOnly,
       validator: required ? FormBuilderValidators.required(errorText: 'Campo obrigatório') : null,
     );
   }

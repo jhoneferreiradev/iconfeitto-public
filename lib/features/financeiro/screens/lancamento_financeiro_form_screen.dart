@@ -3,6 +3,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconfeitto/core/widgets/app_date_time_field.dart';
 import 'package:iconfeitto/core/widgets/form_builder_searchable_dropdown_field.dart';
+import 'package:iconfeitto/features/dashboard/widgets/dashboard_cards.dart';
 import 'package:iconfeitto/shared/models/lancamento_financeiro.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -41,6 +42,7 @@ class _LancamentoFinanceiroFormScreenState
   late List<Key> _chavesQuitacoes;
 
   bool get _isEdicao => widget.lancamentoId != null;
+  late StatusLancamentoFinanceiro _statusLancamento;
 
   @override
   void initState() {
@@ -55,6 +57,8 @@ class _LancamentoFinanceiroFormScreenState
     _chavesQuitacoes = _gerarChaves(_quitacoes.length);
 
     _dadosIniciais = _montarDadosIniciais(original);
+    _statusLancamento =
+        original?.statusLancamento ?? StatusLancamentoFinanceiro.pendente;
   }
 
   List<Key> _gerarChaves(int quantidade) =>
@@ -64,7 +68,6 @@ class _LancamentoFinanceiroFormScreenState
     return {
       'descricao': l?.descricao,
       'pessoaFinanceiro': l?.pessoaFinanceiro,
-      'statusLancamento': l?.statusLancamento,
       'tipoLancamento': l?.tipoLancamento,
       'valorLancamento': (l?.valorLancamento ?? 0.0).toDecimal(),
       'observacao': l?.observacao ?? '',
@@ -113,26 +116,33 @@ class _LancamentoFinanceiroFormScreenState
   Widget _buildDadosDoLancamento() {
     Widget buildCampoValor() {
       return AppNumberField(
+        key: GlobalKey(),
         name: "valorLancamento",
         label: 'Valor do lançamento',
         min: 0,
+        readOnly: _quitacoes.isNotEmpty,
         onChanged: (_) => _atualizarValores(),
       );
     }
 
     Widget buildCampoDataCriacao() {
-      return const AppDateTimeField(
+      return AppDateTimeField(
         name: 'dataCriacao',
+        readOnly: _quitacoes.isNotEmpty,
         label: 'Data de criação',
         inputType: InputType.date,
       );
     }
 
     Widget buildCampoDataVencimento() {
-      return const AppDateTimeField(
+      return AppDateTimeField(
         name: 'dataVencimento',
+        readOnly: _quitacoes.isNotEmpty,
         label: 'Data de vencimento',
         inputType: InputType.date,
+        onChanged: (value) {
+          setState(() {});
+        },
       );
     }
 
@@ -145,6 +155,7 @@ class _LancamentoFinanceiroFormScreenState
           FormBuilderSearchableDropdownField<PessoaFinanceiro>(
             name: 'pessoaFinanceiro',
             label: 'Pessoa',
+            readOnly: _quitacoes.isNotEmpty,
             initialValue: _lancamentoOriginal?.pessoaFinanceiro,
             items: _pessoasFinanceiro,
             itemBuilder: (pessoa) {
@@ -162,9 +173,10 @@ class _LancamentoFinanceiroFormScreenState
               );
             },
           ),
-          const AppTextField(
+          AppTextField(
             name: 'descricao',
             label: 'Descrição',
+            readOnly: _quitacoes.isNotEmpty,
             icon: Icons.cake_outlined,
           ),
           Row(
@@ -172,6 +184,7 @@ class _LancamentoFinanceiroFormScreenState
             children: [
               Expanded(
                 child: FormBuilderDropdown<TipoLancamentoFinanceiro>(
+                  enabled: _quitacoes.isEmpty,
                   name: 'tipoLancamento',
                   decoration: AppInputDecoration.of(
                     'Tipo do lançamento',
@@ -188,29 +201,37 @@ class _LancamentoFinanceiroFormScreenState
                         ),
                       )
                       .toList(),
-                  onChanged: _alterarTipo,
                 ),
               ),
 
               Expanded(
-                child: FormBuilderDropdown<StatusLancamentoFinanceiro>(
-                  name: 'statusLancamento',
-                  decoration: AppInputDecoration.of(
-                    'Status do lançamento',
-                    icon: Icons.category_outlined,
-                  ),
-                  validator: FormBuilderValidators.required(
-                    errorText: 'Selecione o tipo do item',
-                  ),
-                  items: StatusLancamentoFinanceiro.values
-                      .map(
-                        (status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status.label),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Status do lançamento",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _statusLancamento.label,
+                            textAlign: TextAlign.start,
+                          ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: _alterarStatus,
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _statusLancamento =
+                                  StatusLancamentoFinanceiro.encerrado;
+                            });
+                          },
+                          child: const Text('Encerrar'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -229,11 +250,8 @@ class _LancamentoFinanceiroFormScreenState
     );
   }
 
-  void _alterarTipo(TipoLancamentoFinanceiro? value) {}
-
-  void _alterarStatus(StatusLancamentoFinanceiro? value) {}
-
   Widget _buildQuitacoes() {
+    final totalPendenteOuExcedente = valorLancamento - totalQuitado;
     return SectionCard(
       title: 'Quitações',
       trailing: Wrap(
@@ -245,13 +263,65 @@ class _LancamentoFinanceiroFormScreenState
           ),
         ],
       ),
-      child: ListView.builder(
-        itemCount: _quitacoes.length,
-        shrinkWrap: true,
-        itemBuilder: (context, index) => _buildLinhaQuitacao(index),
+      child: Column(
+        spacing: AppSpacing.md,
+        children: [
+          Row(
+            spacing: AppSpacing.md,
+            children: [
+              Expanded(
+                child: KpiCard(
+                  titulo: 'Total quitado',
+                  icon: Icons.attach_money_rounded,
+                  cor: Colors.green,
+                  valor: totalQuitado,
+                  dica: "",
+                  exibeVariacao: false,
+                ),
+              ),
+
+              Expanded(
+                child: totalPendenteOuExcedente >= 0
+                    ? KpiCard(
+                        titulo: 'Total pendente',
+                        icon: Icons.attach_money_rounded,
+                        cor: Colors.red,
+                        valor: totalPendenteOuExcedente,
+                        dica: "",
+                        exibeVariacao: false,
+                      )
+                    : KpiCard(
+                        titulo: 'Total excedente',
+                        icon: Icons.attach_money_rounded,
+                        cor: Colors.orange,
+                        valor: totalPendenteOuExcedente.abs(),
+                        dica: "",
+                        exibeVariacao: false,
+                      ),
+              ),
+            ],
+          ),
+
+          ListView.separated(
+            itemCount: _quitacoes.length,
+            shrinkWrap: true,
+            separatorBuilder: (context, index) => AppSpacing.mediumGap,
+            itemBuilder: (context, index) => _buildLinhaQuitacao(index),
+          ),
+        ],
       ),
     );
   }
+
+  double get totalQuitado {
+    return _quitacoes.fold<double>(
+      0,
+      (previousValue, element) => previousValue + element.valorQuitado,
+    );
+  }
+
+  double get valorLancamento =>
+      getNumeroDoFormulario(_formKey, 'valorLancamento');
 
   Widget _buildLinhaQuitacao(int i) {
     final quitacao = _quitacoes[i];
@@ -259,38 +329,54 @@ class _LancamentoFinanceiroFormScreenState
     return QuitacaoRow(
       key: _chavesQuitacoes[i],
       quitacao: quitacao,
-      onChanged: (novo) => _alterarItens(() {}),
-      onRemover: () => _alterarItens(() {
+      onChanged: (novo) => _alterarQuitacao(() {
+        _quitacoes[i] = novo;
+        setState(() {});
+      }),
+      onRemover: () => _alterarQuitacao(() {
         _quitacoes.removeAt(i);
         _chavesQuitacoes.removeAt(i);
+        setState(() {});
       }),
     );
   }
 
   void _adicionarQuitacao() {
-    _alterarItens(() {
-      _quitacoes.insert(
-        0,
-        Quitacao(
-          dataQuitacao: DateTime.now(),
-          valorQuitado: 0,
-          id: _repo.novoId(),
-          formaPagamento: FormaPagamento.dinheiro,
-          lancamentoId: _lancamentoOriginal?.id ?? '',
-        ),
-      );
-      _chavesQuitacoes.insert(0, UniqueKey());
+    final valorRestante = valorLancamento - totalQuitado;
+
+    setState(() {
+      _alterarQuitacao(() {
+        _quitacoes.insert(
+          0,
+          Quitacao(
+            dataQuitacao: DateTime.now(),
+            valorQuitado: (valorRestante > 0) ? valorRestante : 0,
+            id: _repo.novoId(),
+            formaPagamento: FormaPagamento.dinheiro,
+            lancamentoId: _lancamentoOriginal?.id ?? '',
+          ),
+        );
+        _chavesQuitacoes.insert(0, UniqueKey());
+      });
     });
-    setState(() {});
   }
 
-  void _alterarItens(VoidCallback alteracao) {
+  void _alterarQuitacao(VoidCallback alteracao) {
     alteracao();
     _atualizarValores();
-    setState(() {});
   }
 
-  void _atualizarValores() {}
+  void _atualizarValores() {
+    final valorLancamento = getNumeroDoFormulario(_formKey, 'valorLancamento');
+
+    if (totalQuitado >= valorLancamento) {
+      _statusLancamento = StatusLancamentoFinanceiro.quitado;
+    } else if (totalQuitado > 0) {
+      _statusLancamento = StatusLancamentoFinanceiro.parcialmenteQuitado;
+    } else {
+      _statusLancamento = StatusLancamentoFinanceiro.pendente;
+    }
+  }
 
   Future<void> _salvar({
     required ValueChanged<LancamentoFinanceiro> onSuccess,
@@ -314,8 +400,7 @@ class _LancamentoFinanceiroFormScreenState
     return LancamentoFinanceiro(
       id: _lancamentoOriginal?.id ?? _repo.novoId(),
       descricao: valores['descricao']?.toString().trim() ?? '',
-      statusLancamento:
-          valores['statusLancamento'] as StatusLancamentoFinanceiro,
+      statusLancamento: _statusLancamento,
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
       valorLancamento: numeroOuZero(valores['valorLancamento']),

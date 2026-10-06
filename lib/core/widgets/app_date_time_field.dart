@@ -11,6 +11,8 @@ class AppDateTimeField extends StatelessWidget {
   final InputType inputType;
   final bool required;
   final void Function(DateTime?)? onChanged;
+  final DateTime? initialValue;
+  final bool readOnly;
 
   const AppDateTimeField({
     super.key,
@@ -18,7 +20,9 @@ class AppDateTimeField extends StatelessWidget {
     required this.label,
     this.inputType = InputType.date,
     this.required = true,
+    this.readOnly = false,
     this.onChanged,
+    this.initialValue,
   });
 
   @override
@@ -42,6 +46,8 @@ class AppDateTimeField extends StatelessWidget {
       validator: required
           ? FormBuilderValidators.required(errorText: 'Campo obrigatório')
           : null,
+      initialValue: initialValue,
+      enabled: !readOnly,
       onChanged: onChanged,
     );
   }
