@@ -8,6 +8,8 @@ import '../../features/cozinha/screens/cozinha_list_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/empresa/screens/empresa_form_screen.dart';
 import '../../features/estoque/screens/estoque_screen.dart';
+import '../../features/financeiro/screens/lancamento_financeiro_form_screen.dart';
+import '../../features/financeiro/screens/lancamento_financeiro_list_screen.dart';
 import '../../features/fornecedores/screens/fornecedor_form_screen.dart';
 import '../../features/fornecedores/screens/fornecedor_list_screen.dart';
 import '../../features/operacoes/screens/compra_form_screen.dart';
@@ -169,6 +171,19 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/empresa',
           builder: (context, state) => const EmpresaFormScreen(),
+        ),
+        GoRoute(
+          path: '/financeiro/lancamentos',
+          builder: (context, state) => const LancamentoFinanceiroListScreen(),
+        ),
+        GoRoute(
+          path: '/financeiro/lancamentos/novo',
+          builder: (context, state) => const LancamentoFinanceiroFormScreen(),
+        ),
+        GoRoute(
+          path: '/financeiro/lancamentos/:id/editar',
+          builder: (context, state) =>
+              LancamentoFinanceiroFormScreen(lancamentoId: state.pathParameters['id']),
         ),
       ],
     ),

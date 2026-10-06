@@ -1,6 +1,6 @@
-import 'forma_pagamento.dart';
-
 import 'package:equatable/equatable.dart';
+
+import 'forma_pagamento.dart';
 
 class Quitacao extends Equatable implements Comparable<Quitacao> {
   String id;
@@ -37,15 +37,35 @@ class Quitacao extends Equatable implements Comparable<Quitacao> {
   ];
 }
 
-enum TipoLancamentoFinanceiro { receita, despesa }
+enum TipoLancamentoFinanceiro {
+  receita("Receita"),
+  despesa("Despesa");
 
-enum TipoOperacaoOriem { compra, venda }
+  const TipoLancamentoFinanceiro(this.label);
+  final String label;
+}
+
+extension TipoLancamentoFinanceiroExtension on TipoLancamentoFinanceiro {
+  String get label {
+    switch (this) {
+      case TipoLancamentoFinanceiro.receita:
+        return "Receita";
+      case TipoLancamentoFinanceiro.despesa:
+        return "Despesa";
+    }
+  }
+}
+
+enum TipoOperacaoOrigem { compra, venda, avulso }
 
 enum StatusLancamentoFinanceiro {
-  pendente,
-  quitado,
-  parcialmenteQuitado,
-  encerrado,
+  pendente("Pendente"),
+  quitado("Quitado"),
+  parcialmenteQuitado("Parcialmente quitado"),
+  encerrado("Encerrado");
+
+  const StatusLancamentoFinanceiro(this.label);
+  final String label;
 }
 
 enum TipoPessoaFinanceiro {
@@ -62,13 +82,13 @@ class LancamentoFinanceiro extends Equatable {
   TipoLancamentoFinanceiro tipoLancamento;
   LancamentoFinanceiro? lancamentoPai;
   StatusLancamentoFinanceiro statusLancamento;
-  TipoOperacaoOriem tipoOperacaoOriem;
+  TipoOperacaoOrigem tipoOperacaoOriem;
   DateTime dataCriacao;
   DateTime dataVencimento;
   String descricao;
   double valor;
   String? observacao;
-  int operacaoId;
+  String operacaoOrigemId;
   List<Quitacao> quitacoes;
 
   LancamentoFinanceiro({
@@ -83,10 +103,13 @@ class LancamentoFinanceiro extends Equatable {
     this.observacao,
     this.lancamentoPai,
     required this.statusLancamento,
-    required this.operacaoId,
+    required this.operacaoOrigemId,
     required this.tipoOperacaoOriem,
     this.quitacoes = const [],
   });
+
+  bool get isReceita => tipoLancamento == TipoLancamentoFinanceiro.receita;
+  bool get isDespesa => tipoLancamento == TipoLancamentoFinanceiro.despesa;
 
   bool get isPendente =>
       statusLancamento == StatusLancamentoFinanceiro.pendente;
@@ -154,7 +177,7 @@ class LancamentoFinanceiro extends Equatable {
     descricao,
     valor,
     observacao,
-    operacaoId,
+    operacaoOrigemId,
     quitacoes,
   ];
 }

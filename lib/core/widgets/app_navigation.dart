@@ -82,6 +82,20 @@ final List<AppGrupoNavegacao> gruposNavegacao = [
     destinoCozinha,
     destinoEstoque,
   ]),
+
+
+
+ AppGrupoNavegacao('Financeiro', [
+    AppDestino(
+      label: 'Lançamentos',
+      icon: Icons.attach_money_outlined,
+      selectedIcon: Icons.attach_money,
+      route: '/financeiro/lancamentos',
+      ativo: (uri) => _prefixo(uri, '/financeiro/lancamentos'),
+    ),
+  ]),
+
+
   AppGrupoNavegacao('Cadastros', [
     AppDestino(
       label: 'Insumos e embalagens',

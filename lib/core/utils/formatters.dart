@@ -13,6 +13,8 @@ String formatarMoeda(double valor) => _moedaFormatter.format(valor);
 
 String formatarDecimal(double valor) => _decimalFormatter.format(valor);
 
+
+
 extension DoubleFormatters on double {
   String toCurrency() => _moedaFormatter.format(this);
 
@@ -42,4 +44,12 @@ String formatarParaCampo(double valor) {
 String formatarNumero(double valor) {
   if (valor == valor.roundToDouble()) return valor.toStringAsFixed(0);
   return valor.toString();
+}
+
+extension DateTimeExtension on DateTime {
+
+  DateFormat get _dateFormatter => DateFormat('dd/MM/yyyy');
+
+  String toFormattedDate() => _dateFormatter.format(this);
+
 }

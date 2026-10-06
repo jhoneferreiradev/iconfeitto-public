@@ -42,7 +42,7 @@ dependencies:
   path_provider: ^2.1.1
   pdf: ^3.10.6
   printing: ^5.11.0
-  equatable: ^3.0.0
+  equatable: ^2.0.7
   
   material_ui: any
   sqflite_common_ffi: ^2.4.3

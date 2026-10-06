@@ -301,6 +301,13 @@ class AppRepository extends ChangeNotifier {
     return null;
   }
 
+  LancamentoFinanceiro? lancamentoFinanceiroPorId(String id) {
+    for (final l in lancamentosFinanceiros) {
+      if (l.id == id) return l;
+    }
+    return null;
+  }
+
   Fornecedor? fornecedorPorId(String id) {
     for (final fornecedor in fornecedores) {
       if (fornecedor.id == id) return fornecedor;
