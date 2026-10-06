@@ -12,6 +12,7 @@ import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
+import '../../../shared/models/forma_pagamento.dart';
 import '../../../shared/models/fornecedor.dart';
 import '../../../shared/models/grupo_unidade.dart';
 import '../../../shared/models/operacao.dart';
@@ -131,6 +132,35 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 ],
               ),
             ),
+            // SectionCard(
+            //   title: 'Dados do pagamento',
+            //   child: Column(
+            //     children: [
+            //       const AppDateTimeField(name: 'data_pagamento', label: 'Data de pagamento'),
+            //       const SizedBox(height: 12),
+            //       const AppNumberField(name: 'parcelas', label: 'Número de parcelas'),
+            //       const SizedBox(height: 12),
+            //       FormBuilderDropdown<FormaPagamento>(
+            //         name: 'forma_pagamento',
+            //         enabled: !_isEdicao,
+            //         decoration: AppInputDecoration.of(
+            //           'Grupo',
+            //           icon: Icons.category_outlined,
+            //         ),
+            //         validator: FormBuilderValidators.required(
+            //           errorText: 'Selecione o grupo',
+            //         ),
+            //         items: FormaPagamento.values
+            //             .map(
+            //               (g) =>
+            //                   DropdownMenuItem(value: g, child: Text(g.label)),
+            //             )
+            //             .toList(),
+            //       ),
+
+            //     ],
+            //   ),
+            // ),
           ],
           secondary: [
             SectionCard(

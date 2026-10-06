@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../models/cliente.dart';
+import '../models/lancamento_financeiro.dart';
 import '../models/custo_operacional.dart';
 import '../models/empresa.dart';
 import '../models/fornecedor.dart';
@@ -27,6 +28,7 @@ class AppRepository extends ChangeNotifier {
   final List<Venda> vendas = [];
   final List<Fabricacao> fabricacoes = [];
   final List<MovimentoEstoque> movimentacoes = [];
+  final List<LancamentoFinanceiro> lancamentosFinanceiros = [];
   Empresa empresa = const Empresa();
 
   late final Database _db;
@@ -60,6 +62,7 @@ class AppRepository extends ChangeNotifier {
     vendas.clear();
     fabricacoes.clear();
     movimentacoes.clear();
+    lancamentosFinanceiros.clear();
 
     // Load unidades
     final unidadesData = await _db.query('unidades_medida');
@@ -1444,6 +1447,51 @@ class AppRepository extends ChangeNotifier {
       (tipo) => tipo.name == s || s.endsWith('.${tipo.name}'),
       orElse: () => TipoMovimentoEstoque.ajuste,
     );
+  }
+
+  Future<void> salvarLancamentoFinanceiro(
+    LancamentoFinanceiro lancamento,
+  ) async {
+    final idx = lancamentosFinanceiros.indexWhere((p) => p.id == lancamento.id);
+
+    if (idx >= 0) {
+      lancamentosFinanceiros[idx] = lancamento;
+    } else {
+      lancamentosFinanceiros.add(lancamento);
+    }
+
+    return Future.value();
+  }
+
+  Future<void> salvarQuitacao(Quitacao quitacao) async {
+    final idxLancamento = lancamentosFinanceiros.indexWhere(
+      (p) => p.id == quitacao.lancamentoId,
+    );
+
+    if (idxLancamento < 0) {
+      throw StateError('A quitação que você tentou salvar não foi encontrada.');
+    }
+
+    final lancamento = lancamentosFinanceiros[idxLancamento];
+
+    final idxQuitacao = lancamento.quitacoes.indexWhere(
+      (q) => q.id == quitacao.id,
+    );
+
+    if (idxQuitacao >= 0) {
+      lancamento.atualizarQuitacao(idxQuitacao, quitacao);
+    } else {
+      lancamento.adicionarQuitacao(quitacao);
+    }
+
+    return Future.value();
+  }
+
+  Future<void> excluirLancamentoFinanceiro(
+    LancamentoFinanceiro lancamento,
+  ) async {
+    lancamentosFinanceiros.removeWhere((l) => l.id == lancamento.id);
+    return Future.value();
   }
 
   String _idString(Object? value) => value.toString();
