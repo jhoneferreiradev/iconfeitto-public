@@ -1,14 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/cartao_credito.dart';
 import '../models/cliente.dart';
-import '../models/lancamento_financeiro.dart';
 import '../models/custo_operacional.dart';
 import '../models/empresa.dart';
 import '../models/fornecedor.dart';
 import '../models/grupo_unidade.dart';
 import '../models/item_ficha_tecnica.dart';
 import '../models/item_ficha_tecnica_embalagem.dart';
+import '../models/lancamento_financeiro.dart';
 import '../models/operacao.dart';
 import '../models/produto.dart';
 import '../models/tipo_item.dart';
@@ -29,6 +30,9 @@ class AppRepository extends ChangeNotifier {
   final List<Fabricacao> fabricacoes = [];
   final List<MovimentoEstoque> movimentacoes = [];
   final List<LancamentoFinanceiro> lancamentosFinanceiros = [];
+  final List<PessoaFinanceiro> pessoasFinanceiro = [];
+  final List<CartaoCredito> cartoesCredito = [];
+  final List<BandeiraCartaoCredito> bandeirasCartaoCredito = [];
   Empresa empresa = const Empresa();
 
   late final Database _db;
@@ -63,6 +67,7 @@ class AppRepository extends ChangeNotifier {
     fabricacoes.clear();
     movimentacoes.clear();
     lancamentosFinanceiros.clear();
+    pessoasFinanceiro.clear();
 
     // Load unidades
     final unidadesData = await _db.query('unidades_medida');
@@ -289,6 +294,47 @@ class AppRepository extends ChangeNotifier {
     }
 
     recalcularEstoque();
+
+    _loadPessoasFinanceiras();
+  }
+
+  void _loadPessoasFinanceiras() {
+    pessoasFinanceiro.addAll(
+      clientes.map(
+        (e) => PessoaFinanceiro(
+          id: e.id,
+          nome: e.nome,
+          tipoPessoaFinanceiro: TipoPessoaFinanceiro.cliente,
+        ),
+      ),
+    );
+    pessoasFinanceiro.addAll(
+      fornecedores.map(
+        (e) => PessoaFinanceiro(
+          id: e.id,
+          nome: e.nome,
+          tipoPessoaFinanceiro: TipoPessoaFinanceiro.fornecedor,
+        ),
+      ),
+    );
+    pessoasFinanceiro.addAll(
+      cartoesCredito.map(
+        (e) => PessoaFinanceiro(
+          id: e.id,
+          nome: e.nome,
+          tipoPessoaFinanceiro: TipoPessoaFinanceiro.cartaoCredito,
+        ),
+      ),
+    );
+    pessoasFinanceiro.addAll(
+      bandeirasCartaoCredito.map(
+        (e) => PessoaFinanceiro(
+          id: e.id,
+          nome: e.nome,
+          tipoPessoaFinanceiro: TipoPessoaFinanceiro.bandeiraCartaoCredito,
+        ),
+      ),
+    );
   }
 
   UnidadeMedida unidadePorId(String id) =>
@@ -1463,14 +1509,27 @@ class AppRepository extends ChangeNotifier {
 
     if (idx >= 0) {
       lancamentosFinanceiros[idx] = lancamento;
+      await _excluirQuitacoesDoLancamento(lancamento);
     } else {
       lancamentosFinanceiros.add(lancamento);
+    }
+
+    for (var quitacao in lancamento.quitacoes) {
+      quitacao.lancamentoId = lancamento.id;
+      await _salvarQuitacao(quitacao);
     }
 
     return Future.value();
   }
 
-  Future<void> salvarQuitacao(Quitacao quitacao) async {
+  Future<void> _excluirQuitacoesDoLancamento(
+    LancamentoFinanceiro lancamento,
+  ) async {
+    lancamento.quitacoes.clear();
+    return Future.value();
+  }
+
+  Future<void> _salvarQuitacao(Quitacao quitacao) async {
     final idxLancamento = lancamentosFinanceiros.indexWhere(
       (p) => p.id == quitacao.lancamentoId,
     );

@@ -1,8 +1,11 @@
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:iconfeitto/core/widgets/app_date_time_field.dart';
+import 'package:iconfeitto/core/widgets/app_number_field.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/lancamento_financeiro.dart';
-import 'quitacao_card.dart';
 
 class QuitacaoRow extends StatefulWidget {
   final Quitacao quitacao;
@@ -20,43 +23,67 @@ class QuitacaoRow extends StatefulWidget {
 }
 
 class _QuitacaoRowState extends State<QuitacaoRow> {
-  late final TextEditingController _dataQuitacaoControler;
-  late final TextEditingController _valorQuitacaoController;
+  late Map<String, dynamic> valoresIniciais;
 
   @override
   void initState() {
     super.initState();
-    _dataQuitacaoControler = TextEditingController(
-      text: widget.quitacao.dataQuitacao.toFormattedDate(),
-    );
-    _valorQuitacaoController = TextEditingController(
-      text: widget.quitacao.valorQuitado.toDecimal(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _dataQuitacaoControler.dispose();
-    _valorQuitacaoController.dispose();
-    super.dispose();
+    valoresIniciais = {
+      'dataQuitacao': widget.quitacao.dataQuitacao,
+      'valorQuitacao': widget.quitacao.valorQuitado.toDecimal(),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    return QuitacaoCard(
-      seletor: TextField(
-        controller: _dataQuitacaoControler,
-        decoration: const InputDecoration(labelText: 'Data de quitação'),
-        onChanged: (value) {
-          final novaData = DateTime.tryParse(value);
-          if (novaData != null) {
-            widget.quitacao.dataQuitacao = novaData;
-            widget.onChanged(widget.quitacao);
-          }
-        },
+    final theme = Theme.of(context);
+
+    return FormBuilder(
+      key: GlobalKey<FormBuilderState>(),
+      initialValue: valoresIniciais,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
+          borderRadius: BorderRadius.circular(AppSpacing.borderRadiusMd),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: AppSpacing.sm,
+          children: [
+            Row(
+              spacing: AppSpacing.sm,
+              children: [
+                Expanded(
+                  child: AppDateTimeField(
+                    name: 'dataQuitacao',
+                    label: "Quitado em",
+                    onChanged: (data) {
+                      widget.quitacao.dataQuitacao = data ?? DateTime.now();
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: AppNumberField(
+                    name: 'valorQuitacao',
+                    label: "Valor quitado",
+                    onChanged: (valor) {
+                      widget.quitacao.valorQuitado = valor?.toDouble() ?? 0;
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Remover item',
+                  onPressed: widget.onRemover,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      onRemover: widget.onRemover,
-      custoLinha: widget.quitacao.valorQuitado,
     );
   }
 }

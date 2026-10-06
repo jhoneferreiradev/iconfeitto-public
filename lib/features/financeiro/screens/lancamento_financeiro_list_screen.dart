@@ -85,10 +85,6 @@ class _LancamentoFinanceiroListScreenState
                           initialValue: _tipoFiltro,
                           decoration: const InputDecoration(labelText: 'Tipo'),
                           items: [
-                            const DropdownMenuItem<TipoLancamentoFinanceiro?>(
-                              value: null,
-                              child: Text('Todos'),
-                            ),
                             for (final tipo in widget.tipos)
                               DropdownMenuItem<TipoLancamentoFinanceiro?>(
                                 value: tipo,
@@ -167,8 +163,7 @@ class _LancamentoFinanceiroListScreenState
                 final confirmar = await confirmarExclusao(
                   context,
                   titulo: 'Excluir lançamento',
-                  mensagem:
-                      'Deseja excluir "${item.descricao}"? Essa ação não pode ser desfeita.',
+                  mensagem: 'Deseja excluir o lançamento? Essa ação não pode ser desfeita.',
                 );
                 if (confirmar) await repo.excluirLancamentoFinanceiro(item);
               },
@@ -176,7 +171,7 @@ class _LancamentoFinanceiroListScreenState
           ],
         ),
         subtitle: Text(
-          'Valor: ${item.valor.toCurrency()}  •  '
+          'Valor: ${item.valorLancamento.toCurrency()}  •  '
           'Vencimento: ${item.dataVencimento.toFormattedDate()}',
         ),
         onTap: () => context.push('/financeiro/lancamentos/${item.id}/editar'),

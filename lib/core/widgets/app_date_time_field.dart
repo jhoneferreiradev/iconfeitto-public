@@ -10,6 +10,7 @@ class AppDateTimeField extends StatelessWidget {
   final String label;
   final InputType inputType;
   final bool required;
+  final void Function(DateTime?)? onChanged;
 
   const AppDateTimeField({
     super.key,
@@ -17,6 +18,7 @@ class AppDateTimeField extends StatelessWidget {
     required this.label,
     this.inputType = InputType.date,
     this.required = true,
+    this.onChanged,
   });
 
   @override
@@ -40,6 +42,7 @@ class AppDateTimeField extends StatelessWidget {
       validator: required
           ? FormBuilderValidators.required(errorText: 'Campo obrigatório')
           : null,
+      onChanged: onChanged,
     );
   }
 }

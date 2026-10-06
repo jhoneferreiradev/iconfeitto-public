@@ -13,7 +13,13 @@ String formatarMoeda(double valor) => _moedaFormatter.format(valor);
 
 String formatarDecimal(double valor) => _decimalFormatter.format(valor);
 
-
+double numeroOuZero(dynamic valor) {
+  return switch (valor) {
+    num n => n.toDouble(),
+    String s => s.toDouble() ?? 0.0,
+    _ => 0.0,
+  };
+}
 
 extension DoubleFormatters on double {
   String toCurrency() => _moedaFormatter.format(this);
@@ -47,9 +53,7 @@ String formatarNumero(double valor) {
 }
 
 extension DateTimeExtension on DateTime {
-
   DateFormat get _dateFormatter => DateFormat('dd/MM/yyyy');
 
   String toFormattedDate() => _dateFormatter.format(this);
-
 }

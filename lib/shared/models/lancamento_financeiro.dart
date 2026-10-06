@@ -1,6 +1,23 @@
+// ignore_for_file: must_be_immutable
+
 import 'package:equatable/equatable.dart';
 
 import 'forma_pagamento.dart';
+
+class PessoaFinanceiro extends Equatable {
+  final String id;
+  final String nome;
+  final TipoPessoaFinanceiro tipoPessoaFinanceiro;
+
+  const PessoaFinanceiro({
+    required this.id,
+    required this.nome,
+    required this.tipoPessoaFinanceiro,
+  });
+
+  @override
+  List<Object?> get props => [id, nome, tipoPessoaFinanceiro];
+}
 
 class Quitacao extends Equatable implements Comparable<Quitacao> {
   String id;
@@ -69,16 +86,18 @@ enum StatusLancamentoFinanceiro {
 }
 
 enum TipoPessoaFinanceiro {
-  cliente,
-  fornecedor,
-  cartaoCredito,
-  bandeiraCartaoCredito,
+  cliente("Cliente"),
+  fornecedor("Fornecedor"),
+  cartaoCredito("Cartão de crédito"),
+  bandeiraCartaoCredito("Bandeira");
+
+  const TipoPessoaFinanceiro(this.label);
+  final String label;
 }
 
 class LancamentoFinanceiro extends Equatable {
   String id;
-  TipoPessoaFinanceiro tipoPessoaFinanceiro;
-  String pessoaId;
+  PessoaFinanceiro pessoaFinanceiro;
   TipoLancamentoFinanceiro tipoLancamento;
   LancamentoFinanceiro? lancamentoPai;
   StatusLancamentoFinanceiro statusLancamento;
@@ -86,20 +105,19 @@ class LancamentoFinanceiro extends Equatable {
   DateTime dataCriacao;
   DateTime dataVencimento;
   String descricao;
-  double valor;
+  double valorLancamento;
   String? observacao;
   String operacaoOrigemId;
   List<Quitacao> quitacoes;
 
   LancamentoFinanceiro({
     required this.id,
-    required this.tipoPessoaFinanceiro,
-    required this.pessoaId,
+    required this.pessoaFinanceiro,
     required this.tipoLancamento,
     required this.dataCriacao,
     required this.dataVencimento,
     required this.descricao,
-    required this.valor,
+    required this.valorLancamento,
     this.observacao,
     this.lancamentoPai,
     required this.statusLancamento,
@@ -128,20 +146,23 @@ class LancamentoFinanceiro extends Equatable {
   bool get hasQuitacoes => quitacoes.isNotEmpty;
   double get valorQuitado =>
       quitacoes.fold(0.0, (sum, quitacao) => sum + quitacao.valorQuitado);
-  double get valorRestante => valor - valorQuitado;
+  double get valorRestante => valorLancamento - valorQuitado;
   DateTime get dataUltimaQuitacao =>
       quitacoes.isEmpty ? dataCriacao : quitacoesOrdenadas.last.dataQuitacao;
 
   bool get isAtrasado => DateTime.now().isAfter(dataVencimento) && !isQuitado;
   bool get isVencido => DateTime.now().isAfter(dataVencimento);
 
-  bool get isCliente => tipoPessoaFinanceiro == TipoPessoaFinanceiro.cliente;
+  bool get isCliente =>
+      pessoaFinanceiro.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cliente;
   bool get isFornecedor =>
-      tipoPessoaFinanceiro == TipoPessoaFinanceiro.fornecedor;
+      pessoaFinanceiro.tipoPessoaFinanceiro == TipoPessoaFinanceiro.fornecedor;
   bool get isCartaoCredito =>
-      tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito;
+      pessoaFinanceiro.tipoPessoaFinanceiro ==
+      TipoPessoaFinanceiro.cartaoCredito;
   bool get isBandeiraCartaoCredito =>
-      tipoPessoaFinanceiro == TipoPessoaFinanceiro.bandeiraCartaoCredito;
+      pessoaFinanceiro.tipoPessoaFinanceiro ==
+      TipoPessoaFinanceiro.bandeiraCartaoCredito;
 
   void atualizarQuitacao(int idxQuitacao, Quitacao quitacao) {
     quitacoes[idxQuitacao] = quitacao;
@@ -154,7 +175,7 @@ class LancamentoFinanceiro extends Equatable {
   }
 
   void _atualizarStatusAposQuitacao() {
-    if (valorQuitado >= valor) {
+    if (valorQuitado >= valorLancamento) {
       statusLancamento = StatusLancamentoFinanceiro.quitado;
     } else if (valorQuitado > 0) {
       statusLancamento = StatusLancamentoFinanceiro.parcialmenteQuitado;
@@ -166,8 +187,7 @@ class LancamentoFinanceiro extends Equatable {
   @override
   List<Object?> get props => [
     id,
-    tipoPessoaFinanceiro,
-    pessoaId,
+    pessoaFinanceiro,
     tipoLancamento,
     lancamentoPai,
     statusLancamento,
@@ -175,7 +195,7 @@ class LancamentoFinanceiro extends Equatable {
     dataCriacao,
     dataVencimento,
     descricao,
-    valor,
+    valorLancamento,
     observacao,
     operacaoOrigemId,
     quitacoes,
