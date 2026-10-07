@@ -555,10 +555,16 @@ class AppRepository extends ChangeNotifier {
       saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
+
+    await _incluirLancamentosFinanceiroParaCompra(compra);
+
     notifyListeners();
   }
 
-  Future<void> atualizarCompra(Compra compra) async {
+  Future<void> atualizarCompra(
+    Compra compra, {
+    bool atualizarFinanceiro = false,
+  }) async {
     final indice = compras.indexWhere((existente) => existente.id == compra.id);
     if (indice < 0) {
       throw StateError('A compra que você tentou editar não foi encontrada.');
@@ -606,6 +612,12 @@ class AppRepository extends ChangeNotifier {
       saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
+
+    if (atualizarFinanceiro) {
+      _removerLancamentosDaCompra(compra.id);
+      await _incluirLancamentosFinanceiroParaCompra(compra);
+    }
+
     notifyListeners();
   }
 
@@ -614,6 +626,12 @@ class AppRepository extends ChangeNotifier {
     if (indice < 0) return;
 
     final compra = compras[indice];
+    if (lancamentosDaCompra(compraId).any((l) => l.hasQuitacoes)) {
+      throw StateError(
+        'Esta compra possui lançamentos financeiros com pagamentos '
+        'registrados. Exclua as quitações antes de excluir a compra.',
+      );
+    }
     final movimentosDaCompra = _movimentosDaCompra(compra);
     final idsRemovidos = movimentosDaCompra
         .map((movimento) => movimento.id)
@@ -646,6 +664,7 @@ class AppRepository extends ChangeNotifier {
       (movimento) => idsRemovidos.contains(movimento.id),
     );
     compras.removeAt(indice);
+    _removerLancamentosDaCompra(compraId);
     recalcularEstoque(
       produtosSemMovimentacoes: movimentosDaCompra
           .map((movimento) => movimento.produtoId)
@@ -1561,4 +1580,72 @@ class AppRepository extends ChangeNotifier {
   }
 
   String _idString(Object? value) => value.toString();
+
+  /// Lançamentos financeiros gerados por uma compra (pai primeiro, depois as
+  /// demais parcelas por vencimento).
+  List<LancamentoFinanceiro> lancamentosDaCompra(String compraId) {
+    final lista = lancamentosFinanceiros
+        .where(
+          (l) =>
+              l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
+              l.operacaoOrigemId == compraId,
+        )
+        .toList();
+    lista.sort((a, b) {
+      if (a.lancamentoPai == null && b.lancamentoPai != null) return -1;
+      if (a.lancamentoPai != null && b.lancamentoPai == null) return 1;
+      return a.dataVencimento.compareTo(b.dataVencimento);
+    });
+    return lista;
+  }
+
+  void _removerLancamentosDaCompra(String compraId) {
+    lancamentosFinanceiros.removeWhere(
+      (l) =>
+          l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
+          l.operacaoOrigemId == compraId,
+    );
+  }
+
+  /// Pessoa financeira do fornecedor (cria e registra se ainda não existir,
+  /// pois fornecedores cadastrados depois do carregamento não estão na lista).
+  PessoaFinanceiro pessoaFinanceiraDoFornecedor(Fornecedor fornecedor) {
+    for (final pessoa in pessoasFinanceiro) {
+      if (pessoa.id == fornecedor.id &&
+          pessoa.tipoPessoaFinanceiro == TipoPessoaFinanceiro.fornecedor) {
+        return pessoa;
+      }
+    }
+    final pessoa = PessoaFinanceiro(
+      id: fornecedor.id,
+      nome: fornecedor.nome,
+      tipoPessoaFinanceiro: TipoPessoaFinanceiro.fornecedor,
+    );
+    pessoasFinanceiro.add(pessoa);
+    return pessoa;
+  }
+
+  List<PessoaFinanceiro> get pessoasCartaoCredito => pessoasFinanceiro
+      .where((p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito)
+      .toList();
+
+  /// Cadastra um cartão de crédito e devolve a pessoa financeira dele.
+  PessoaFinanceiro salvarCartaoCredito(String nome) {
+    final cartao = CartaoCredito(id: novoId(), nome: nome);
+    cartoesCredito.add(cartao);
+    final pessoa = PessoaFinanceiro(
+      id: cartao.id,
+      nome: cartao.nome,
+      tipoPessoaFinanceiro: TipoPessoaFinanceiro.cartaoCredito,
+    );
+    pessoasFinanceiro.add(pessoa);
+    notifyListeners();
+    return pessoa;
+  }
+
+  Future<void> _incluirLancamentosFinanceiroParaCompra(Compra compra) async {
+    for (var lancamento in compra.lancamentosFinanceiros) {
+      await salvarLancamentoFinanceiro(lancamento);
+    }
+  }
 }

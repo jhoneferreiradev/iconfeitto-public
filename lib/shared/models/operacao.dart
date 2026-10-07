@@ -1,3 +1,5 @@
+import 'package:iconfeitto/shared/models/lancamento_financeiro.dart';
+
 import 'item_ficha_tecnica.dart';
 
 class ItemOperacao {
@@ -19,12 +21,14 @@ class Compra {
   final DateTime data;
   final String fornecedorId;
   final List<ItemOperacao> itens;
+  final List<LancamentoFinanceiro> lancamentosFinanceiros;
 
   const Compra({
     required this.id,
     required this.data,
     required this.fornecedorId,
     required this.itens,
+    this.lancamentosFinanceiros = const [],
   });
 
   double get total => itens.fold(
