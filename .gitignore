@@ -46,3 +46,5 @@ android/
 windows/
 macos/
 linux/
+# Widget Preview related
+.widget_preview/
