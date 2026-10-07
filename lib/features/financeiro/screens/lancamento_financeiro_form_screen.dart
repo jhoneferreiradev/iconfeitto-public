@@ -408,9 +408,9 @@ class _LancamentoFinanceiroFormScreenState
       observacao: '',
       quitacoes: _quitacoes,
       pessoaFinanceiro: valores['pessoaFinanceiro'] as PessoaFinanceiro,
-      operacaoOrigemId: 'null',
-      tipoOperacaoOriem:
-          _lancamentoOriginal?.tipoOperacaoOriem ?? TipoOperacaoOrigem.avulso,
+      operacaoOrigemId: _lancamentoOriginal?.operacaoOrigemId,
+      tipoOperacaoOrigem:
+          _lancamentoOriginal?.tipoOperacaoOrigem ?? TipoOperacaoOrigem.avulso,
     );
   }
 

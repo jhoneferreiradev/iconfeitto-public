@@ -1587,7 +1587,7 @@ class AppRepository extends ChangeNotifier {
     final lista = lancamentosFinanceiros
         .where(
           (l) =>
-              l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
+              l.tipoOperacaoOrigem == TipoOperacaoOrigem.compra &&
               l.operacaoOrigemId == compraId,
         )
         .toList();
@@ -1602,7 +1602,7 @@ class AppRepository extends ChangeNotifier {
   void _removerLancamentosDaCompra(String compraId) {
     lancamentosFinanceiros.removeWhere(
       (l) =>
-          l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
+          l.tipoOperacaoOrigem == TipoOperacaoOrigem.compra &&
           l.operacaoOrigemId == compraId,
     );
   }
@@ -1626,7 +1626,9 @@ class AppRepository extends ChangeNotifier {
   }
 
   List<PessoaFinanceiro> get pessoasCartaoCredito => pessoasFinanceiro
-      .where((p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito)
+      .where(
+        (p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito,
+      )
       .toList();
 
   /// Cadastra um cartão de crédito e devolve a pessoa financeira dele.

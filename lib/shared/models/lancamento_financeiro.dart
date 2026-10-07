@@ -101,13 +101,13 @@ class LancamentoFinanceiro extends Equatable {
   TipoLancamentoFinanceiro tipoLancamento;
   LancamentoFinanceiro? lancamentoPai;
   StatusLancamentoFinanceiro statusLancamento;
-  TipoOperacaoOrigem tipoOperacaoOriem;
+  TipoOperacaoOrigem tipoOperacaoOrigem;
   DateTime dataCriacao;
   DateTime dataVencimento;
   String descricao;
   double valorLancamento;
   String? observacao;
-  String operacaoOrigemId;
+  String? operacaoOrigemId;
   FormaPagamento? formaPagamento;
   List<Quitacao> quitacoes;
 
@@ -122,8 +122,8 @@ class LancamentoFinanceiro extends Equatable {
     this.observacao,
     this.lancamentoPai,
     required this.statusLancamento,
-    required this.operacaoOrigemId,
-    required this.tipoOperacaoOriem,
+    this.operacaoOrigemId,
+    required this.tipoOperacaoOrigem,
     this.formaPagamento,
     this.quitacoes = const [],
   });
@@ -193,7 +193,7 @@ class LancamentoFinanceiro extends Equatable {
     tipoLancamento,
     lancamentoPai,
     statusLancamento,
-    tipoOperacaoOriem,
+    tipoOperacaoOrigem,
     dataCriacao,
     dataVencimento,
     descricao,

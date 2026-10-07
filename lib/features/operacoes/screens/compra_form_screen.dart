@@ -622,7 +622,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         (primeiro.isCartaoCredito
             ? FormaPagamento.cartaoCredito
             : FormaPagamento.dinheiro);
-    if (primeiro.isCartaoCredito) _cartaoSelecionado = primeiro.pessoaFinanceiro;
+    if (primeiro.isCartaoCredito)
+      _cartaoSelecionado = primeiro.pessoaFinanceiro;
     _numParcelas = _lancamentosExistentes.length;
     for (final lancamento in _lancamentosExistentes) {
       _parcelas.add(
@@ -864,7 +865,9 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
             id: _proximaParcelaId++,
             vencimento: _somarMeses(dataBase, i),
             valor:
-                (i == quantidade - 1 ? centavos - base * (quantidade - 1) : base) /
+                (i == quantidade - 1
+                    ? centavos - base * (quantidade - 1)
+                    : base) /
                 100,
           ),
       ]);
@@ -1015,7 +1018,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         tipoLancamento: TipoLancamentoFinanceiro.despesa,
         lancamentoPai: pai,
         statusLancamento: StatusLancamentoFinanceiro.pendente,
-        tipoOperacaoOriem: TipoOperacaoOrigem.compra,
+        tipoOperacaoOrigem: TipoOperacaoOrigem.compra,
         dataCriacao: data,
         dataVencimento: parcelas[i].vencimento,
         descricao: parcelas.length == 1
