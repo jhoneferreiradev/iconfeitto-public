@@ -82,6 +82,7 @@ class _LancamentoFinanceiroFormScreenState
       'valorLancamento': (l?.valorLancamento ?? 0.0).toDecimal(),
       'valorDesconto': (l?.valorDesconto ?? 0.0).toDecimal(),
       'valorAcrescimo': (l?.valorAcrescimo ?? 0.0).toDecimal(),
+      'valorTaxasImpostos': (l?.valorTaxasImpostos ?? 0.0).toDecimal(),
       'formaPagamento': l?.formaPagamento,
       'observacao': l?.observacao ?? '',
       'dataCriacao': (l?.dataCriacao ?? DateTime.now()),
@@ -311,6 +312,27 @@ class _LancamentoFinanceiroFormScreenState
             ],
           ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: AppSpacing.md,
+            children: [
+              Expanded(
+                child: AppNumberField(
+                  name: 'valorTaxasImpostos',
+                  label: 'Taxas e impostos',
+                  required: false,
+                  min: 0,
+                  onChanged: (_) => _aoAlterarValores(),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            _tipoAtual == TipoLancamentoFinanceiro.receita
+                ? 'Taxas e impostos reduzem o valor a receber.'
+                : 'Taxas e impostos somam ao valor a pagar.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
@@ -408,8 +430,24 @@ class _LancamentoFinanceiroFormScreenState
   double get valorAcrescimo =>
       getNumeroDoFormulario(_formKey, 'valorAcrescimo');
 
-  /// Valor do lançamento menos desconto mais acréscimo.
-  double get valorFinal => valorLancamento - valorDesconto + valorAcrescimo;
+  double get valorTaxasImpostos =>
+      getNumeroDoFormulario(_formKey, 'valorTaxasImpostos');
+
+  TipoLancamentoFinanceiro get _tipoAtual =>
+      (_formKey.currentState?.fields['tipoLancamento']?.value
+          as TipoLancamentoFinanceiro?) ??
+      _lancamentoOriginal?.tipoLancamento ??
+      TipoLancamentoFinanceiro.despesa;
+
+  /// Valor do lançamento menos desconto, mais acréscimo; as taxas e impostos
+  /// reduzem a receita e somam à despesa.
+  double get valorFinal => LancamentoFinanceiro.calcularValorTotal(
+    tipo: _tipoAtual,
+    valor: valorLancamento,
+    desconto: valorDesconto,
+    acrescimo: valorAcrescimo,
+    taxasImpostos: valorTaxasImpostos,
+  );
 
   Widget _buildLinhaQuitacao(int i) {
     final quitacao = _quitacoes[i];
@@ -490,8 +528,8 @@ class _LancamentoFinanceiroFormScreenState
 
     if (valorFinal < 0) {
       _mostrarMensagem(
-        'O desconto não pode ser maior que o valor do lançamento somado ao '
-        'acréscimo.',
+        'O valor final não pode ser negativo: revise desconto, acréscimo e '
+        'taxas e impostos.',
       );
       return;
     }
@@ -517,20 +555,21 @@ class _LancamentoFinanceiroFormScreenState
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
       valorLancamento: vinculado
-          ? original!.valorLancamento
+          ? original.valorLancamento
           : numeroOuZero(valores['valorLancamento']),
       valorDesconto: numeroOuZero(valores['valorDesconto']),
       valorAcrescimo: numeroOuZero(valores['valorAcrescimo']),
+      valorTaxasImpostos: numeroOuZero(valores['valorTaxasImpostos']),
       tipoLancamento: vinculado
-          ? original!.tipoLancamento
+          ? original.tipoLancamento
           : valores['tipoLancamento'] as TipoLancamentoFinanceiro,
       formaPagamento: vinculado
-          ? original!.formaPagamento
+          ? original.formaPagamento
           : valores['formaPagamento'] as FormaPagamento?,
       observacao: original?.observacao ?? '',
       quitacoes: _quitacoes,
       pessoaFinanceiro: vinculado
-          ? original!.pessoaFinanceiro
+          ? original.pessoaFinanceiro
           : valores['pessoaFinanceiro'] as PessoaFinanceiro,
       lancamentoPai: original?.lancamentoPai,
       operacaoOrigemId: original?.operacaoOrigemId ?? 'null',

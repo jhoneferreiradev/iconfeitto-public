@@ -15,7 +15,7 @@ Future<bool> confirmarExclusaoVenda(BuildContext context, Venda venda) async {
     builder: (context) => AlertDialog(
       title: const Text('Excluir venda?'),
       content: const Text(
-        'A venda será removida e o estoque e o custo médio serão recalculados.',
+        'A venda e seus lançamentos financeiros serão removidos e o estoque e o custo médio serão recalculados.',
       ),
       actions: [
         TextButton(

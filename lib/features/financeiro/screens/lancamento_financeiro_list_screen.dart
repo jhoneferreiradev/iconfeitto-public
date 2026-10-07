@@ -8,6 +8,8 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
+import '../data/financeiro_metrics.dart';
+import '../widgets/financeiro_kpis.dart';
 
 class LancamentoFinanceiroListScreen extends StatefulWidget {
   final String title;
@@ -47,6 +49,10 @@ class _LancamentoFinanceiroListScreenState
                 _busca.trim().toLowerCase(),
               );
         }).toList()..sort((a, b) => a.descricao.compareTo(b.descricao));
+        final resumo = ResumoFinanceiro.calcular(
+          lancamentos: repo.lancamentosFinanceiros,
+          agora: DateTime.now(),
+        );
         return AppScaffold(
           title: widget.title,
           actions: [
@@ -112,25 +118,36 @@ class _LancamentoFinanceiroListScreenState
                 ),
               ),
               Expanded(
-                child: itens.isEmpty
-                    ? EmptyState(
-                        mensagem: _busca.isEmpty
-                            ? 'Nenhum lançamento cadastrado.'
-                            : 'Nenhum lançamento encontrado.',
-                        icon: _lancamentos
-                            ? Icons.inventory_2_outlined
-                            : Icons.cake_outlined,
-                      )
-                    : SingleChildScrollView(
-                        child: ContentWidth(
-                          child: ResponsiveCardGrid(
+                child: SingleChildScrollView(
+                  child: ContentWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        FinanceiroKpis(resumo: resumo),
+                        const SizedBox(height: 16),
+                        if (itens.isEmpty)
+                          SizedBox(
+                            height: 240,
+                            child: EmptyState(
+                              mensagem: _busca.isEmpty
+                                  ? 'Nenhum lançamento cadastrado.'
+                                  : 'Nenhum lançamento encontrado.',
+                              icon: _lancamentos
+                                  ? Icons.inventory_2_outlined
+                                  : Icons.cake_outlined,
+                            ),
+                          )
+                        else
+                          ResponsiveCardGrid(
                             children: [
                               for (final item in itens)
                                 _buildCard(context, repo, item),
                             ],
                           ),
-                        ),
-                      ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -176,7 +193,8 @@ class _LancamentoFinanceiroListScreenState
         ),
         subtitle: Text(
           'Valor: ${item.valorTotal.toCurrency()}  •  '
-          'Vencimento: ${item.dataVencimento.toFormattedDate()}',
+          'Vencimento: ${item.dataVencimento.toFormattedDate()}'
+          '${item.valorTaxasImpostos > 0 ? '  •  Taxas: ${item.valorTaxasImpostos.toCurrency()}' : ''}',
         ),
         onTap: () => context.push('/financeiro/lancamentos/${item.id}/editar'),
       ),

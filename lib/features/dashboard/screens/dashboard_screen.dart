@@ -5,6 +5,8 @@ import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/produto.dart';
+import '../../financeiro/data/financeiro_metrics.dart';
+import '../../financeiro/widgets/financeiro_kpis.dart';
 import '../data/dashboard_metrics.dart';
 import '../widgets/dashboard_activity.dart';
 import '../widgets/dashboard_cards.dart';
@@ -48,6 +50,13 @@ class DashboardScreen extends StatelessWidget {
         final blocos = <Widget>[
           DashboardHero(nomeEmpresa: repo.empresa.nome, metrics: metrics),
           _kpis(metrics),
+          FinanceiroKpis(
+            resumo: ResumoFinanceiro.calcular(
+              lancamentos: repo.lancamentosFinanceiros,
+              agora: DateTime.now(),
+            ),
+            completo: false,
+          ),
           _acoesRapidas(),
           LinhaResponsiva(
             esquerda: VendasComprasChart(serie: metrics.serieMensal()),

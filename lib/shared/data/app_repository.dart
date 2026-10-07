@@ -70,6 +70,7 @@ class AppRepository extends ChangeNotifier {
     lancamentosFinanceiros.clear();
     pessoasFinanceiro.clear();
     cartoesCredito.clear();
+    bandeirasCartaoCredito.clear();
 
     // Load unidades
     final unidadesData = await _db.query('unidades_medida');
@@ -298,6 +299,7 @@ class AppRepository extends ChangeNotifier {
     recalcularEstoque();
 
     await _loadCartoesCredito();
+    await _loadBandeirasCartao();
     _loadPessoasFinanceiras();
     await _loadLancamentosFinanceiros();
   }
@@ -779,20 +781,33 @@ class AppRepository extends ChangeNotifier {
       movimentosNovos.map((movimento) => movimento.produtoId),
     );
     _validarSaldoEstoque(movimentosNovos);
-    await _db.transaction(
-      (transaction) => _inserirVenda(transaction, venda, movimentosNovos),
-    );
+    await _db.transaction((transaction) async {
+      await _inserirVenda(transaction, venda, movimentosNovos);
+      for (final lancamento in venda.lancamentosFinanceiros) {
+        await _gravarLancamento(transaction, lancamento);
+      }
+    });
     vendas.add(venda);
+    _registrarLancamentos(venda.lancamentosFinanceiros);
     movimentacoes.addAll(movimentosNovos);
     recalcularEstoque(saldosIniciais: saldosIniciais);
     await _persistirProdutos();
     notifyListeners();
   }
 
-  Future<void> atualizarVenda(Venda venda) async {
+  Future<void> atualizarVenda(
+    Venda venda, {
+    bool atualizarFinanceiro = false,
+  }) async {
     final indice = vendas.indexWhere((existente) => existente.id == venda.id);
     if (indice < 0) {
       throw StateError('A venda que você tentou editar não foi encontrada.');
+    }
+    if (lancamentosDaVenda(venda.id).any((l) => l.hasQuitacoes)) {
+      throw StateError(
+        'Esta venda possui lançamentos financeiros com pagamentos '
+        '(quitações) e não pode ser editada. Remova as quitações antes.',
+      );
     }
 
     final movimentosAntigos = _movimentosDaVenda(vendas[indice]);
@@ -809,11 +824,25 @@ class AppRepository extends ChangeNotifier {
     await _db.transaction((transaction) async {
       await _removerVendaDoBanco(transaction, venda.id, movimentosAntigos);
       await _inserirVenda(transaction, venda, movimentosNovos);
+      if (atualizarFinanceiro) {
+        await _excluirLancamentosDaOperacaoDoBanco(
+          transaction,
+          TipoOperacaoOrigem.venda,
+          venda.id,
+        );
+        for (final lancamento in venda.lancamentosFinanceiros) {
+          await _gravarLancamento(transaction, lancamento);
+        }
+      }
     });
 
     movimentacoes.removeWhere((movimento) => idsAntigos.contains(movimento.id));
     movimentacoes.addAll(movimentosNovos);
     vendas[indice] = venda;
+    if (atualizarFinanceiro) {
+      _removerLancamentosDaOperacao(TipoOperacaoOrigem.venda, venda.id);
+      _registrarLancamentos(venda.lancamentosFinanceiros);
+    }
     recalcularEstoque(
       produtosSemMovimentacoes: produtosAfetados,
       saldosIniciais: saldosIniciais,
@@ -826,6 +855,12 @@ class AppRepository extends ChangeNotifier {
     final indice = vendas.indexWhere((venda) => venda.id == vendaId);
     if (indice < 0) return;
 
+    if (lancamentosDaVenda(vendaId).any((l) => l.hasQuitacoes)) {
+      throw StateError(
+        'Esta venda possui lançamentos financeiros com pagamentos '
+        'registrados. Exclua as quitações antes de excluir a venda.',
+      );
+    }
     final movimentosDaVenda = _movimentosDaVenda(vendas[indice]);
     final idsRemovidos = movimentosDaVenda
         .map((movimento) => movimento.id)
@@ -836,14 +871,21 @@ class AppRepository extends ChangeNotifier {
     final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(const [], removerIds: idsRemovidos);
     await _db.transaction(
-      (transaction) =>
-          _removerVendaDoBanco(transaction, vendaId, movimentosDaVenda),
+      (transaction) async {
+        await _removerVendaDoBanco(transaction, vendaId, movimentosDaVenda);
+        await _excluirLancamentosDaOperacaoDoBanco(
+          transaction,
+          TipoOperacaoOrigem.venda,
+          vendaId,
+        );
+      },
     );
 
     movimentacoes.removeWhere(
       (movimento) => idsRemovidos.contains(movimento.id),
     );
     vendas.removeAt(indice);
+    _removerLancamentosDaOperacao(TipoOperacaoOrigem.venda, vendaId);
     recalcularEstoque(
       produtosSemMovimentacoes: produtosAfetados,
       saldosIniciais: saldosIniciais,
@@ -1603,6 +1645,7 @@ class AppRepository extends ChangeNotifier {
       'valorLancamento': lancamento.valorLancamento,
       'valorDesconto': lancamento.valorDesconto,
       'valorAcrescimo': lancamento.valorAcrescimo,
+      'valorTaxasImpostos': lancamento.valorTaxasImpostos,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     await database.delete(
@@ -1621,11 +1664,12 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> _excluirLancamentosDaCompraDoBanco(
+  Future<void> _excluirLancamentosDaOperacaoDoBanco(
     DatabaseExecutor database,
-    String compraId,
+    TipoOperacaoOrigem origem,
+    String operacaoId,
   ) async {
-    for (final lancamento in lancamentosDaCompra(compraId)) {
+    for (final lancamento in lancamentosDaOperacao(origem, operacaoId)) {
       await database.delete(
         'quitacoes',
         where: 'lancamentoId = ?',
@@ -1638,6 +1682,15 @@ class AppRepository extends ChangeNotifier {
       );
     }
   }
+
+  Future<void> _excluirLancamentosDaCompraDoBanco(
+    DatabaseExecutor database,
+    String compraId,
+  ) => _excluirLancamentosDaOperacaoDoBanco(
+    database,
+    TipoOperacaoOrigem.compra,
+    compraId,
+  );
 
   void _guardarLancamentoEmMemoria(LancamentoFinanceiro lancamento) {
     final indice = lancamentosFinanceiros.indexWhere(
@@ -1656,8 +1709,11 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
-  void _registrarLancamentosDaCompra(Compra compra) {
-    for (final lancamento in compra.lancamentosFinanceiros) {
+  void _registrarLancamentosDaCompra(Compra compra) =>
+      _registrarLancamentos(compra.lancamentosFinanceiros);
+
+  void _registrarLancamentos(List<LancamentoFinanceiro> lancamentos) {
+    for (final lancamento in lancamentos) {
       for (final quitacao in lancamento.quitacoes) {
         quitacao.lancamentoId = lancamento.id;
       }
@@ -1672,6 +1728,22 @@ class AppRepository extends ChangeNotifier {
         CartaoCredito(
           id: _idString(linha['id']),
           nome: linha['nome'] as String,
+          diaVencimento: (linha['diaVencimento'] as num?)?.toInt() ?? 10,
+          diasFechamento: (linha['diasFechamento'] as num?)?.toInt() ?? 7,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadBandeirasCartao() async {
+    final linhas = await _db.query('bandeiras_cartao');
+    for (final linha in linhas) {
+      bandeirasCartaoCredito.add(
+        BandeiraCartaoCredito(
+          id: _idString(linha['id']),
+          nome: linha['nome'] as String,
+          taxa: (linha['taxa'] as num).toDouble(),
+          diasParaRecebimento: (linha['diasParaRecebimento'] as num?)?.toInt() ?? 0,
         ),
       );
     }
@@ -1745,6 +1817,8 @@ class AppRepository extends ChangeNotifier {
           valorLancamento: (linha['valorLancamento'] as num).toDouble(),
           valorDesconto: (linha['valorDesconto'] as num).toDouble(),
           valorAcrescimo: (linha['valorAcrescimo'] as num).toDouble(),
+          valorTaxasImpostos:
+              (linha['valorTaxasImpostos'] as num?)?.toDouble() ?? 0,
           quitacoes: quitacoesPorLancamento[id] ?? <Quitacao>[],
         ),
       );
@@ -1767,14 +1841,16 @@ class AppRepository extends ChangeNotifier {
 
   String _idString(Object? value) => value.toString();
 
-  /// Lançamentos financeiros gerados por uma compra (pai primeiro, depois as
-  /// demais parcelas por vencimento).
-  List<LancamentoFinanceiro> lancamentosDaCompra(String compraId) {
+  /// Lançamentos financeiros gerados por uma operação (compra ou venda):
+  /// pai primeiro, depois as demais parcelas por vencimento.
+  List<LancamentoFinanceiro> lancamentosDaOperacao(
+    TipoOperacaoOrigem origem,
+    String operacaoId,
+  ) {
     final lista = lancamentosFinanceiros
         .where(
           (l) =>
-              l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
-              l.operacaoOrigemId == compraId,
+              l.tipoOperacaoOriem == origem && l.operacaoOrigemId == operacaoId,
         )
         .toList();
     lista.sort((a, b) {
@@ -1785,13 +1861,25 @@ class AppRepository extends ChangeNotifier {
     return lista;
   }
 
-  void _removerLancamentosDaCompra(String compraId) {
-    lancamentosFinanceiros.removeWhere(
-      (l) =>
-          l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
-          l.operacaoOrigemId == compraId,
-    );
+  List<LancamentoFinanceiro> lancamentosDaCompra(String compraId) =>
+      lancamentosDaOperacao(TipoOperacaoOrigem.compra, compraId);
+
+  List<LancamentoFinanceiro> lancamentosDaVenda(String vendaId) =>
+      lancamentosDaOperacao(TipoOperacaoOrigem.venda, vendaId);
+
+  void _removerLancamentosDaOperacao(
+    TipoOperacaoOrigem origem,
+    String operacaoId,
+  ) {
+    final ids = lancamentosDaOperacao(
+      origem,
+      operacaoId,
+    ).map((l) => l.id).toSet();
+    lancamentosFinanceiros.removeWhere((l) => ids.contains(l.id));
   }
+
+  void _removerLancamentosDaCompra(String compraId) =>
+      _removerLancamentosDaOperacao(TipoOperacaoOrigem.compra, compraId);
 
   /// Pessoa financeira do fornecedor (cria e registra se ainda não existir,
   /// pois fornecedores cadastrados depois do carregamento não estão na lista).
@@ -1811,22 +1899,186 @@ class AppRepository extends ChangeNotifier {
     return pessoa;
   }
 
+  /// Pessoa financeira do cliente (cria e registra se ainda não existir).
+  PessoaFinanceiro pessoaFinanceiraDoCliente(Cliente cliente) {
+    for (final pessoa in pessoasFinanceiro) {
+      if (pessoa.id == cliente.id &&
+          pessoa.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cliente) {
+        return pessoa;
+      }
+    }
+    final pessoa = PessoaFinanceiro(
+      id: cliente.id,
+      nome: cliente.nome,
+      tipoPessoaFinanceiro: TipoPessoaFinanceiro.cliente,
+    );
+    pessoasFinanceiro.add(pessoa);
+    return pessoa;
+  }
+
   List<PessoaFinanceiro> get pessoasCartaoCredito => pessoasFinanceiro
       .where((p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito)
       .toList();
 
-  /// Cadastra um cartão de crédito e devolve a pessoa financeira dele.
-  Future<PessoaFinanceiro> salvarCartaoCredito(String nome) async {
-    final cartao = CartaoCredito(id: novoId(), nome: nome);
-    await _db.insert('cartoes_credito', {'id': cartao.id, 'nome': cartao.nome});
-    cartoesCredito.add(cartao);
-    final pessoa = PessoaFinanceiro(
-      id: cartao.id,
-      nome: cartao.nome,
-      tipoPessoaFinanceiro: TipoPessoaFinanceiro.cartaoCredito,
+  List<PessoaFinanceiro> get pessoasBandeiraCartao => pessoasFinanceiro
+      .where(
+        (p) =>
+            p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.bandeiraCartaoCredito,
+      )
+      .toList();
+
+  CartaoCredito? cartaoPorId(String id) {
+    for (final cartao in cartoesCredito) {
+      if (cartao.id == id) return cartao;
+    }
+    return null;
+  }
+
+  BandeiraCartaoCredito? bandeiraPorId(String id) {
+    for (final bandeira in bandeirasCartaoCredito) {
+      if (bandeira.id == id) return bandeira;
+    }
+    return null;
+  }
+
+  /// Cria ou atualiza um cartão de crédito e devolve a pessoa financeira dele.
+  Future<PessoaFinanceiro> salvarCartaoCredito(CartaoCredito cartao) async {
+    final indice = cartoesCredito.indexWhere((c) => c.id == cartao.id);
+    final linha = {
+      'id': cartao.id,
+      'nome': cartao.nome,
+      'diaVencimento': cartao.diaVencimento,
+      'diasFechamento': cartao.diasFechamento,
+    };
+    if (indice >= 0) {
+      await _db.update(
+        'cartoes_credito',
+        linha,
+        where: 'id = ?',
+        whereArgs: [cartao.id],
+      );
+      cartoesCredito[indice] = cartao;
+    } else {
+      await _db.insert('cartoes_credito', linha);
+      cartoesCredito.add(cartao);
+    }
+    final pessoa = await _sincronizarPessoa(
+      cartao.id,
+      cartao.nome,
+      TipoPessoaFinanceiro.cartaoCredito,
     );
-    pessoasFinanceiro.add(pessoa);
     notifyListeners();
+    return pessoa;
+  }
+
+  Future<void> excluirCartaoCredito(String id) async {
+    _validarPessoaSemLancamentos(id, TipoPessoaFinanceiro.cartaoCredito, 'cartão');
+    await _db.delete('cartoes_credito', where: 'id = ?', whereArgs: [id]);
+    cartoesCredito.removeWhere((c) => c.id == id);
+    pessoasFinanceiro.removeWhere(
+      (p) =>
+          p.id == id && p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito,
+    );
+    notifyListeners();
+  }
+
+  /// Cria ou atualiza uma bandeira e devolve a pessoa financeira dela.
+  Future<PessoaFinanceiro> salvarBandeiraCartao(
+    BandeiraCartaoCredito bandeira,
+  ) async {
+    final indice = bandeirasCartaoCredito.indexWhere((b) => b.id == bandeira.id);
+    final linha = {
+      'id': bandeira.id,
+      'nome': bandeira.nome,
+      'taxa': bandeira.taxa,
+    };
+    if (indice >= 0) {
+      await _db.update(
+        'bandeiras_cartao',
+        linha,
+        where: 'id = ?',
+        whereArgs: [bandeira.id],
+      );
+      bandeirasCartaoCredito[indice] = bandeira;
+    } else {
+      await _db.insert('bandeiras_cartao', linha);
+      bandeirasCartaoCredito.add(bandeira);
+    }
+    final pessoa = await _sincronizarPessoa(
+      bandeira.id,
+      bandeira.nome,
+      TipoPessoaFinanceiro.bandeiraCartaoCredito,
+    );
+    notifyListeners();
+    return pessoa;
+  }
+
+  Future<void> excluirBandeiraCartao(String id) async {
+    _validarPessoaSemLancamentos(
+      id,
+      TipoPessoaFinanceiro.bandeiraCartaoCredito,
+      'bandeira',
+    );
+    await _db.delete('bandeiras_cartao', where: 'id = ?', whereArgs: [id]);
+    bandeirasCartaoCredito.removeWhere((b) => b.id == id);
+    pessoasFinanceiro.removeWhere(
+      (p) =>
+          p.id == id &&
+          p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.bandeiraCartaoCredito,
+    );
+    notifyListeners();
+  }
+
+  void _validarPessoaSemLancamentos(
+    String id,
+    TipoPessoaFinanceiro tipo,
+    String descricao,
+  ) {
+    final emUso = lancamentosFinanceiros.any(
+      (l) =>
+          l.pessoaFinanceiro.id == id &&
+          l.pessoaFinanceiro.tipoPessoaFinanceiro == tipo,
+    );
+    if (emUso) {
+      throw StateError(
+        'Este $descricao possui lançamentos financeiros e não pode ser '
+        'excluído.',
+      );
+    }
+  }
+
+  /// Mantém a lista de pessoas financeiras (e os lançamentos já gravados com
+  /// o nome antigo) em dia depois de criar/renomear um cartão ou bandeira.
+  Future<PessoaFinanceiro> _sincronizarPessoa(
+    String id,
+    String nome,
+    TipoPessoaFinanceiro tipo,
+  ) async {
+    final pessoa = PessoaFinanceiro(
+      id: id,
+      nome: nome,
+      tipoPessoaFinanceiro: tipo,
+    );
+    final indice = pessoasFinanceiro.indexWhere(
+      (p) => p.id == id && p.tipoPessoaFinanceiro == tipo,
+    );
+    if (indice >= 0) {
+      pessoasFinanceiro[indice] = pessoa;
+    } else {
+      pessoasFinanceiro.add(pessoa);
+    }
+    for (final lancamento in lancamentosFinanceiros) {
+      final atual = lancamento.pessoaFinanceiro;
+      if (atual.id == id && atual.tipoPessoaFinanceiro == tipo) {
+        lancamento.pessoaFinanceiro = pessoa;
+      }
+    }
+    await _db.update(
+      'lancamentos_financeiros',
+      {'pessoaNome': nome},
+      where: 'pessoaId = ? AND pessoaTipo = ?',
+      whereArgs: [id, tipo.name],
+    );
     return pessoa;
   }
 }

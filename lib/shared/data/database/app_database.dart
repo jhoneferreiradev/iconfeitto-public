@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 16,
+      version: 17,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -273,7 +273,18 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS cartoes_credito (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL
+        nome TEXT NOT NULL,
+        diaVencimento INTEGER NOT NULL DEFAULT 10,
+        diasFechamento INTEGER NOT NULL DEFAULT 7
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS bandeiras_cartao (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        taxa REAL NOT NULL DEFAULT 0,
+        diasParaRecebimento INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -296,6 +307,7 @@ class AppDatabase {
         valorLancamento REAL NOT NULL,
         valorDesconto REAL NOT NULL DEFAULT 0,
         valorAcrescimo REAL NOT NULL DEFAULT 0,
+        valorTaxasImpostos REAL NOT NULL DEFAULT 0,
         FOREIGN KEY (lancamentoPaiId) REFERENCES lancamentos_financeiros(id)
       )
     ''');
@@ -315,6 +327,41 @@ class AppDatabase {
         FOREIGN KEY (lancamentoId) REFERENCES lancamentos_financeiros(id)
       )
     ''');
+  }
+
+  Future<void> _adicionarColunaSeNecessario(
+    Database db,
+    String tabela,
+    String coluna,
+    String definicao,
+  ) async {
+    final colunas = await db.rawQuery('PRAGMA table_info($tabela)');
+    if (colunas.any((c) => c['name'] == coluna)) return;
+    await db.execute('ALTER TABLE $tabela ADD COLUMN $coluna $definicao');
+  }
+
+  /// v17: dados do cartão (vencimento/fechamento), bandeiras com taxa,
+  /// taxas e dia de depósito no lançamento.
+  Future<void> _migrarFinanceiroV17(Database db) async {
+    await _createFinanceiroTables(db);
+    await _adicionarColunaSeNecessario(
+      db,
+      'cartoes_credito',
+      'diaVencimento',
+      'INTEGER NOT NULL DEFAULT 10',
+    );
+    await _adicionarColunaSeNecessario(
+      db,
+      'cartoes_credito',
+      'diasFechamento',
+      'INTEGER NOT NULL DEFAULT 7',
+    );
+    await _adicionarColunaSeNecessario(
+      db,
+      'lancamentos_financeiros',
+      'valorTaxasImpostos',
+      'REAL NOT NULL DEFAULT 0',
+    );
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -432,6 +479,10 @@ class AppDatabase {
 
     if (oldVersion < 16) {
       await _createFinanceiroTables(db);
+    }
+
+    if (oldVersion < 17) {
+      await _migrarFinanceiroV17(db);
     }
   }
 

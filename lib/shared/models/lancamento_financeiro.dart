@@ -108,6 +108,7 @@ class LancamentoFinanceiro extends Equatable {
   double valorLancamento;
   double valorDesconto;
   double valorAcrescimo;
+  double valorTaxasImpostos;
   String? observacao;
   String operacaoOrigemId;
   FormaPagamento? formaPagamento;
@@ -123,6 +124,7 @@ class LancamentoFinanceiro extends Equatable {
     required this.valorLancamento,
     this.valorDesconto = 0,
     this.valorAcrescimo = 0,
+    this.valorTaxasImpostos = 0,
     this.observacao,
     this.lancamentoPai,
     required this.statusLancamento,
@@ -152,8 +154,28 @@ class LancamentoFinanceiro extends Equatable {
   bool get hasQuitacoes => quitacoes.isNotEmpty;
   double get valorQuitado =>
       quitacoes.fold(0.0, (sum, quitacao) => sum + quitacao.valorQuitado);
-  /// Valor a pagar/receber: valor do lançamento menos desconto mais acréscimo.
-  double get valorTotal => valorLancamento - valorDesconto + valorAcrescimo;
+  /// Valor a pagar/receber: valor menos desconto, mais acréscimo, com as taxas
+  /// e impostos reduzindo a receita (o que se recebe) e somando à despesa.
+  double get valorTotal => calcularValorTotal(
+    tipo: tipoLancamento,
+    valor: valorLancamento,
+    desconto: valorDesconto,
+    acrescimo: valorAcrescimo,
+    taxasImpostos: valorTaxasImpostos,
+  );
+
+  static double calcularValorTotal({
+    required TipoLancamentoFinanceiro tipo,
+    required double valor,
+    double desconto = 0,
+    double acrescimo = 0,
+    double taxasImpostos = 0,
+  }) {
+    final taxas = tipo == TipoLancamentoFinanceiro.receita
+        ? -taxasImpostos
+        : taxasImpostos;
+    return valor - desconto + acrescimo + taxas;
+  }
   double get valorRestante => valorTotal - valorQuitado;
   DateTime get dataUltimaQuitacao =>
       quitacoes.isEmpty ? dataCriacao : quitacoesOrdenadas.last.dataQuitacao;
@@ -206,6 +228,7 @@ class LancamentoFinanceiro extends Equatable {
     valorLancamento,
     valorDesconto,
     valorAcrescimo,
+    valorTaxasImpostos,
     observacao,
     operacaoOrigemId,
     formaPagamento,

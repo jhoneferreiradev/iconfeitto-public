@@ -42,12 +42,14 @@ class Venda {
   final DateTime data;
   final String clienteId;
   final List<ItemOperacao> itens;
+  final List<LancamentoFinanceiro> lancamentosFinanceiros;
 
   const Venda({
     required this.id,
     required this.data,
     required this.clienteId,
     required this.itens,
+    this.lancamentosFinanceiros = const [],
   });
 
   double get total => itens.fold(

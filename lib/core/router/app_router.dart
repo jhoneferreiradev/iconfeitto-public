@@ -1,6 +1,10 @@
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../features/bandeiras/screens/bandeira_form_screen.dart';
+import '../../features/bandeiras/screens/bandeira_list_screen.dart';
+import '../../features/cartoes/screens/cartao_form_screen.dart';
+import '../../features/cartoes/screens/cartao_list_screen.dart';
 import '../../features/clientes/screens/cliente_form_screen.dart';
 import '../../features/clientes/screens/cliente_list_screen.dart';
 import '../../features/cozinha/screens/cozinha_form_screen.dart';
@@ -171,6 +175,32 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/empresa',
           builder: (context, state) => const EmpresaFormScreen(),
+        ),
+        GoRoute(
+          path: '/cartoes',
+          builder: (context, state) => const CartaoListScreen(),
+        ),
+        GoRoute(
+          path: '/cartoes/novo',
+          builder: (context, state) => const CartaoFormScreen(),
+        ),
+        GoRoute(
+          path: '/cartoes/:id/editar',
+          builder: (context, state) =>
+              CartaoFormScreen(cartaoId: state.pathParameters['id']),
+        ),
+        GoRoute(
+          path: '/bandeiras',
+          builder: (context, state) => const BandeiraListScreen(),
+        ),
+        GoRoute(
+          path: '/bandeiras/nova',
+          builder: (context, state) => const BandeiraFormScreen(),
+        ),
+        GoRoute(
+          path: '/bandeiras/:id/editar',
+          builder: (context, state) =>
+              BandeiraFormScreen(bandeiraId: state.pathParameters['id']),
         ),
         GoRoute(
           path: '/financeiro/lancamentos',

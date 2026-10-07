@@ -93,6 +93,20 @@ final List<AppGrupoNavegacao> gruposNavegacao = [
       route: '/financeiro/lancamentos',
       ativo: (uri) => _prefixo(uri, '/financeiro/lancamentos'),
     ),
+    AppDestino(
+      label: 'Cartões de crédito',
+      icon: Icons.credit_card_outlined,
+      selectedIcon: Icons.credit_card,
+      route: '/cartoes',
+      ativo: (uri) => _prefixo(uri, '/cartoes'),
+    ),
+    AppDestino(
+      label: 'Bandeiras',
+      icon: Icons.contactless_outlined,
+      selectedIcon: Icons.contactless,
+      route: '/bandeiras',
+      ativo: (uri) => _prefixo(uri, '/bandeiras'),
+    ),
   ]),
 
 
@@ -166,6 +180,8 @@ const List<String> _rotasRaiz = [
   '/clientes',
   '/fornecedores',
   '/unidades',
+  '/cartoes',
+  '/bandeiras',
   '/empresa',
   '/produtos',
   '/itens/insumos',

@@ -13,9 +13,11 @@ import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/cliente.dart';
+import '../../../shared/models/lancamento_financeiro.dart';
 import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
 import '../pdf/venda_pdf.dart';
+import '../widgets/pagamento_operacao_section.dart';
 import 'venda_list_screen.dart';
 
 class VendaFormScreen extends StatefulWidget {
@@ -34,6 +36,11 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
   int _proximoId = 0;
   String? _clienteId;
 
+  // Recebimento
+  final _pagamentoKey = GlobalKey<PagamentoOperacaoSectionState>();
+  bool _financeiroBloqueado = false;
+  List<LancamentoFinanceiro> _lancamentosExistentes = const [];
+
   Venda? get _vendaOriginal {
     final id = widget.vendaId;
     if (id == null) return null;
@@ -51,6 +58,8 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
     if (venda == null) {
       _itens.add(_proximoId++);
     } else {
+      _lancamentosExistentes = _repo.lancamentosDaVenda(venda.id);
+      _financeiroBloqueado = _lancamentosExistentes.any((l) => l.hasQuitacoes);
       for (var i = 0; i < venda.itens.length; i++) {
         _itens.add(_proximoId++);
       }
@@ -134,54 +143,121 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
       ],
       body: FormBuilder(
         key: _formKey,
-        onChanged: () => setState(() {}),
+        onChanged: () {
+          _pagamentoKey.currentState?.sincronizar();
+          setState(() {});
+        },
         initialValue: _valoresIniciais(venda),
         child: CenteredListView(
           children: [
-            SectionCard(
-              title: 'Dados da venda',
-              child: Column(
-                children: [
-                  const AppDateTimeField(name: 'data', label: 'Data'),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildClienteField()),
-                      IconButton(
-                        icon: const Icon(Icons.person_add_outlined),
-                        tooltip: 'Cadastrar cliente',
-                        onPressed: _criarCliente,
-                      ),
-                    ],
-                  ),
-                ],
+            if (_financeiroBloqueado) _buildAvisoBloqueio(),
+            ..._protegerTodos([
+              SectionCard(
+                title: 'Dados da venda',
+                child: Column(
+                  children: [
+                    const AppDateTimeField(name: 'data', label: 'Data'),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildClienteField()),
+                        IconButton(
+                          icon: const Icon(Icons.person_add_outlined),
+                          tooltip: 'Cadastrar cliente',
+                          onPressed: _criarCliente,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            SectionCard(
-              title: 'Produtos',
-              trailing: IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Adicionar produto',
-                onPressed: produtos.isEmpty ? null : _adicionarItem,
+              SectionCard(
+                title: 'Produtos',
+                trailing: IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: 'Adicionar produto',
+                  onPressed: produtos.isEmpty ? null : _adicionarItem,
+                ),
+                child: Column(
+                  children: [for (final id in _itens) _buildItem(id, produtos)],
+                ),
               ),
-              child: Column(
-                children: [for (final id in _itens) _buildItem(id, produtos)],
+              PagamentoOperacaoSection(
+                key: _pagamentoKey,
+                formKey: _formKey,
+                tipo: TipoLancamentoFinanceiro.receita,
+                origem: TipoOperacaoOrigem.venda,
+                total: _totalVenda,
+                data: _dataVenda,
+                existentes: _lancamentosExistentes,
+                bloqueado: _financeiroBloqueado,
+                editando: venda != null,
               ),
-            ),
-            const SizedBox(height: 12),
+            ]),
             _buildResumo(resumo),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _salvar,
-              icon: const Icon(Icons.check),
-              label: const Text('Salvar venda'),
+            if (!_financeiroBloqueado) ...[
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: _salvar,
+                icon: const Icon(Icons.check),
+                label: const Text('Salvar venda'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static const _mensagemVendaBloqueada =
+      'Esta venda possui pagamentos (quitações) nos lançamentos financeiros '
+      'e não pode ser editada. Para alterá-la, remova as quitações no '
+      'financeiro.';
+
+  /// Com quitação em algum lançamento, a venda inteira fica somente leitura.
+  List<Widget> _protegerTodos(List<Widget> widgets) => [
+    for (final widget in widgets)
+      IgnorePointer(
+        ignoring: _financeiroBloqueado,
+        child: Opacity(
+          opacity: _financeiroBloqueado ? 0.65 : 1,
+          child: widget,
+        ),
+      ),
+  ];
+
+  Widget _buildAvisoBloqueio() {
+    final cores = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: cores.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.lock_outline, color: cores.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _mensagemVendaBloqueada,
+                style: TextStyle(color: cores.onErrorContainer),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  double _totalVenda() => _formKey.currentState == null
+      ? (_vendaOriginal?.total ?? 0)
+      : _calcularResumo().total;
+
+  DateTime _dataVenda() {
+    final valor = _formKey.currentState?.instantValue['data'];
+    if (valor is DateTime) return valor;
+    return _vendaOriginal?.data ?? DateTime.now();
   }
 
   Widget _buildClienteField() {
@@ -383,6 +459,10 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
   }
 
   Future<void> _salvar() async {
+    if (_financeiroBloqueado) {
+      _avisar(_mensagemVendaBloqueada);
+      return;
+    }
     if (_formKey.currentState?.saveAndValidate() != true) return;
     final valores = _formKey.currentState!.value;
     final itens = _itens.map((id) {
@@ -396,17 +476,47 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
       );
     }).toList();
     final vendaOriginal = _vendaOriginal;
+    final vendaId = vendaOriginal?.id ?? _repo.novoId();
+    final dataVenda = valores['data'] as DateTime;
+    final clienteId = valores['cliente'] as String;
+    final totalVenda = itens.fold<double>(
+      0,
+      (soma, item) => soma + item.quantidade * item.valorUnitario,
+    );
+
+    var lancamentos = <LancamentoFinanceiro>[];
+    final pagamento = _pagamentoKey.currentState;
+    if (pagamento != null && pagamento.gerarFinanceiro) {
+      final cliente = _repo.clientePorId(clienteId);
+      if (cliente == null) {
+        _avisar('Cliente não encontrado.');
+        return;
+      }
+      final montados = pagamento.montarLancamentos(
+        operacaoId: vendaId,
+        data: dataVenda,
+        pessoaOperacao: _repo.pessoaFinanceiraDoCliente(cliente),
+        descricaoBase: 'Venda - ${cliente.nome}',
+        valores: valores,
+        total: totalVenda,
+        avisar: _avisar,
+      );
+      if (montados == null) return;
+      lancamentos = montados;
+    }
+
     final venda = Venda(
-      id: vendaOriginal?.id ?? _repo.novoId(),
-      data: valores['data'] as DateTime,
-      clienteId: valores['cliente'] as String,
+      id: vendaId,
+      data: dataVenda,
+      clienteId: clienteId,
       itens: itens,
+      lancamentosFinanceiros: lancamentos,
     );
     try {
       if (vendaOriginal == null) {
         await _repo.salvarVenda(venda);
       } else {
-        await _repo.atualizarVenda(venda);
+        await _repo.atualizarVenda(venda, atualizarFinanceiro: true);
       }
       if (mounted) context.pop();
     } on SaldoEstoqueInsuficienteException catch (error) {
