@@ -130,7 +130,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         child: ResponsiveFormLayout(
           primaryFlex: 4,
           secondaryFlex: 7,
-          primary: [
+          primary: _protegerTodos([
+            if (_financeiroBloqueado) _buildAvisoBloqueio(),
             SectionCard(
               title: 'Dados da compra',
               child: Column(
@@ -152,8 +153,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
               ),
             ),
             _buildPagamento(),
-          ],
-          secondary: [
+          ]),
+          secondary: _protegerTodos([
             SectionCard(
               title: 'Itens',
               trailing: IconButton(
@@ -175,19 +176,21 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 ],
               ),
             ),
-          ],
+          ]),
           footer: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildTotal(),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: _salvar,
-                icon: const Icon(Icons.check),
-                label: Text(
-                  compra == null ? 'Salvar compra' : 'Salvar alterações',
+              if (!_financeiroBloqueado) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _salvar,
+                  icon: const Icon(Icons.check),
+                  label: Text(
+                    compra == null ? 'Salvar compra' : 'Salvar alterações',
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -622,8 +625,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         (primeiro.isCartaoCredito
             ? FormaPagamento.cartaoCredito
             : FormaPagamento.dinheiro);
-    if (primeiro.isCartaoCredito)
-      _cartaoSelecionado = primeiro.pessoaFinanceiro;
+    if (primeiro.isCartaoCredito) _cartaoSelecionado = primeiro.pessoaFinanceiro;
     _numParcelas = _lancamentosExistentes.length;
     for (final lancamento in _lancamentosExistentes) {
       _parcelas.add(
@@ -636,6 +638,46 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     }
     // Preserva o que já foi lançado até o usuário pedir para redistribuir.
     _parcelasEditadas = true;
+  }
+
+  static const _mensagemCompraBloqueada =
+      'Esta compra possui pagamentos (quitações) nos lançamentos financeiros '
+      'e não pode ser editada. Para alterá-la, remova as quitações no '
+      'financeiro.';
+
+  /// Com quitação em algum lançamento, a compra inteira fica somente leitura.
+  List<Widget> _protegerTodos(List<Widget> widgets) => [
+    for (final widget in widgets)
+      IgnorePointer(
+        ignoring: _financeiroBloqueado,
+        child: Opacity(
+          opacity: _financeiroBloqueado ? 0.65 : 1,
+          child: widget,
+        ),
+      ),
+  ];
+
+  Widget _buildAvisoBloqueio() {
+    final cores = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: cores.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.lock_outline, color: cores.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _mensagemCompraBloqueada,
+                style: TextStyle(color: cores.onErrorContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPagamento() {
@@ -865,9 +907,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
             id: _proximaParcelaId++,
             vencimento: _somarMeses(dataBase, i),
             valor:
-                (i == quantidade - 1
-                    ? centavos - base * (quantidade - 1)
-                    : base) /
+                (i == quantidade - 1 ? centavos - base * (quantidade - 1) : base) /
                 100,
           ),
       ]);
@@ -959,7 +999,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       },
     );
     if (nome == null || nome.isEmpty) return;
-    final cartao = _repo.salvarCartaoCredito(nome);
+    final cartao = await _repo.salvarCartaoCredito(nome);
     _cartaoSelecionado = cartao;
     if (mounted) {
       setState(() {});
@@ -1009,22 +1049,31 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       return null;
     }
 
+    // Ao regravar as parcelas (sem quitação), preserva ajustes feitos no
+    // financeiro quando a quantidade de parcelas não mudou.
+    final anteriores = _lancamentosExistentes.length == parcelas.length
+        ? _lancamentosExistentes
+        : const <LancamentoFinanceiro>[];
     final lancamentos = <LancamentoFinanceiro>[];
     LancamentoFinanceiro? pai;
     for (var i = 0; i < parcelas.length; i++) {
+      final anterior = anteriores.isEmpty ? null : anteriores[i];
       final lancamento = LancamentoFinanceiro(
         id: _repo.novoId(),
         pessoaFinanceiro: pessoa,
         tipoLancamento: TipoLancamentoFinanceiro.despesa,
         lancamentoPai: pai,
-        statusLancamento: StatusLancamentoFinanceiro.pendente,
-        tipoOperacaoOrigem: TipoOperacaoOrigem.compra,
+        statusLancamento:
+            anterior?.statusLancamento ?? StatusLancamentoFinanceiro.pendente,
+        tipoOperacaoOriem: TipoOperacaoOrigem.compra,
         dataCriacao: data,
         dataVencimento: parcelas[i].vencimento,
         descricao: parcelas.length == 1
             ? 'Compra - ${fornecedor.nome}'
             : 'Compra - ${fornecedor.nome} (${i + 1}/${parcelas.length})',
         valorLancamento: parcelas[i].valor / 100,
+        valorDesconto: anterior?.valorDesconto ?? 0,
+        valorAcrescimo: anterior?.valorAcrescimo ?? 0,
         operacaoOrigemId: compraId,
         formaPagamento: forma,
         quitacoes: [],
@@ -1036,6 +1085,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   }
 
   Future<void> _salvar() async {
+    if (_financeiroBloqueado) {
+      _avisar(_mensagemCompraBloqueada);
+      return;
+    }
     if (_formKey.currentState?.saveAndValidate() != true) return;
     final valores = _formKey.currentState!.value;
     final itens = <ItemOperacao>[];
@@ -1110,7 +1163,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         } else {
           await _repo.atualizarCompra(
             compra,
-            atualizarFinanceiro: !_financeiroBloqueado,
+            atualizarFinanceiro: true,
           );
         }
       } catch (_) {

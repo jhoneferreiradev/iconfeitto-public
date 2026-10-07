@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 15,
+      version: 16,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -186,6 +186,7 @@ class AppDatabase {
     ''');
 
     await _createCustosOperacionaisTable(db);
+    await _createFinanceiroTables(db);
     // await _createFichaTecnicaEmbalagem(db);
     if (seedUnidades) await _seedUnidades(db);
   }
@@ -264,6 +265,55 @@ class AppDatabase {
     await db.execute('''
       ALTER TABLE produtos
       ADD COLUMN custoEmbalagem REAL NOT NULL DEFAULT 0
+    ''');
+  }
+
+  /// Financeiro (v16): cartões de crédito, lançamentos e quitações.
+  Future<void> _createFinanceiroTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cartoes_credito (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS lancamentos_financeiros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pessoaId INTEGER NOT NULL,
+        pessoaTipo TEXT NOT NULL,
+        pessoaNome TEXT NOT NULL,
+        tipoLancamento TEXT NOT NULL,
+        lancamentoPaiId INTEGER,
+        statusLancamento TEXT NOT NULL,
+        tipoOperacaoOrigem TEXT NOT NULL,
+        operacaoOrigemId TEXT NOT NULL,
+        formaPagamento TEXT,
+        dataCriacao TEXT NOT NULL,
+        dataVencimento TEXT NOT NULL,
+        descricao TEXT NOT NULL,
+        observacao TEXT,
+        valorLancamento REAL NOT NULL,
+        valorDesconto REAL NOT NULL DEFAULT 0,
+        valorAcrescimo REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY (lancamentoPaiId) REFERENCES lancamentos_financeiros(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_lancamentos_origem
+      ON lancamentos_financeiros (tipoOperacaoOrigem, operacaoOrigemId)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS quitacoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lancamentoId INTEGER NOT NULL,
+        dataQuitacao TEXT NOT NULL,
+        valorQuitado REAL NOT NULL,
+        formaPagamento TEXT NOT NULL,
+        FOREIGN KEY (lancamentoId) REFERENCES lancamentos_financeiros(id)
+      )
     ''');
   }
 
@@ -378,6 +428,10 @@ class AppDatabase {
           'REFERENCES fabricacoes(id)',
         );
       }
+    }
+
+    if (oldVersion < 16) {
+      await _createFinanceiroTables(db);
     }
   }
 

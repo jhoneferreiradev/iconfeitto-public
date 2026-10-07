@@ -5,6 +5,7 @@ import '../models/cartao_credito.dart';
 import '../models/cliente.dart';
 import '../models/custo_operacional.dart';
 import '../models/empresa.dart';
+import '../models/forma_pagamento.dart';
 import '../models/fornecedor.dart';
 import '../models/grupo_unidade.dart';
 import '../models/item_ficha_tecnica.dart';
@@ -68,6 +69,7 @@ class AppRepository extends ChangeNotifier {
     movimentacoes.clear();
     lancamentosFinanceiros.clear();
     pessoasFinanceiro.clear();
+    cartoesCredito.clear();
 
     // Load unidades
     final unidadesData = await _db.query('unidades_medida');
@@ -295,7 +297,9 @@ class AppRepository extends ChangeNotifier {
 
     recalcularEstoque();
 
+    await _loadCartoesCredito();
     _loadPessoasFinanceiras();
+    await _loadLancamentosFinanceiros();
   }
 
   void _loadPessoasFinanceiras() {
@@ -543,9 +547,12 @@ class AppRepository extends ChangeNotifier {
       movimentosNovos.map((movimento) => movimento.produtoId),
     );
     _validarSaldoEstoque(movimentosNovos);
-    await _db.transaction(
-      (transaction) => _inserirCompra(transaction, compra, movimentosNovos),
-    );
+    await _db.transaction((transaction) async {
+      await _inserirCompra(transaction, compra, movimentosNovos);
+      for (final lancamento in compra.lancamentosFinanceiros) {
+        await _gravarLancamento(transaction, lancamento);
+      }
+    });
     compras.add(compra);
     movimentacoes.addAll(movimentosNovos);
     recalcularEstoque(
@@ -556,7 +563,7 @@ class AppRepository extends ChangeNotifier {
     );
     await _persistirProdutos();
 
-    await _incluirLancamentosFinanceiroParaCompra(compra);
+    _registrarLancamentosDaCompra(compra);
 
     notifyListeners();
   }
@@ -568,6 +575,12 @@ class AppRepository extends ChangeNotifier {
     final indice = compras.indexWhere((existente) => existente.id == compra.id);
     if (indice < 0) {
       throw StateError('A compra que você tentou editar não foi encontrada.');
+    }
+    if (lancamentosDaCompra(compra.id).any((l) => l.hasQuitacoes)) {
+      throw StateError(
+        'Esta compra possui lançamentos financeiros com pagamentos '
+        '(quitações) e não pode ser editada. Remova as quitações antes.',
+      );
     }
 
     final movimentosAntigos = _movimentosDaCompra(compras[indice]);
@@ -599,6 +612,12 @@ class AppRepository extends ChangeNotifier {
         whereArgs: [compra.id],
       );
       await _inserirCompra(transaction, compra, movimentosNovos);
+      if (atualizarFinanceiro) {
+        await _excluirLancamentosDaCompraDoBanco(transaction, compra.id);
+        for (final lancamento in compra.lancamentosFinanceiros) {
+          await _gravarLancamento(transaction, lancamento);
+        }
+      }
     });
 
     movimentacoes.removeWhere((movimento) => idsAntigos.contains(movimento.id));
@@ -615,7 +634,7 @@ class AppRepository extends ChangeNotifier {
 
     if (atualizarFinanceiro) {
       _removerLancamentosDaCompra(compra.id);
-      await _incluirLancamentosFinanceiroParaCompra(compra);
+      _registrarLancamentosDaCompra(compra);
     }
 
     notifyListeners();
@@ -658,6 +677,7 @@ class AppRepository extends ChangeNotifier {
         where: 'id = ?',
         whereArgs: [compraId],
       );
+      await _excluirLancamentosDaCompraDoBanco(transaction, compraId);
     });
 
     movimentacoes.removeWhere(
@@ -1524,59 +1544,225 @@ class AppRepository extends ChangeNotifier {
   Future<void> salvarLancamentoFinanceiro(
     LancamentoFinanceiro lancamento,
   ) async {
-    final idx = lancamentosFinanceiros.indexWhere((p) => p.id == lancamento.id);
-
-    if (idx >= 0) {
-      lancamentosFinanceiros[idx] = lancamento;
-      await _excluirQuitacoesDoLancamento(lancamento);
-    } else {
-      lancamentosFinanceiros.add(lancamento);
-    }
-
-    for (var quitacao in lancamento.quitacoes) {
+    for (final quitacao in lancamento.quitacoes) {
       quitacao.lancamentoId = lancamento.id;
-      await _salvarQuitacao(quitacao);
     }
-
-    return Future.value();
-  }
-
-  Future<void> _excluirQuitacoesDoLancamento(
-    LancamentoFinanceiro lancamento,
-  ) async {
-    lancamento.quitacoes.clear();
-    return Future.value();
-  }
-
-  Future<void> _salvarQuitacao(Quitacao quitacao) async {
-    final idxLancamento = lancamentosFinanceiros.indexWhere(
-      (p) => p.id == quitacao.lancamentoId,
+    await _db.transaction(
+      (transaction) => _gravarLancamento(transaction, lancamento),
     );
-
-    if (idxLancamento < 0) {
-      throw StateError('A quitação que você tentou salvar não foi encontrada.');
-    }
-
-    final lancamento = lancamentosFinanceiros[idxLancamento];
-
-    final idxQuitacao = lancamento.quitacoes.indexWhere(
-      (q) => q.id == quitacao.id,
-    );
-
-    if (idxQuitacao >= 0) {
-      lancamento.atualizarQuitacao(idxQuitacao, quitacao);
-    } else {
-      lancamento.adicionarQuitacao(quitacao);
-    }
-
-    return Future.value();
+    _guardarLancamentoEmMemoria(lancamento);
+    notifyListeners();
   }
 
+  /// Lançamentos vinculados a uma operação (ex.: compra) só são excluídos
+  /// junto com ela, para manter a ligação com os dados da origem.
   Future<void> excluirLancamentoFinanceiro(
     LancamentoFinanceiro lancamento,
   ) async {
+    if (lancamento.tipoOperacaoOriem != TipoOperacaoOrigem.avulso) {
+      throw StateError(
+        'Este lançamento está vinculado a uma operação e só pode ser '
+        'excluído por ela.',
+      );
+    }
+    await _db.transaction((transaction) async {
+      await transaction.delete(
+        'quitacoes',
+        where: 'lancamentoId = ?',
+        whereArgs: [lancamento.id],
+      );
+      await transaction.delete(
+        'lancamentos_financeiros',
+        where: 'id = ?',
+        whereArgs: [lancamento.id],
+      );
+    });
     lancamentosFinanceiros.removeWhere((l) => l.id == lancamento.id);
-    return Future.value();
+    notifyListeners();
+  }
+
+  Future<void> _gravarLancamento(
+    DatabaseExecutor database,
+    LancamentoFinanceiro lancamento,
+  ) async {
+    await database.insert('lancamentos_financeiros', {
+      'id': lancamento.id,
+      'pessoaId': lancamento.pessoaFinanceiro.id,
+      'pessoaTipo': lancamento.pessoaFinanceiro.tipoPessoaFinanceiro.name,
+      'pessoaNome': lancamento.pessoaFinanceiro.nome,
+      'tipoLancamento': lancamento.tipoLancamento.name,
+      'lancamentoPaiId': lancamento.lancamentoPai?.id,
+      'statusLancamento': lancamento.statusLancamento.name,
+      'tipoOperacaoOrigem': lancamento.tipoOperacaoOriem.name,
+      'operacaoOrigemId': lancamento.operacaoOrigemId,
+      'formaPagamento': lancamento.formaPagamento?.name,
+      'dataCriacao': lancamento.dataCriacao.toIso8601String(),
+      'dataVencimento': lancamento.dataVencimento.toIso8601String(),
+      'descricao': lancamento.descricao,
+      'observacao': lancamento.observacao,
+      'valorLancamento': lancamento.valorLancamento,
+      'valorDesconto': lancamento.valorDesconto,
+      'valorAcrescimo': lancamento.valorAcrescimo,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    await database.delete(
+      'quitacoes',
+      where: 'lancamentoId = ?',
+      whereArgs: [lancamento.id],
+    );
+    for (final quitacao in lancamento.quitacoes) {
+      await database.insert('quitacoes', {
+        'id': quitacao.id,
+        'lancamentoId': lancamento.id,
+        'dataQuitacao': quitacao.dataQuitacao.toIso8601String(),
+        'valorQuitado': quitacao.valorQuitado,
+        'formaPagamento': quitacao.formaPagamento.name,
+      });
+    }
+  }
+
+  Future<void> _excluirLancamentosDaCompraDoBanco(
+    DatabaseExecutor database,
+    String compraId,
+  ) async {
+    for (final lancamento in lancamentosDaCompra(compraId)) {
+      await database.delete(
+        'quitacoes',
+        where: 'lancamentoId = ?',
+        whereArgs: [lancamento.id],
+      );
+      await database.delete(
+        'lancamentos_financeiros',
+        where: 'id = ?',
+        whereArgs: [lancamento.id],
+      );
+    }
+  }
+
+  void _guardarLancamentoEmMemoria(LancamentoFinanceiro lancamento) {
+    final indice = lancamentosFinanceiros.indexWhere(
+      (l) => l.id == lancamento.id,
+    );
+    if (indice >= 0) {
+      lancamentosFinanceiros[indice] = lancamento;
+    } else {
+      lancamentosFinanceiros.add(lancamento);
+    }
+    // Parcelas que apontavam para a versão anterior do lançamento pai.
+    for (final outro in lancamentosFinanceiros) {
+      if (outro.lancamentoPai?.id == lancamento.id) {
+        outro.lancamentoPai = lancamento;
+      }
+    }
+  }
+
+  void _registrarLancamentosDaCompra(Compra compra) {
+    for (final lancamento in compra.lancamentosFinanceiros) {
+      for (final quitacao in lancamento.quitacoes) {
+        quitacao.lancamentoId = lancamento.id;
+      }
+      _guardarLancamentoEmMemoria(lancamento);
+    }
+  }
+
+  Future<void> _loadCartoesCredito() async {
+    final linhas = await _db.query('cartoes_credito');
+    for (final linha in linhas) {
+      cartoesCredito.add(
+        CartaoCredito(
+          id: _idString(linha['id']),
+          nome: linha['nome'] as String,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadLancamentosFinanceiros() async {
+    final quitacoesPorLancamento = <String, List<Quitacao>>{};
+    for (final linha in await _db.query('quitacoes')) {
+      final lancamentoId = _idString(linha['lancamentoId']);
+      quitacoesPorLancamento
+          .putIfAbsent(lancamentoId, () => [])
+          .add(
+            Quitacao(
+              id: _idString(linha['id']),
+              lancamentoId: lancamentoId,
+              dataQuitacao: DateTime.parse(linha['dataQuitacao'] as String),
+              valorQuitado: (linha['valorQuitado'] as num).toDouble(),
+              formaPagamento: FormaPagamento.fromString(
+                linha['formaPagamento'] as String?,
+              ),
+            ),
+          );
+    }
+
+    final paiPorLancamento = <String, String>{};
+    for (final linha in await _db.query('lancamentos_financeiros')) {
+      final id = _idString(linha['id']);
+      final pessoaId = _idString(linha['pessoaId']);
+      final pessoaTipo = _enumPorNome(
+        TipoPessoaFinanceiro.values,
+        linha['pessoaTipo'],
+        TipoPessoaFinanceiro.fornecedor,
+      );
+      final pessoa = pessoasFinanceiro.firstWhere(
+        (p) => p.id == pessoaId && p.tipoPessoaFinanceiro == pessoaTipo,
+        orElse: () => PessoaFinanceiro(
+          id: pessoaId,
+          nome: linha['pessoaNome'] as String,
+          tipoPessoaFinanceiro: pessoaTipo,
+        ),
+      );
+      final formaPagamento = linha['formaPagamento'] as String?;
+
+      lancamentosFinanceiros.add(
+        LancamentoFinanceiro(
+          id: id,
+          pessoaFinanceiro: pessoa,
+          tipoLancamento: _enumPorNome(
+            TipoLancamentoFinanceiro.values,
+            linha['tipoLancamento'],
+            TipoLancamentoFinanceiro.despesa,
+          ),
+          statusLancamento: _enumPorNome(
+            StatusLancamentoFinanceiro.values,
+            linha['statusLancamento'],
+            StatusLancamentoFinanceiro.pendente,
+          ),
+          tipoOperacaoOriem: _enumPorNome(
+            TipoOperacaoOrigem.values,
+            linha['tipoOperacaoOrigem'],
+            TipoOperacaoOrigem.avulso,
+          ),
+          operacaoOrigemId: _idString(linha['operacaoOrigemId']),
+          formaPagamento: formaPagamento == null
+              ? null
+              : FormaPagamento.fromString(formaPagamento),
+          dataCriacao: DateTime.parse(linha['dataCriacao'] as String),
+          dataVencimento: DateTime.parse(linha['dataVencimento'] as String),
+          descricao: linha['descricao'] as String,
+          observacao: linha['observacao'] as String?,
+          valorLancamento: (linha['valorLancamento'] as num).toDouble(),
+          valorDesconto: (linha['valorDesconto'] as num).toDouble(),
+          valorAcrescimo: (linha['valorAcrescimo'] as num).toDouble(),
+          quitacoes: quitacoesPorLancamento[id] ?? <Quitacao>[],
+        ),
+      );
+      final paiId = linha['lancamentoPaiId'];
+      if (paiId != null) paiPorLancamento[id] = _idString(paiId);
+    }
+
+    for (final lancamento in lancamentosFinanceiros) {
+      final paiId = paiPorLancamento[lancamento.id];
+      if (paiId != null) lancamento.lancamentoPai = lancamentoFinanceiroPorId(paiId);
+    }
+  }
+
+  T _enumPorNome<T extends Enum>(List<T> valores, Object? nome, T padrao) {
+    for (final valor in valores) {
+      if (valor.name == nome) return valor;
+    }
+    return padrao;
   }
 
   String _idString(Object? value) => value.toString();
@@ -1587,7 +1773,7 @@ class AppRepository extends ChangeNotifier {
     final lista = lancamentosFinanceiros
         .where(
           (l) =>
-              l.tipoOperacaoOrigem == TipoOperacaoOrigem.compra &&
+              l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
               l.operacaoOrigemId == compraId,
         )
         .toList();
@@ -1602,7 +1788,7 @@ class AppRepository extends ChangeNotifier {
   void _removerLancamentosDaCompra(String compraId) {
     lancamentosFinanceiros.removeWhere(
       (l) =>
-          l.tipoOperacaoOrigem == TipoOperacaoOrigem.compra &&
+          l.tipoOperacaoOriem == TipoOperacaoOrigem.compra &&
           l.operacaoOrigemId == compraId,
     );
   }
@@ -1626,14 +1812,13 @@ class AppRepository extends ChangeNotifier {
   }
 
   List<PessoaFinanceiro> get pessoasCartaoCredito => pessoasFinanceiro
-      .where(
-        (p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito,
-      )
+      .where((p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito)
       .toList();
 
   /// Cadastra um cartão de crédito e devolve a pessoa financeira dele.
-  PessoaFinanceiro salvarCartaoCredito(String nome) {
+  Future<PessoaFinanceiro> salvarCartaoCredito(String nome) async {
     final cartao = CartaoCredito(id: novoId(), nome: nome);
+    await _db.insert('cartoes_credito', {'id': cartao.id, 'nome': cartao.nome});
     cartoesCredito.add(cartao);
     final pessoa = PessoaFinanceiro(
       id: cartao.id,
@@ -1643,11 +1828,5 @@ class AppRepository extends ChangeNotifier {
     pessoasFinanceiro.add(pessoa);
     notifyListeners();
     return pessoa;
-  }
-
-  Future<void> _incluirLancamentosFinanceiroParaCompra(Compra compra) async {
-    for (var lancamento in compra.lancamentosFinanceiros) {
-      await salvarLancamentoFinanceiro(lancamento);
-    }
   }
 }

@@ -42,6 +42,16 @@ class _LancamentoFinanceiroFormScreenState
   late List<Key> _chavesQuitacoes;
 
   bool get _isEdicao => widget.lancamentoId != null;
+
+  /// Lançamento gerado por uma operação (ex.: compra): pessoa, tipo, valor e
+  /// forma de pagamento acompanham a operação de origem e não são editáveis.
+  bool get _vinculadoAOperacao {
+    final original = _lancamentoOriginal;
+    return original != null &&
+        original.tipoOperacaoOriem != TipoOperacaoOrigem.avulso;
+  }
+
+  bool get _dadosBloqueados => _vinculadoAOperacao || _quitacoes.isNotEmpty;
   late StatusLancamentoFinanceiro _statusLancamento;
 
   @override
@@ -70,6 +80,9 @@ class _LancamentoFinanceiroFormScreenState
       'pessoaFinanceiro': l?.pessoaFinanceiro,
       'tipoLancamento': l?.tipoLancamento,
       'valorLancamento': (l?.valorLancamento ?? 0.0).toDecimal(),
+      'valorDesconto': (l?.valorDesconto ?? 0.0).toDecimal(),
+      'valorAcrescimo': (l?.valorAcrescimo ?? 0.0).toDecimal(),
+      'formaPagamento': l?.formaPagamento,
       'observacao': l?.observacao ?? '',
       'dataCriacao': (l?.dataCriacao ?? DateTime.now()),
       'dataVencimento': (l?.dataVencimento ?? DateTime.now()),
@@ -81,7 +94,7 @@ class _LancamentoFinanceiroFormScreenState
     return AppScaffold(
       title: _isEdicao ? 'Editar lançamento' : 'Novo lançamento',
       actions: [
-        if (_isEdicao)
+        if (_isEdicao && !_vinculadoAOperacao)
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Excluir lançamento',
@@ -116,12 +129,11 @@ class _LancamentoFinanceiroFormScreenState
   Widget _buildDadosDoLancamento() {
     Widget buildCampoValor() {
       return AppNumberField(
-        key: GlobalKey(),
         name: "valorLancamento",
         label: 'Valor do lançamento',
         min: 0,
-        readOnly: _quitacoes.isNotEmpty,
-        onChanged: (_) => _atualizarValores(),
+        readOnly: _dadosBloqueados,
+        onChanged: (_) => _aoAlterarValores(),
       );
     }
 
@@ -147,15 +159,28 @@ class _LancamentoFinanceiroFormScreenState
     }
 
     return SectionCard(
-      key: GlobalKey(),
       title: 'Dados do lançamento',
       child: Column(
         spacing: AppSpacing.md,
         children: [
+          if (_vinculadoAOperacao)
+            Row(
+              spacing: AppSpacing.sm,
+              children: [
+                const Icon(Icons.lock_outline, size: 18),
+                Expanded(
+                  child: Text(
+                    'Pessoa, tipo, valor e forma de pagamento vêm da operação '
+                    'de origem e não podem ser alterados aqui.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
           FormBuilderSearchableDropdownField<PessoaFinanceiro>(
             name: 'pessoaFinanceiro',
             label: 'Pessoa',
-            readOnly: _quitacoes.isNotEmpty,
+            readOnly: _dadosBloqueados,
             initialValue: _lancamentoOriginal?.pessoaFinanceiro,
             items: _pessoasFinanceiro,
             itemBuilder: (pessoa) {
@@ -184,7 +209,7 @@ class _LancamentoFinanceiroFormScreenState
             children: [
               Expanded(
                 child: FormBuilderDropdown<TipoLancamentoFinanceiro>(
-                  enabled: _quitacoes.isEmpty,
+                  enabled: !_dadosBloqueados,
                   name: 'tipoLancamento',
                   decoration: AppInputDecoration.of(
                     'Tipo do lançamento',
@@ -244,14 +269,69 @@ class _LancamentoFinanceiroFormScreenState
               Expanded(child: buildCampoDataVencimento()),
             ],
           ),
+          FormBuilderDropdown<FormaPagamento>(
+            enabled: !_dadosBloqueados,
+            name: 'formaPagamento',
+            decoration: AppInputDecoration.of(
+              'Forma de pagamento',
+              icon: Icons.payments_outlined,
+            ),
+            items: [
+              if (!_vinculadoAOperacao)
+                const DropdownMenuItem<FormaPagamento>(
+                  value: null,
+                  child: Text('Não informada'),
+                ),
+              for (final forma in FormaPagamento.values)
+                DropdownMenuItem(value: forma, child: Text(forma.label)),
+            ],
+          ),
           buildCampoValor(),
+          Row(
+            spacing: AppSpacing.md,
+            children: [
+              Expanded(
+                child: AppNumberField(
+                  name: 'valorDesconto',
+                  label: 'Desconto',
+                  required: false,
+                  min: 0,
+                  onChanged: (_) => _aoAlterarValores(),
+                ),
+              ),
+              Expanded(
+                child: AppNumberField(
+                  name: 'valorAcrescimo',
+                  label: 'Acréscimo',
+                  required: false,
+                  min: 0,
+                  onChanged: (_) => _aoAlterarValores(),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Valor final',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                valorFinal.toCurrency(),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildQuitacoes() {
-    final totalPendenteOuExcedente = valorLancamento - totalQuitado;
+    final totalPendenteOuExcedente = valorFinal - totalQuitado;
     return SectionCard(
       title: 'Quitações',
       trailing: Wrap(
@@ -323,6 +403,14 @@ class _LancamentoFinanceiroFormScreenState
   double get valorLancamento =>
       getNumeroDoFormulario(_formKey, 'valorLancamento');
 
+  double get valorDesconto => getNumeroDoFormulario(_formKey, 'valorDesconto');
+
+  double get valorAcrescimo =>
+      getNumeroDoFormulario(_formKey, 'valorAcrescimo');
+
+  /// Valor do lançamento menos desconto mais acréscimo.
+  double get valorFinal => valorLancamento - valorDesconto + valorAcrescimo;
+
   Widget _buildLinhaQuitacao(int i) {
     final quitacao = _quitacoes[i];
 
@@ -342,7 +430,7 @@ class _LancamentoFinanceiroFormScreenState
   }
 
   void _adicionarQuitacao() {
-    final valorRestante = valorLancamento - totalQuitado;
+    final valorRestante = valorFinal - totalQuitado;
 
     setState(() {
       _alterarQuitacao(() {
@@ -352,7 +440,10 @@ class _LancamentoFinanceiroFormScreenState
             dataQuitacao: DateTime.now(),
             valorQuitado: (valorRestante > 0) ? valorRestante : 0,
             id: _repo.novoId(),
-            formaPagamento: FormaPagamento.dinheiro,
+            formaPagamento:
+                (_formKey.currentState?.fields['formaPagamento']?.value
+                    as FormaPagamento?) ??
+                FormaPagamento.dinheiro,
             lancamentoId: _lancamentoOriginal?.id ?? '',
           ),
         );
@@ -366,10 +457,20 @@ class _LancamentoFinanceiroFormScreenState
     _atualizarValores();
   }
 
-  void _atualizarValores() {
-    final valorLancamento = getNumeroDoFormulario(_formKey, 'valorLancamento');
+  /// Reage a mudanças de valor/desconto/acréscimo sem reabrir um lançamento
+  /// já encerrado manualmente.
+  void _aoAlterarValores() {
+    setState(() {
+      if (_statusLancamento != StatusLancamentoFinanceiro.encerrado) {
+        _atualizarValores();
+      }
+    });
+  }
 
-    if (totalQuitado >= valorLancamento) {
+  void _atualizarValores() {
+    final valorLancamento = valorFinal;
+
+    if (totalQuitado >= valorLancamento - 0.005) {
       _statusLancamento = StatusLancamentoFinanceiro.quitado;
     } else if (totalQuitado > 0) {
       _statusLancamento = StatusLancamentoFinanceiro.parcialmenteQuitado;
@@ -387,9 +488,17 @@ class _LancamentoFinanceiroFormScreenState
       return;
     }
 
+    if (valorFinal < 0) {
+      _mostrarMensagem(
+        'O desconto não pode ser maior que o valor do lançamento somado ao '
+        'acréscimo.',
+      );
+      return;
+    }
+
     try {
       final lancamento = _montarLancamento(form.value);
-      _repo.salvarLancamentoFinanceiro(lancamento);
+      await _repo.salvarLancamentoFinanceiro(lancamento);
       onSuccess(lancamento);
     } catch (error) {
       _mostrarMensagem('Não foi possível salvar o lançamento: $error');
@@ -397,20 +506,35 @@ class _LancamentoFinanceiroFormScreenState
   }
 
   LancamentoFinanceiro _montarLancamento(Map<String, dynamic> valores) {
+    final original = _lancamentoOriginal;
+    // Em lançamentos vinculados a uma operação, os dados de origem vêm do
+    // lançamento original, nunca do formulário.
+    final vinculado = _vinculadoAOperacao && original != null;
     return LancamentoFinanceiro(
-      id: _lancamentoOriginal?.id ?? _repo.novoId(),
+      id: original?.id ?? _repo.novoId(),
       descricao: valores['descricao']?.toString().trim() ?? '',
       statusLancamento: _statusLancamento,
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
-      valorLancamento: numeroOuZero(valores['valorLancamento']),
-      tipoLancamento: valores['tipoLancamento'] as TipoLancamentoFinanceiro,
-      observacao: '',
+      valorLancamento: vinculado
+          ? original!.valorLancamento
+          : numeroOuZero(valores['valorLancamento']),
+      valorDesconto: numeroOuZero(valores['valorDesconto']),
+      valorAcrescimo: numeroOuZero(valores['valorAcrescimo']),
+      tipoLancamento: vinculado
+          ? original!.tipoLancamento
+          : valores['tipoLancamento'] as TipoLancamentoFinanceiro,
+      formaPagamento: vinculado
+          ? original!.formaPagamento
+          : valores['formaPagamento'] as FormaPagamento?,
+      observacao: original?.observacao ?? '',
       quitacoes: _quitacoes,
-      pessoaFinanceiro: valores['pessoaFinanceiro'] as PessoaFinanceiro,
-      operacaoOrigemId: _lancamentoOriginal?.operacaoOrigemId,
-      tipoOperacaoOrigem:
-          _lancamentoOriginal?.tipoOperacaoOrigem ?? TipoOperacaoOrigem.avulso,
+      pessoaFinanceiro: vinculado
+          ? original!.pessoaFinanceiro
+          : valores['pessoaFinanceiro'] as PessoaFinanceiro,
+      lancamentoPai: original?.lancamentoPai,
+      operacaoOrigemId: original?.operacaoOrigemId ?? 'null',
+      tipoOperacaoOriem: original?.tipoOperacaoOriem ?? TipoOperacaoOrigem.avulso,
     );
   }
 

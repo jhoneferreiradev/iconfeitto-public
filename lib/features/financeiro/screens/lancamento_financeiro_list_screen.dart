@@ -158,8 +158,12 @@ class _LancamentoFinanceiroListScreenState
             //   ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Excluir item',
-              onPressed: () async {
+              tooltip: item.tipoOperacaoOriem == TipoOperacaoOrigem.avulso
+                  ? 'Excluir item'
+                  : 'Vinculado a uma operação: exclua pela operação de origem',
+              onPressed: item.tipoOperacaoOriem != TipoOperacaoOrigem.avulso
+                  ? null
+                  : () async {
                 final confirmar = await confirmarExclusao(
                   context,
                   titulo: 'Excluir lançamento',
@@ -171,7 +175,7 @@ class _LancamentoFinanceiroListScreenState
           ],
         ),
         subtitle: Text(
-          'Valor: ${item.valorLancamento.toCurrency()}  •  '
+          'Valor: ${item.valorTotal.toCurrency()}  •  '
           'Vencimento: ${item.dataVencimento.toFormattedDate()}',
         ),
         onTap: () => context.push('/financeiro/lancamentos/${item.id}/editar'),

@@ -101,13 +101,15 @@ class LancamentoFinanceiro extends Equatable {
   TipoLancamentoFinanceiro tipoLancamento;
   LancamentoFinanceiro? lancamentoPai;
   StatusLancamentoFinanceiro statusLancamento;
-  TipoOperacaoOrigem tipoOperacaoOrigem;
+  TipoOperacaoOrigem tipoOperacaoOriem;
   DateTime dataCriacao;
   DateTime dataVencimento;
   String descricao;
   double valorLancamento;
+  double valorDesconto;
+  double valorAcrescimo;
   String? observacao;
-  String? operacaoOrigemId;
+  String operacaoOrigemId;
   FormaPagamento? formaPagamento;
   List<Quitacao> quitacoes;
 
@@ -119,14 +121,16 @@ class LancamentoFinanceiro extends Equatable {
     required this.dataVencimento,
     required this.descricao,
     required this.valorLancamento,
+    this.valorDesconto = 0,
+    this.valorAcrescimo = 0,
     this.observacao,
     this.lancamentoPai,
     required this.statusLancamento,
-    this.operacaoOrigemId,
-    required this.tipoOperacaoOrigem,
+    required this.operacaoOrigemId,
+    required this.tipoOperacaoOriem,
     this.formaPagamento,
-    this.quitacoes = const [],
-  });
+    List<Quitacao>? quitacoes,
+  }) : quitacoes = quitacoes ?? <Quitacao>[];
 
   bool get isReceita => tipoLancamento == TipoLancamentoFinanceiro.receita;
   bool get isDespesa => tipoLancamento == TipoLancamentoFinanceiro.despesa;
@@ -148,7 +152,9 @@ class LancamentoFinanceiro extends Equatable {
   bool get hasQuitacoes => quitacoes.isNotEmpty;
   double get valorQuitado =>
       quitacoes.fold(0.0, (sum, quitacao) => sum + quitacao.valorQuitado);
-  double get valorRestante => valorLancamento - valorQuitado;
+  /// Valor a pagar/receber: valor do lançamento menos desconto mais acréscimo.
+  double get valorTotal => valorLancamento - valorDesconto + valorAcrescimo;
+  double get valorRestante => valorTotal - valorQuitado;
   DateTime get dataUltimaQuitacao =>
       quitacoes.isEmpty ? dataCriacao : quitacoesOrdenadas.last.dataQuitacao;
 
@@ -177,7 +183,7 @@ class LancamentoFinanceiro extends Equatable {
   }
 
   void _atualizarStatusAposQuitacao() {
-    if (valorQuitado >= valorLancamento) {
+    if (valorQuitado >= valorTotal - 0.005) {
       statusLancamento = StatusLancamentoFinanceiro.quitado;
     } else if (valorQuitado > 0) {
       statusLancamento = StatusLancamentoFinanceiro.parcialmenteQuitado;
@@ -193,11 +199,13 @@ class LancamentoFinanceiro extends Equatable {
     tipoLancamento,
     lancamentoPai,
     statusLancamento,
-    tipoOperacaoOrigem,
+    tipoOperacaoOriem,
     dataCriacao,
     dataVencimento,
     descricao,
     valorLancamento,
+    valorDesconto,
+    valorAcrescimo,
     observacao,
     operacaoOrigemId,
     formaPagamento,
