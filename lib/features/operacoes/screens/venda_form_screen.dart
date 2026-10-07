@@ -3,6 +3,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/utils/data_registro.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_number_field.dart';
@@ -477,7 +478,10 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
     }).toList();
     final vendaOriginal = _vendaOriginal;
     final vendaId = vendaOriginal?.id ?? _repo.novoId();
-    final dataVenda = valores['data'] as DateTime;
+    final dataVenda = dataComHorarioDeRegistro(
+      valores['data'] as DateTime,
+      original: vendaOriginal?.data,
+    );
     final clienteId = valores['cliente'] as String;
     final totalVenda = itens.fold<double>(
       0,

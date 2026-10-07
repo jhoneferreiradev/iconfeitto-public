@@ -1368,9 +1368,22 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
+  /// Ordem das movimentações: pela data completa (dia, hora, minuto, segundo
+  /// e milissegundo) e, em caso de empate, pelo id numérico, que indica a
+  /// ordem de registro.
   int _compararMovimentos(MovimentoEstoque a, MovimentoEstoque b) {
     final dataComparacao = a.data.compareTo(b.data);
-    return dataComparacao != 0 ? dataComparacao : a.id.compareTo(b.id);
+    return dataComparacao != 0 ? dataComparacao : _compararIds(a.id, b.id);
+  }
+
+  /// Compara ids numericamente. Comparar como texto errava quando os ids têm
+  /// tamanhos diferentes (ex.: "9" depois de "10", ou ids sequenciais antigos
+  /// misturados com ids gerados por `novoId`).
+  int _compararIds(String a, String b) {
+    final numeroA = int.tryParse(a);
+    final numeroB = int.tryParse(b);
+    if (numeroA != null && numeroB != null) return numeroA.compareTo(numeroB);
+    return a.compareTo(b);
   }
 
   Map<String, double> _capturarSaldosIniciais(Iterable<String> produtoIds) => {
@@ -1513,7 +1526,7 @@ class AppRepository extends ChangeNotifier {
     final movimentos = movimentacoes
         .where((m) => m.produtoId == produtoId)
         .toList();
-    movimentos.sort((a, b) => b.data.compareTo(a.data));
+    movimentos.sort((a, b) => _compararMovimentos(b, a));
     return movimentos.take(10).toList();
   }
 

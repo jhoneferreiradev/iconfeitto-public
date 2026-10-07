@@ -487,7 +487,6 @@ class AppDatabase {
       await _migrarFinanceiroV17(db);
     }
 
-
     if (oldVersion < 18) {
       // O pagamento é sempre um lançamento com quitação: sem tabela de caixa.
       await db.execute('DROP TABLE IF EXISTS movimentacoes_caixa');
@@ -509,7 +508,7 @@ class AppDatabase {
         'TEXT',
       );
     }
-
+    
     if (oldVersion < 20) {
       // v20: taxa da bandeira em percentual ou valor fixo.
       await _adicionarColunaSeNecessario(
@@ -519,8 +518,6 @@ class AppDatabase {
         "TEXT NOT NULL DEFAULT 'percentual'",
       );
     }
-
-    
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.

@@ -3,6 +3,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/utils/data_registro.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_number_field.dart';
@@ -703,7 +704,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
 
     final compraOriginal = _compraOriginal;
     final compraId = compraOriginal?.id ?? _repo.novoId();
-    final dataCompra = valores['data'] as DateTime;
+    final dataCompra = dataComHorarioDeRegistro(
+      valores['data'] as DateTime,
+      original: compraOriginal?.data,
+    );
     final fornecedorId = valores['fornecedor'] as String;
     final totalCompra = itens.fold<double>(
       0,

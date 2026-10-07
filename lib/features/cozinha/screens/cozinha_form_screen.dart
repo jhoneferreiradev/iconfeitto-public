@@ -3,6 +3,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/utils/data_registro.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_grouped_dropdown.dart';
@@ -464,7 +465,10 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
       return;
     }
     final valores = _formKey.currentState!.value;
-    final data = valores['data'] as DateTime;
+    final data = dataComHorarioDeRegistro(
+      valores['data'] as DateTime,
+      original: _fabricacao?.data,
+    );
     final quantidade = valores['quantidade'] as double;
     final fichaBase = [
       for (var i = 0; i < _ficha.length; i++)
