@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 17,
+      version: 20,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -284,7 +284,8 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         taxa REAL NOT NULL DEFAULT 0,
-        diasParaRecebimento INTEGER NOT NULL DEFAULT 0
+        diasCompensacao INTEGER NOT NULL DEFAULT 1,
+        tipoTaxa TEXT NOT NULL DEFAULT 'percentual'
       )
     ''');
 
@@ -308,6 +309,7 @@ class AppDatabase {
         valorDesconto REAL NOT NULL DEFAULT 0,
         valorAcrescimo REAL NOT NULL DEFAULT 0,
         valorTaxasImpostos REAL NOT NULL DEFAULT 0,
+        dataCompensacao TEXT,
         FOREIGN KEY (lancamentoPaiId) REFERENCES lancamentos_financeiros(id)
       )
     ''');
@@ -484,6 +486,41 @@ class AppDatabase {
     if (oldVersion < 17) {
       await _migrarFinanceiroV17(db);
     }
+
+
+    if (oldVersion < 18) {
+      // O pagamento é sempre um lançamento com quitação: sem tabela de caixa.
+      await db.execute('DROP TABLE IF EXISTS movimentacoes_caixa');
+    }
+
+    if (oldVersion < 19) {
+      // v19: dias para compensação na bandeira e data de compensação no
+      // lançamento a receber.
+      await _adicionarColunaSeNecessario(
+        db,
+        'bandeiras_cartao',
+        'diasCompensacao',
+        'INTEGER NOT NULL DEFAULT 1',
+      );
+      await _adicionarColunaSeNecessario(
+        db,
+        'lancamentos_financeiros',
+        'dataCompensacao',
+        'TEXT',
+      );
+    }
+
+    if (oldVersion < 20) {
+      // v20: taxa da bandeira em percentual ou valor fixo.
+      await _adicionarColunaSeNecessario(
+        db,
+        'bandeiras_cartao',
+        'tipoTaxa',
+        "TEXT NOT NULL DEFAULT 'percentual'",
+      );
+    }
+
+    
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.

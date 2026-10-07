@@ -194,6 +194,7 @@ class _LancamentoFinanceiroListScreenState
         subtitle: Text(
           'Valor: ${item.valorTotal.toCurrency()}  •  '
           'Vencimento: ${item.dataVencimento.toFormattedDate()}'
+          '${item.isReceita && item.dataCompensacao != null ? '  •  Compensação: ${item.dataCompensacao!.toFormattedDate()}' : ''}'
           '${item.valorTaxasImpostos > 0 ? '  •  Taxas: ${item.valorTaxasImpostos.toCurrency()}' : ''}',
         ),
         onTap: () => context.push('/financeiro/lancamentos/${item.id}/editar'),

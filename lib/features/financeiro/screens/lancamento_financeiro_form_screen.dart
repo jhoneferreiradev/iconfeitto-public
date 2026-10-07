@@ -83,6 +83,7 @@ class _LancamentoFinanceiroFormScreenState
       'valorDesconto': (l?.valorDesconto ?? 0.0).toDecimal(),
       'valorAcrescimo': (l?.valorAcrescimo ?? 0.0).toDecimal(),
       'valorTaxasImpostos': (l?.valorTaxasImpostos ?? 0.0).toDecimal(),
+      'dataCompensacao': l?.dataCompensacao,
       'formaPagamento': l?.formaPagamento,
       'observacao': l?.observacao ?? '',
       'dataCriacao': (l?.dataCriacao ?? DateTime.now()),
@@ -216,6 +217,7 @@ class _LancamentoFinanceiroFormScreenState
                     'Tipo do lançamento',
                     icon: Icons.category_outlined,
                   ),
+                  onChanged: (_) => setState(() {}),
                   validator: FormBuilderValidators.required(
                     errorText: 'Selecione o tipo do item',
                   ),
@@ -324,6 +326,14 @@ class _LancamentoFinanceiroFormScreenState
                   onChanged: (_) => _aoAlterarValores(),
                 ),
               ),
+              if (_tipoAtual == TipoLancamentoFinanceiro.receita)
+                const Expanded(
+                  child: AppDateTimeField(
+                    name: 'dataCompensacao',
+                    label: 'Data de compensação',
+                    required: false,
+                  ),
+                ),
             ],
           ),
           Text(
@@ -543,6 +553,11 @@ class _LancamentoFinanceiroFormScreenState
     }
   }
 
+  TipoLancamentoFinanceiro _tipoDoLancamento(Map<String, dynamic> valores) =>
+      (_vinculadoAOperacao ? _lancamentoOriginal?.tipoLancamento : null) ??
+      valores['tipoLancamento'] as TipoLancamentoFinanceiro? ??
+      TipoLancamentoFinanceiro.despesa;
+
   LancamentoFinanceiro _montarLancamento(Map<String, dynamic> valores) {
     final original = _lancamentoOriginal;
     // Em lançamentos vinculados a uma operação, os dados de origem vêm do
@@ -555,21 +570,24 @@ class _LancamentoFinanceiroFormScreenState
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
       valorLancamento: vinculado
-          ? original.valorLancamento
+          ? original!.valorLancamento
           : numeroOuZero(valores['valorLancamento']),
       valorDesconto: numeroOuZero(valores['valorDesconto']),
       valorAcrescimo: numeroOuZero(valores['valorAcrescimo']),
       valorTaxasImpostos: numeroOuZero(valores['valorTaxasImpostos']),
+      dataCompensacao: _tipoDoLancamento(valores) == TipoLancamentoFinanceiro.receita
+          ? valores['dataCompensacao'] as DateTime?
+          : null,
       tipoLancamento: vinculado
-          ? original.tipoLancamento
+          ? original!.tipoLancamento
           : valores['tipoLancamento'] as TipoLancamentoFinanceiro,
       formaPagamento: vinculado
-          ? original.formaPagamento
+          ? original!.formaPagamento
           : valores['formaPagamento'] as FormaPagamento?,
       observacao: original?.observacao ?? '',
       quitacoes: _quitacoes,
       pessoaFinanceiro: vinculado
-          ? original.pessoaFinanceiro
+          ? original!.pessoaFinanceiro
           : valores['pessoaFinanceiro'] as PessoaFinanceiro,
       lancamentoPai: original?.lancamentoPai,
       operacaoOrigemId: original?.operacaoOrigemId ?? 'null',

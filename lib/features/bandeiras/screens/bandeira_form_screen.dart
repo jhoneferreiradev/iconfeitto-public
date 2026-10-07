@@ -1,9 +1,11 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -35,6 +37,12 @@ class _BandeiraFormScreenState extends State<BandeiraFormScreen> {
     if (_isEdicao) _original = _repo.bandeiraPorId(widget.bandeiraId!);
   }
 
+  TipoTaxaBandeira get _tipoTaxaAtual =>
+      (_formKey.currentState?.instantValue['tipoTaxa']
+          as TipoTaxaBandeira?) ??
+      _original?.tipoTaxa ??
+      TipoTaxaBandeira.percentual;
+
   @override
   Widget build(BuildContext context) {
     if (_isEdicao && _original == null) {
@@ -48,33 +56,81 @@ class _BandeiraFormScreenState extends State<BandeiraFormScreen> {
       body: FormBuilder(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        onChanged: () => setState(() {}),
         initialValue: {
           'nome': _original?.nome ?? '',
           'taxa': formatarParaCampo(_original?.taxa ?? 0),
+          'tipoTaxa': _original?.tipoTaxa ?? TipoTaxaBandeira.percentual,
+          'diasCompensacao': (_original?.diasCompensacao ?? 1).toString(),
         },
         child: CenteredListView(
           children: [
             SectionCard(
               title: 'Dados da bandeira',
               child: Column(
-                spacing: AppSpacing.md,
                 children: [
                   const AppTextField(
                     name: 'nome',
                     label: 'Nome da bandeira',
                     icon: Icons.contactless_outlined,
                   ),
-                  const AppNumberField(
+                  const SizedBox(height: 12),
+                  FormBuilderDropdown<TipoTaxaBandeira>(
+                    name: 'tipoTaxa',
+                    decoration: AppInputDecoration.of(
+                      'Tipo da taxa',
+                      icon: Icons.sell_outlined,
+                    ),
+                    validator: FormBuilderValidators.required(
+                      errorText: 'Selecione o tipo da taxa',
+                    ),
+                    items: [
+                      for (final tipo in TipoTaxaBandeira.values)
+                        DropdownMenuItem(value: tipo, child: Text(tipo.label)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  AppNumberField(
                     name: 'taxa',
-                    label: 'Taxa',
-                    icon: Icons.percent,
-                    suffixText: '%',
+                    label: _tipoTaxaAtual == TipoTaxaBandeira.percentual
+                        ? 'Taxa'
+                        : 'Valor fixo',
+                    icon: _tipoTaxaAtual == TipoTaxaBandeira.percentual
+                        ? Icons.percent
+                        : Icons.attach_money,
+                    suffixText: _tipoTaxaAtual == TipoTaxaBandeira.percentual
+                        ? '%'
+                        : 'R\$',
                     min: 0,
                   ),
+                  const SizedBox(height: 12),
+                  FormBuilderTextField(
+                    name: 'diasCompensacao',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: AppInputDecoration.of(
+                      'Dias para compensação',
+                      icon: Icons.account_balance_outlined,
+                    ),
+                    validator: FormBuilderValidators.compose([
+                      FormBuilderValidators.required(
+                        errorText: 'Informe os dias para compensação',
+                      ),
+                      FormBuilderValidators.integer(
+                        errorText: 'Informe um número inteiro',
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    'A taxa é aplicada sobre cada parcela das vendas no '
-                    'cartão e vai para o campo "Taxas e impostos" do '
-                    'lançamento. Alterá-la não muda lançamentos já criados.',
+                    'Dias que o valor recebido no cartão leva para compensar e '
+                    'cair na conta (quantos você precisar); calcula a "Data de '
+                    'compensação" dos lançamentos a receber. O percentual é '
+                    'aplicado sobre cada parcela das vendas no '
+                    'cartão; o valor fixo é cobrado uma vez por venda, na '
+                    'primeira parcela. Em ambos os casos vai para o campo '
+                    '"Taxas e impostos" do lançamento. Alterar não muda '
+                    'lançamentos já criados.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -97,20 +153,16 @@ class _BandeiraFormScreenState extends State<BandeiraFormScreen> {
     final valores = _formKey.currentState!.value;
     final nome = (valores['nome'] as String).trim();
     final taxa = (valores['taxa'] as num?)?.toDouble() ?? 0;
-    final diasParaRecebimento = 1;
-
-    if (taxa > 100) {
+    final tipoTaxa = valores['tipoTaxa'] as TipoTaxaBandeira;
+    if (tipoTaxa == TipoTaxaBandeira.percentual && taxa > 100) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A taxa não pode passar de 100%.')),
+        const SnackBar(content: Text('O percentual não pode passar de 100%.')),
       );
       return;
     }
-
     final repetida = _repo.bandeirasCartaoCredito.any(
-      (b) =>
-          b.id != _original?.id && b.nome.toLowerCase() == nome.toLowerCase(),
+      (b) => b.id != _original?.id && b.nome.toLowerCase() == nome.toLowerCase(),
     );
-
     if (repetida) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Já existe uma bandeira com esse nome.')),
@@ -122,7 +174,8 @@ class _BandeiraFormScreenState extends State<BandeiraFormScreen> {
         id: _original?.id ?? _repo.novoId(),
         nome: nome,
         taxa: taxa,
-        diasParaRecebimento: diasParaRecebimento,
+        tipoTaxa: tipoTaxa,
+        diasCompensacao: int.parse(valores['diasCompensacao'] as String),
       ),
     );
     if (mounted) context.pop();

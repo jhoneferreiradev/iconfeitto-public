@@ -87,10 +87,7 @@ class PagamentoOperacaoSectionState extends State<PagamentoOperacaoSection> {
 
   /// Forma que exige escolher o cartão (compra) ou a bandeira (venda).
   bool _usaCartao(FormaPagamento forma) =>
-      [
-        FormaPagamento.cartaoCredito,
-        FormaPagamento.cartaoDebito,
-      ].contains(forma) ||
+      forma == FormaPagamento.cartaoCredito ||
       (_ehVenda && forma == FormaPagamento.cartaoDebito);
   bool get gerarFinanceiro => _gerarFinanceiro;
 
@@ -229,13 +226,8 @@ class PagamentoOperacaoSectionState extends State<PagamentoOperacaoSection> {
     required void Function(String mensagem) avisar,
   }) {
     final forma = valores['forma_pagamento'] as FormaPagamento;
-    final isCartaoCredito = forma == FormaPagamento.cartaoCredito;
     final usaCartao = _usaCartao(forma);
-    final isOrigemVenda = widget.origem == TipoOperacaoOrigem.venda;
-    final isOrigemCompra = widget.origem == TipoOperacaoOrigem.compra;
-    final consideraCartaoComoPessoa =
-        usaCartao && (isOrigemVenda || (isOrigemCompra && isCartaoCredito));
-    final pessoa = consideraCartaoComoPessoa
+    final pessoa = usaCartao
         ? valores['cartao_credito'] as PessoaFinanceiro?
         : pessoaOperacao;
     if (pessoa == null) {
@@ -283,7 +275,9 @@ class PagamentoOperacaoSectionState extends State<PagamentoOperacaoSection> {
             ? descricaoBase
             : '$descricaoBase (${i + 1}/${parcelas.length})',
         valorLancamento: valor,
-        valorTaxasImpostos: bandeira?.calcularTaxa(valor) ?? 0,
+        valorTaxasImpostos:
+            bandeira?.calcularTaxa(valor, primeiraParcela: i == 0) ?? 0,
+        dataCompensacao: bandeira?.calcularCompensacao(parcelas[i].vencimento),
         operacaoOrigemId: operacaoId,
         formaPagamento: forma,
       );
@@ -370,13 +364,18 @@ class PagamentoOperacaoSectionState extends State<PagamentoOperacaoSection> {
     if (_ehVenda) {
       final bandeira = _bandeiraModelo;
       if (bandeira == null) return null;
-      final taxaTotal = _parcelas.fold<double>(
-        0,
-        (soma, p) => soma + bandeira.calcularTaxa(_valorParcela(p)),
-      );
+      var taxaTotal = 0.0;
+      for (var i = 0; i < _parcelas.length; i++) {
+        taxaTotal += bandeira.calcularTaxa(
+          _valorParcela(_parcelas[i]),
+          primeiraParcela: i == 0,
+        );
+      }
       return Text(
-        'Taxa da bandeira: ${bandeira.taxa.toPercentage()} · '
-        'taxas desta venda: ${taxaTotal.toCurrency()}',
+        'Taxa da bandeira: ${descricaoTaxaBandeira(bandeira)} · '
+        'taxas desta venda: ${taxaTotal.toCurrency()} · compensa em '
+        '${bandeira.diasCompensacao} '
+        '${bandeira.diasCompensacao == 1 ? 'dia' : 'dias'}',
         style: tema,
       );
     }
@@ -443,7 +442,7 @@ class PagamentoOperacaoSectionState extends State<PagamentoOperacaoSection> {
             Expanded(
               child: FormBuilderSearchableDropdownField<PessoaFinanceiro>(
                 name: 'cartao_credito',
-                label: _ehVenda ? 'Bandeira' : 'Cartão',
+                label: _ehVenda ? 'Bandeira' : 'Cartão de crédito',
                 initialValue: _pessoaCartao,
                 items: opcoes,
                 itemBuilder: (pessoa) => pessoa.nome,

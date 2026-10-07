@@ -8,6 +8,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/cartao_credito.dart';
+import '../../cartoes/widgets/cartao_dialogs.dart';
 
 class BandeiraListScreen extends StatelessWidget {
   const BandeiraListScreen({super.key});
@@ -91,7 +92,11 @@ class _BandeiraTile extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.contactless_outlined),
         title: Text(bandeira.nome),
-        subtitle: Text('Taxa: ${bandeira.taxa.toPercentage()}'),
+        subtitle: Text(
+          'Taxa: ${descricaoTaxaBandeira(bandeira)} · compensa em '
+          '${bandeira.diasCompensacao} '
+          '${bandeira.diasCompensacao == 1 ? 'dia' : 'dias'}',
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

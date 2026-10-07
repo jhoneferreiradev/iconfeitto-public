@@ -1,21 +1,47 @@
+/// Como a bandeira/banco cobra pelo recebimento no cartão.
+enum TipoTaxaBandeira {
+  percentual('Percentual (%)'),
+  valorFixo('Valor fixo (R\$)');
+
+  const TipoTaxaBandeira(this.label);
+  final String label;
+}
+
 /// Bandeira do cartão (Visa, Master...). A [taxa] é um percentual (ex.: 2,99)
-/// cobrado sobre cada parcela recebida em cartão.
+/// ou um valor fixo em reais, conforme [tipoTaxa]; [diasCompensacao] é quantos
+/// dias o valor leva para compensar e cair na conta (sem limite).
 class BandeiraCartaoCredito {
   final String id;
   final String nome;
   final double taxa;
-  final int diasParaRecebimento;
+  final TipoTaxaBandeira tipoTaxa;
+  final int diasCompensacao;
 
   const BandeiraCartaoCredito({
     required this.id,
     required this.nome,
     required this.taxa,
-    required this.diasParaRecebimento,
+    this.tipoTaxa = TipoTaxaBandeira.percentual,
+    this.diasCompensacao = 1,
   });
 
-  /// Valor da taxa sobre [valor], arredondado para centavos.
-  double calcularTaxa(double valor) =>
-      (valor * taxa / 100 * 100).round() / 100;
+  /// Data em que uma parcela com [vencimento] compensa na conta.
+  DateTime calcularCompensacao(DateTime vencimento) {
+    final dia = DateTime(vencimento.year, vencimento.month, vencimento.day);
+    return dia.add(Duration(days: diasCompensacao));
+  }
+
+  /// Taxa de uma parcela de [valor], arredondada para centavos. O percentual
+  /// incide sobre cada parcela; o valor fixo é cobrado uma única vez por
+  /// venda, na primeira parcela.
+  double calcularTaxa(double valor, {bool primeiraParcela = true}) {
+    switch (tipoTaxa) {
+      case TipoTaxaBandeira.percentual:
+        return (valor * taxa).round() / 100;
+      case TipoTaxaBandeira.valorFixo:
+        return primeiraParcela ? (taxa * 100).round() / 100 : 0;
+    }
+  }
 }
 
 /// Cartão de crédito próprio (usado nas compras). A fatura vence todo mês no

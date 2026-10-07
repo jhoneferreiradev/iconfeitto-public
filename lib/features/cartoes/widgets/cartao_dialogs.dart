@@ -13,6 +13,12 @@ String? avisoDiaVencimento(int? dia) {
       'será no último dia do mês.';
 }
 
+/// Descrição da taxa da bandeira: "2,99%" ou "R$ 0,50 (fixo)".
+String descricaoTaxaBandeira(BandeiraCartaoCredito bandeira) =>
+    bandeira.tipoTaxa == TipoTaxaBandeira.percentual
+    ? bandeira.taxa.toPercentage()
+    : '${bandeira.taxa.toCurrency()} (fixo)';
+
 /// Cadastro rápido de cartão de crédito (usado dentro das compras).
 Future<PessoaFinanceiro?> cadastrarCartaoRapido(BuildContext context) async {
   final repo = AppRepository.instance;
@@ -25,7 +31,7 @@ Future<PessoaFinanceiro?> cadastrarCartaoRapido(BuildContext context) async {
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: const Text('Novo cartão'),
+        title: const Text('Novo cartão de crédito'),
         content: SizedBox(
           width: 480,
           child: SingleChildScrollView(
@@ -118,7 +124,8 @@ Future<PessoaFinanceiro?> cadastrarBandeiraRapida(BuildContext context) async {
   final repo = AppRepository.instance;
   final nomeController = TextEditingController();
   final taxaController = TextEditingController(text: '0');
-  final diasParaRecebimentoController = TextEditingController(text: '0');
+  final diasController = TextEditingController(text: '1');
+  var tipoTaxa = TipoTaxaBandeira.percentual;
   String? erroNome;
   String? erroTaxa;
 
@@ -142,6 +149,18 @@ Future<PessoaFinanceiro?> cadastrarBandeiraRapida(BuildContext context) async {
                   ),
                 ),
                 const SizedBox(height: 12),
+                DropdownButtonFormField<TipoTaxaBandeira>(
+                  initialValue: tipoTaxa,
+                  decoration: const InputDecoration(labelText: 'Tipo da taxa'),
+                  items: [
+                    for (final tipo in TipoTaxaBandeira.values)
+                      DropdownMenuItem(value: tipo, child: Text(tipo.label)),
+                  ],
+                  onChanged: (tipo) => setState(
+                    () => tipoTaxa = tipo ?? TipoTaxaBandeira.percentual,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: taxaController,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -151,22 +170,22 @@ Future<PessoaFinanceiro?> cadastrarBandeiraRapida(BuildContext context) async {
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
                   ],
                   decoration: InputDecoration(
-                    labelText: 'Taxa',
-                    suffixText: '%',
+                    labelText: tipoTaxa == TipoTaxaBandeira.percentual
+                        ? 'Taxa'
+                        : 'Valor fixo',
+                    suffixText: tipoTaxa == TipoTaxaBandeira.percentual
+                        ? '%'
+                        : 'R\$',
                     errorText: erroTaxa,
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: diasParaRecebimentoController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: false,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  controller: diasController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
-                    labelText: 'Dias para recebimento',
+                    labelText: 'Dias para compensação',
                   ),
                 ),
               ],
@@ -191,8 +210,11 @@ Future<PessoaFinanceiro?> cadastrarBandeiraRapida(BuildContext context) async {
                   )) {
                 erroNome = 'Já existe uma bandeira com esse nome';
               }
-              if (taxa == null || taxa < 0 || taxa > 100) {
-                erroTaxa = 'Informe uma taxa entre 0 e 100';
+              if (taxa == null || taxa < 0) {
+                erroTaxa = 'Informe um valor válido';
+              } else if (tipoTaxa == TipoTaxaBandeira.percentual &&
+                  taxa > 100) {
+                erroTaxa = 'O percentual não pode passar de 100';
               }
               if (erroNome != null || erroTaxa != null) {
                 setState(() {});
@@ -204,7 +226,8 @@ Future<PessoaFinanceiro?> cadastrarBandeiraRapida(BuildContext context) async {
                   id: repo.novoId(),
                   nome: nome,
                   taxa: taxa!,
-                  diasParaRecebimento: int.tryParse(diasParaRecebimentoController.text) ?? 0,
+                  tipoTaxa: tipoTaxa,
+                  diasCompensacao: int.tryParse(diasController.text) ?? 1,
                 ),
               );
             },
@@ -216,6 +239,7 @@ Future<PessoaFinanceiro?> cadastrarBandeiraRapida(BuildContext context) async {
   );
   nomeController.dispose();
   taxaController.dispose();
+  diasController.dispose();
   if (bandeira == null) return null;
   return repo.salvarBandeiraCartao(bandeira);
 }

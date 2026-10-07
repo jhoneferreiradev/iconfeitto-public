@@ -109,6 +109,7 @@ class LancamentoFinanceiro extends Equatable {
   double valorDesconto;
   double valorAcrescimo;
   double valorTaxasImpostos;
+  DateTime? dataCompensacao;
   String? observacao;
   String operacaoOrigemId;
   FormaPagamento? formaPagamento;
@@ -125,6 +126,7 @@ class LancamentoFinanceiro extends Equatable {
     this.valorDesconto = 0,
     this.valorAcrescimo = 0,
     this.valorTaxasImpostos = 0,
+    this.dataCompensacao,
     this.observacao,
     this.lancamentoPai,
     required this.statusLancamento,
@@ -229,6 +231,7 @@ class LancamentoFinanceiro extends Equatable {
     valorDesconto,
     valorAcrescimo,
     valorTaxasImpostos,
+    dataCompensacao,
     observacao,
     operacaoOrigemId,
     formaPagamento,

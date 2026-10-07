@@ -1646,6 +1646,7 @@ class AppRepository extends ChangeNotifier {
       'valorDesconto': lancamento.valorDesconto,
       'valorAcrescimo': lancamento.valorAcrescimo,
       'valorTaxasImpostos': lancamento.valorTaxasImpostos,
+      'dataCompensacao': lancamento.dataCompensacao?.toIso8601String(),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     await database.delete(
@@ -1743,7 +1744,12 @@ class AppRepository extends ChangeNotifier {
           id: _idString(linha['id']),
           nome: linha['nome'] as String,
           taxa: (linha['taxa'] as num).toDouble(),
-          diasParaRecebimento: (linha['diasParaRecebimento'] as num?)?.toInt() ?? 0,
+          tipoTaxa: _enumPorNome(
+            TipoTaxaBandeira.values,
+            linha['tipoTaxa'],
+            TipoTaxaBandeira.percentual,
+          ),
+          diasCompensacao: (linha['diasCompensacao'] as num?)?.toInt() ?? 1,
         ),
       );
     }
@@ -1819,6 +1825,9 @@ class AppRepository extends ChangeNotifier {
           valorAcrescimo: (linha['valorAcrescimo'] as num).toDouble(),
           valorTaxasImpostos:
               (linha['valorTaxasImpostos'] as num?)?.toDouble() ?? 0,
+          dataCompensacao: linha['dataCompensacao'] == null
+              ? null
+              : DateTime.parse(linha['dataCompensacao'] as String),
           quitacoes: quitacoesPorLancamento[id] ?? <Quitacao>[],
         ),
       );
@@ -1991,6 +2000,8 @@ class AppRepository extends ChangeNotifier {
       'id': bandeira.id,
       'nome': bandeira.nome,
       'taxa': bandeira.taxa,
+      'tipoTaxa': bandeira.tipoTaxa.name,
+      'diasCompensacao': bandeira.diasCompensacao,
     };
     if (indice >= 0) {
       await _db.update(
