@@ -1,5 +1,4 @@
 import 'package:go_router/go_router.dart';
-import 'package:iconfeitto/shared/models/lancamento_financeiro.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/formatters.dart';
@@ -8,6 +7,7 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
+import '../../../shared/models/lancamento_financeiro.dart';
 import '../data/financeiro_metrics.dart';
 import '../widgets/financeiro_kpis.dart';
 

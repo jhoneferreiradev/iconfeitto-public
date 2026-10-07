@@ -1,9 +1,9 @@
-import 'package:iconfeitto/core/widgets/app_date_time_field.dart';
-import 'package:iconfeitto/core/widgets/app_number_field.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/widgets/app_date_time_field.dart';
+import '../../../core/widgets/app_number_field.dart';
 import '../../../shared/models/lancamento_financeiro.dart';
 
 class QuitacaoRow extends StatefulWidget {

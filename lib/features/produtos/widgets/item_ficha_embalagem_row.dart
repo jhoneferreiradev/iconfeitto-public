@@ -1,5 +1,4 @@
 import 'package:flutter/services.dart';
-import 'package:iconfeitto/shared/models/item_ficha_tecnica_embalagem.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_spacing.dart';
@@ -7,6 +6,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_grouped_dropdown.dart';
 import '../../../core/widgets/app_input_decoration.dart';
 import '../../../shared/models/grupo_unidade.dart';
+import '../../../shared/models/item_ficha_tecnica_embalagem.dart';
 import '../../../shared/models/produto.dart';
 import '../../../shared/models/unidade_medida.dart';
 import 'item_ficha_card.dart';

@@ -518,6 +518,7 @@ class AppDatabase {
         "TEXT NOT NULL DEFAULT 'percentual'",
       );
     }
+    
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.

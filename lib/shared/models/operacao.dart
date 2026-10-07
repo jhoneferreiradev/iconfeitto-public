@@ -1,6 +1,5 @@
-import 'package:iconfeitto/shared/models/lancamento_financeiro.dart';
-
 import 'item_ficha_tecnica.dart';
+import 'lancamento_financeiro.dart';
 
 class ItemOperacao {
   final String produtoId;

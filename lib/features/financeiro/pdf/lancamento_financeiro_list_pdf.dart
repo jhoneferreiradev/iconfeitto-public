@@ -1,8 +1,8 @@
-import 'package:iconfeitto/core/theme/app_spacing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/produto.dart';
@@ -41,7 +41,7 @@ class ItemListPdf {
                       ]
                     : [
                         item.nome,
-                        item.tipo.label + ' ',
+                        '${item.tipo.label} ',
                         CalculadoraCustoProduto(
                           rendimentoReceita: item.rendimentoReceita,
                           custoFichaTecnica: repo.custoTotalFicha(item),
