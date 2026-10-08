@@ -787,13 +787,6 @@ class AppRepository extends ChangeNotifier {
   ];
 
   List<MovimentoEstoque> _movimentosDaCompra(Compra compra) {
-    final vinculados = movimentacoes
-        .where(
-          (movimento) =>
-              movimento.operacaoId == compra.id &&
-              movimento.tipo == TipoMovimentoEstoque.compra,
-        )
-        .toList();
 
     final candidatos = movimentacoes
         .where((movimento) => movimento.tipo == TipoMovimentoEstoque.compra)
