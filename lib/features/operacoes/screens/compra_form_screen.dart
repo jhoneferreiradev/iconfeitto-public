@@ -3,7 +3,6 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/data_registro.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
@@ -167,7 +166,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 onPressed: produtos.isEmpty ? null : _adicionarItem,
               ),
               child: Column(
-                spacing: AppSpacing.md,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
@@ -626,7 +624,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     for (final widget in widgets)
       IgnorePointer(
         ignoring: _financeiroBloqueado,
-        child: Opacity(opacity: _financeiroBloqueado ? 0.65 : 1, child: widget),
+        child: Opacity(
+          opacity: _financeiroBloqueado ? 0.65 : 1,
+          child: widget,
+        ),
       ),
   ];
 
@@ -761,7 +762,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         if (compraOriginal == null) {
           await _repo.salvarCompra(compra);
         } else {
-          await _repo.atualizarCompra(compra, atualizarFinanceiro: true);
+          await _repo.atualizarCompra(
+            compra,
+            atualizarFinanceiro: true,
+          );
         }
       } catch (_) {
         for (final produtoId in novosProdutos) {

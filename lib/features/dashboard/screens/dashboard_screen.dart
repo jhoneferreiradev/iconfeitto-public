@@ -32,7 +32,7 @@ class DashboardScreen extends StatelessWidget {
       builder: (context, _) {
         final metrics = DashboardMetrics(
           agora: DateTime.now(),
-          vendas: repo.vendas,
+          vendas: repo.vendas.where((v) => v.entregue).toList(),
           compras: repo.compras,
           fabricacoes: repo.fabricacoes,
           produtos: repo.produtos,

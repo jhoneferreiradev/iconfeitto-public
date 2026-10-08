@@ -227,6 +227,23 @@ class AppRepository extends ChangeNotifier {
           data: DateTime.parse(row['data'] as String),
           clienteId: _idString(row['clienteId']),
           itens: itens,
+          tipo: _enumPorNome(
+            TipoVenda.values,
+            row['tipo'],
+            TipoVenda.prontaEntrega,
+          ),
+          status: _enumPorNome(
+            StatusVenda.values,
+            row['status'],
+            StatusVenda.entregue,
+          ),
+          dataEntrega: row['dataEntrega'] == null
+              ? null
+              : DateTime.parse(row['dataEntrega'] as String),
+          // Vendas antigas não guardavam a entrega: a saída foi na data.
+          dataEntregue: row['dataEntregue'] == null
+              ? null
+              : DateTime.parse(row['dataEntregue'] as String),
         ),
       );
     }
@@ -257,6 +274,7 @@ class AppRepository extends ChangeNotifier {
           quantidade: row['quantidade'] as double,
           fichaTecnica: fichaTecnica,
           fabricacaoPaiId: row['fabricacaoPaiId']?.toString(),
+          vendaId: row['vendaId']?.toString(),
         ),
       );
     }
@@ -810,6 +828,12 @@ class AppRepository extends ChangeNotifier {
       );
     }
 
+    if (!vendas[indice].itensEditaveis) {
+      throw StateError(
+        'Só é possível editar os itens de uma venda com o pedido recebido. '
+        'Reabra a venda para alterá-la.',
+      );
+    }
     final movimentosAntigos = _movimentosDaVenda(vendas[indice]);
     final movimentosNovos = _criarMovimentosVenda(venda);
     final idsAntigos = movimentosAntigos
@@ -861,6 +885,15 @@ class AppRepository extends ChangeNotifier {
         'registrados. Exclua as quitações antes de excluir a venda.',
       );
     }
+    if (const [
+      StatusVenda.emProducao,
+      StatusVenda.aguardandoRetirada,
+      StatusVenda.emEntrega,
+    ].contains(vendas[indice].status)) {
+      throw StateError(
+        'Esta venda está em andamento. Cancele a venda antes de excluí-la.',
+      );
+    }
     final movimentosDaVenda = _movimentosDaVenda(vendas[indice]);
     final idsRemovidos = movimentosDaVenda
         .map((movimento) => movimento.id)
@@ -894,6 +927,276 @@ class AppRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------------------------------------------------------------------------
+  // Andamento da venda
+  // ---------------------------------------------------------------------------
+
+  int _indiceDaVenda(String vendaId) {
+    final indice = vendas.indexWhere((venda) => venda.id == vendaId);
+    if (indice < 0) throw StateError('A venda não foi encontrada.');
+    return indice;
+  }
+
+  Future<void> _gravarStatusDaVenda(
+    DatabaseExecutor database,
+    Venda venda,
+  ) => database.update(
+    'vendas',
+    {
+      'status': venda.status.name,
+      'dataEntregue': venda.dataEntregue?.toIso8601String(),
+    },
+    where: 'id = ?',
+    whereArgs: [venda.id],
+  );
+
+  bool _temFichaDeFabricacao(Produto? produto) =>
+      produto != null &&
+      TipoItem.tiposFabricacao.contains(produto.tipo) &&
+      produto.possuiFichaTecnica &&
+      produto.fichaTecnica.isNotEmpty;
+
+  /// Mudança de status que não mexe no estoque (aguardando retirada, em
+  /// percurso, cancelada). Produção e entrega têm métodos próprios.
+  Future<void> alterarStatusVenda(String vendaId, StatusVenda novo) async {
+    if (novo == StatusVenda.emProducao || novo == StatusVenda.entregue) {
+      throw StateError('Use a ação específica para produzir ou entregar.');
+    }
+    final indice = _indiceDaVenda(vendaId);
+    final venda = vendas[indice];
+    if (!venda.proximosStatus.contains(novo)) {
+      throw StateError(
+        'Não é possível passar de "${venda.status.label}" para '
+        '"${novo.label}".',
+      );
+    }
+    final atualizada = venda.copyWith(status: novo);
+    await _db.transaction((transaction) => _gravarStatusDaVenda(transaction, atualizada));
+    vendas[indice] = atualizada;
+    notifyListeners();
+  }
+
+  /// Preparos necessários para fabricar [quantidade] (na unidade de estoque)
+  /// de [produto], em todos os níveis da ficha técnica. A lista vem na ordem
+  /// de fabricação: um preparo só aparece depois dos preparos que ele usa, e
+  /// cada preparo aparece uma única vez, com a quantidade somada.
+  List<({String produtoId, double quantidade})> _planejarPreparos(
+    Produto produto,
+    double quantidade,
+  ) {
+    final totais = <String, double>{};
+
+    void acumular(Produto atual, double quantidadeAtual, List<String> caminho) {
+      for (final itemFicha in atual.fichaTecnica) {
+        final ingrediente = produtoPorId(itemFicha.produtoIngredienteId);
+        if (!_temFichaDeFabricacao(ingrediente)) continue;
+        if (caminho.contains(ingrediente!.id)) {
+          throw StateError(
+            'A ficha técnica de "${ingrediente.nome}" usa ele mesmo '
+            '(direta ou indiretamente).',
+          );
+        }
+        final necessaria =
+            itemFicha.quantidade *
+            quantidadeAtual *
+            unidadePorId(itemFicha.unidadeId).fatorParaBase /
+            unidadePorId(ingrediente.unidadeEstoqueId).fatorParaBase;
+        totais.update(
+          ingrediente.id,
+          (total) => total + necessaria,
+          ifAbsent: () => necessaria,
+        );
+        acumular(ingrediente, necessaria, [...caminho, ingrediente.id]);
+      }
+    }
+
+    acumular(produto, quantidade, [produto.id]);
+
+    final ordem = <String>[];
+    final visitados = <String>{};
+    void visitar(Produto atual) {
+      for (final itemFicha in atual.fichaTecnica) {
+        final ingrediente = produtoPorId(itemFicha.produtoIngredienteId);
+        if (!_temFichaDeFabricacao(ingrediente)) continue;
+        if (visitados.add(ingrediente!.id)) {
+          visitar(ingrediente);
+          ordem.add(ingrediente.id);
+        }
+      }
+    }
+
+    visitar(produto);
+    return [
+      for (final id in ordem)
+        if ((totais[id] ?? 0) > 0) (produtoId: id, quantidade: totais[id]!),
+    ];
+  }
+
+  /// Inicia a produção de uma venda programada: fabrica os produtos (e seus
+  /// preparos) do pedido, consumindo os insumos do estoque.
+  Future<void> iniciarProducaoVenda(String vendaId) async {
+    final indice = _indiceDaVenda(vendaId);
+    final venda = vendas[indice];
+    if (venda.tipo != TipoVenda.programada ||
+        venda.status != StatusVenda.pedido) {
+      throw StateError(
+        'A produção só pode ser iniciada em uma venda programada com o '
+        'pedido recebido.',
+      );
+    }
+    final data = DateTime.now();
+    final fabricacoesDaVenda = <Fabricacao>[];
+    for (final item in venda.itens) {
+      final produto = produtoPorId(item.produtoId);
+      if (!_temFichaDeFabricacao(produto)) continue;
+      final quantidade =
+          item.quantidade *
+          unidadePorId(item.unidadeId).fatorParaBase /
+          unidadePorId(produto!.unidadeEstoqueId).fatorParaBase;
+
+      // Preparos da ficha técnica (inclusive preparos dentro de preparos),
+      // fabricados antes do produto final e todos vinculados a ele.
+      final principalId = novoId();
+      for (final preparo in _planejarPreparos(produto, quantidade)) {
+        fabricacoesDaVenda.add(
+          Fabricacao(
+            id: novoId(),
+            data: data,
+            produtoId: preparo.produtoId,
+            quantidade: preparo.quantidade,
+            fabricacaoPaiId: principalId,
+            vendaId: venda.id,
+            fichaTecnica: produtoPorId(preparo.produtoId)!.fichaTecnica
+                .map((itemFicha) => itemFicha.copy())
+                .toList(),
+          ),
+        );
+      }
+      fabricacoesDaVenda.add(
+        Fabricacao(
+          id: principalId,
+          data: data,
+          produtoId: produto.id,
+          quantidade: quantidade,
+          vendaId: venda.id,
+          fichaTecnica: produto.fichaTecnica
+              .map((itemFicha) => itemFicha.copy())
+              .toList(),
+        ),
+      );
+    }
+
+    // Valida o saldo dos insumos antes de alterar qualquer coisa.
+    if (fabricacoesDaVenda.isNotEmpty) {
+      await salvarFabricacoes(fabricacoesDaVenda);
+    }
+    final atualizada = venda.copyWith(status: StatusVenda.emProducao);
+    await _db.transaction((transaction) => _gravarStatusDaVenda(transaction, atualizada));
+    vendas[indice] = atualizada;
+    notifyListeners();
+  }
+
+  /// Registra a entrega: a venda passa a "entregue" e o produto final sai do
+  /// estoque na data da entrega.
+  Future<void> entregarVenda(String vendaId, DateTime dataEntregue) async {
+    final indice = _indiceDaVenda(vendaId);
+    final venda = vendas[indice];
+    if (!venda.proximosStatus.contains(StatusVenda.entregue)) {
+      throw StateError(
+        'Uma venda "${venda.status.label}" não pode ser marcada como '
+        'entregue.',
+      );
+    }
+    final entregue = venda.copyWith(
+      status: StatusVenda.entregue,
+      dataEntregue: dataEntregue,
+    );
+    final movimentosNovos = _criarMovimentosVenda(entregue);
+    final saldosIniciais = _capturarSaldosIniciais(
+      movimentosNovos.map((movimento) => movimento.produtoId),
+    );
+    _validarSaldoEstoque(movimentosNovos);
+    await _db.transaction((transaction) async {
+      await _gravarStatusDaVenda(transaction, entregue);
+      for (final movimento in movimentosNovos) {
+        await transaction.insert('movimentos_estoque', _movimentoToRow(movimento));
+      }
+    });
+    vendas[indice] = entregue;
+    movimentacoes.addAll(movimentosNovos);
+    recalcularEstoque(saldosIniciais: saldosIniciais);
+    await _persistirProdutos();
+    notifyListeners();
+  }
+
+  /// Desfaz a entrega (devolvendo o produto ao estoque) ou reabre uma venda
+  /// cancelada.
+  Future<void> reabrirVenda(String vendaId) async {
+    final indice = _indiceDaVenda(vendaId);
+    final venda = vendas[indice];
+    if (venda.status != StatusVenda.entregue &&
+        venda.status != StatusVenda.cancelada) {
+      throw StateError('Esta venda não está entregue nem cancelada.');
+    }
+    final temProducao = fabricacoes.any((f) => f.vendaId == venda.id);
+    final destino = venda.tipo == TipoVenda.programada && temProducao
+        ? (venda.entregue ? StatusVenda.aguardandoRetirada : StatusVenda.emProducao)
+        : StatusVenda.pedido;
+    final reaberta = venda.copyWith(status: destino, limparDataEntregue: true);
+
+    final movimentosAntigos = _movimentosDaVenda(venda);
+    final idsAntigos = movimentosAntigos.map((m) => m.id).toSet();
+    final produtosAfetados = movimentosAntigos.map((m) => m.produtoId).toSet();
+    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
+    _validarSaldoEstoque(const [], removerIds: idsAntigos);
+    await _db.transaction((transaction) async {
+      for (final movimento in movimentosAntigos) {
+        await transaction.delete(
+          'movimentos_estoque',
+          where: 'id = ?',
+          whereArgs: [movimento.id],
+        );
+      }
+      await _gravarStatusDaVenda(transaction, reaberta);
+    });
+    movimentacoes.removeWhere((movimento) => idsAntigos.contains(movimento.id));
+    vendas[indice] = reaberta;
+    recalcularEstoque(
+      produtosSemMovimentacoes: produtosAfetados,
+      saldosIniciais: saldosIniciais,
+    );
+    await _persistirProdutos();
+    notifyListeners();
+  }
+
+  /// Troca só os lançamentos financeiros da venda (usado quando a venda já
+  /// andou e seus itens não podem mais ser editados).
+  Future<void> atualizarFinanceiroDaVenda(
+    String vendaId,
+    List<LancamentoFinanceiro> lancamentos,
+  ) async {
+    _indiceDaVenda(vendaId);
+    if (lancamentosDaVenda(vendaId).any((l) => l.hasQuitacoes)) {
+      throw StateError(
+        'Esta venda possui lançamentos com pagamentos (quitações) e não pode '
+        'ter o financeiro alterado.',
+      );
+    }
+    await _db.transaction((transaction) async {
+      await _excluirLancamentosDaOperacaoDoBanco(
+        transaction,
+        TipoOperacaoOrigem.venda,
+        vendaId,
+      );
+      for (final lancamento in lancamentos) {
+        await _gravarLancamento(transaction, lancamento);
+      }
+    });
+    _removerLancamentosDaOperacao(TipoOperacaoOrigem.venda, vendaId);
+    _registrarLancamentos(lancamentos);
+    notifyListeners();
+  }
+
   Future<void> _removerVendaDoBanco(
     DatabaseExecutor database,
     String vendaId,
@@ -923,6 +1226,10 @@ class AppRepository extends ChangeNotifier {
       'id': venda.id,
       'data': venda.data.toIso8601String(),
       'clienteId': venda.clienteId,
+      'tipo': venda.tipo.name,
+      'status': venda.status.name,
+      'dataEntrega': venda.dataEntrega?.toIso8601String(),
+      'dataEntregue': venda.dataEntregue?.toIso8601String(),
     });
     for (final item in venda.itens) {
       await database.insert('itens_venda', {
@@ -938,12 +1245,15 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
+  /// O produto final só sai do estoque quando a venda é entregue, na data da
+  /// entrega. Antes disso (pedido, produção, retirada, percurso) não há saída.
   List<MovimentoEstoque> _criarMovimentosVenda(Venda venda) => [
-    for (final item in venda.itens)
+    if (venda.entregue)
+      for (final item in venda.itens)
       MovimentoEstoque(
         id: novoId(),
         operacaoId: venda.id,
-        data: venda.data,
+        data: venda.dataReferencia,
         produtoId: item.produtoId,
         tipo: TipoMovimentoEstoque.venda,
         quantidade: item.quantidade,
@@ -953,6 +1263,7 @@ class AppRepository extends ChangeNotifier {
   ];
 
   List<MovimentoEstoque> _movimentosDaVenda(Venda venda) {
+    if (!venda.entregue) return const [];
     final vinculados = movimentacoes
         .where(
           (movimento) =>
@@ -982,7 +1293,7 @@ class AppRepository extends ChangeNotifier {
       final indice = candidatos.indexWhere(
         (movimento) =>
             movimento.produtoId == item.produtoId &&
-            movimento.data == venda.data &&
+            movimento.data == venda.dataReferencia &&
             movimento.quantidade == item.quantidade &&
             movimento.valorUnitario == item.valorUnitario &&
             movimento.unidadeId == item.unidadeId,
@@ -1082,6 +1393,7 @@ class AppRepository extends ChangeNotifier {
           'produtoId': fabricacao.produtoId,
           'quantidade': fabricacao.quantidade,
           'fabricacaoPaiId': fabricacao.fabricacaoPaiId,
+          'vendaId': fabricacao.vendaId,
         });
         for (final item in fabricacao.fichaTecnica) {
           await transaction.insert('itens_fabricacao_registro', {

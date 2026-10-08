@@ -85,7 +85,7 @@ final List<AppGrupoNavegacao> gruposNavegacao = [
 
 
 
-  AppGrupoNavegacao('Financeiro', [
+ AppGrupoNavegacao('Financeiro', [
     AppDestino(
       label: 'Lançamentos',
       icon: Icons.attach_money_outlined,
@@ -108,6 +108,7 @@ final List<AppGrupoNavegacao> gruposNavegacao = [
       ativo: (uri) => _prefixo(uri, '/bandeiras'),
     ),
   ]),
+
 
   AppGrupoNavegacao('Cadastros', [
     AppDestino(
@@ -185,7 +186,6 @@ const List<String> _rotasRaiz = [
   '/produtos',
   '/itens/insumos',
   '/itens/produtos',
-  '/financeiro/lancamentos',
 ];
 
 bool ehRotaRaiz(Uri uri) => _rotasRaiz.contains(uri.path);

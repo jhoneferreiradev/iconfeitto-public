@@ -89,7 +89,7 @@ class DashboardMetrics {
       data.year == inicio.year && data.month == inicio.month;
 
   Iterable<Venda> _vendasDoMes(DateTime inicio) =>
-      vendas.where((v) => _noMes(v.data, inicio));
+      vendas.where((v) => _noMes(v.dataReferencia, inicio));
 
   Iterable<Compra> _comprasDoMes(DateTime inicio) =>
       compras.where((c) => _noMes(c.data, inicio));
@@ -166,7 +166,7 @@ class DashboardMetrics {
     final inicio = DateTime(agora.year, agora.month, agora.day - (dias - 1));
     final porDia = <DateTime, double>{};
     for (final venda in vendas) {
-      final dia = _dia(venda.data);
+      final dia = _dia(venda.dataReferencia);
       if (dia.isBefore(inicio) || dia.isAfter(agora)) continue;
       porDia[dia] = (porDia[dia] ?? 0) + venda.total;
     }
@@ -187,7 +187,7 @@ class DashboardMetrics {
     final valores = <String, double>{};
     final quantidades = <String, double>{};
     for (final venda in vendas) {
-      final dia = _dia(venda.data);
+      final dia = _dia(venda.dataReferencia);
       if (dia.isBefore(inicio) || dia.isAfter(agora)) continue;
       for (final item in venda.itens) {
         valores[item.produtoId] =
@@ -248,7 +248,7 @@ class DashboardMetrics {
         Atividade(
           tipo: TipoAtividade.venda,
           titulo: 'Venda para ${nomeCliente(v.clienteId)}',
-          data: v.data,
+          data: v.dataReferencia,
           valor: v.total,
           rota: '/vendas/${v.id}/editar',
         ),

@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 20,
+      version: 21,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -108,6 +108,10 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         data TEXT NOT NULL,
         clienteId INTEGER NOT NULL,
+        tipo TEXT NOT NULL DEFAULT 'prontaEntrega',
+        status TEXT NOT NULL DEFAULT 'entregue',
+        dataEntrega TEXT,
+        dataEntregue TEXT,
         FOREIGN KEY (clienteId) REFERENCES clientes(id)
       )
     ''');
@@ -135,6 +139,7 @@ class AppDatabase {
         produtoId INTEGER NOT NULL,
         quantidade REAL NOT NULL,
         fabricacaoPaiId INTEGER,
+        vendaId INTEGER,
         FOREIGN KEY (produtoId) REFERENCES produtos(id),
         FOREIGN KEY (fabricacaoPaiId) REFERENCES fabricacoes(id)
       )
@@ -508,7 +513,7 @@ class AppDatabase {
         'TEXT',
       );
     }
-    
+
     if (oldVersion < 20) {
       // v20: taxa da bandeira em percentual ou valor fixo.
       await _adicionarColunaSeNecessario(
@@ -518,7 +523,31 @@ class AppDatabase {
         "TEXT NOT NULL DEFAULT 'percentual'",
       );
     }
-    
+
+    if (oldVersion < 21) {
+      // v21: andamento da venda. Vendas antigas já tinham a saída de estoque
+      // registrada, então ficam como entregues.
+      await _adicionarColunaSeNecessario(
+        db,
+        'vendas',
+        'tipo',
+        "TEXT NOT NULL DEFAULT 'prontaEntrega'",
+      );
+      await _adicionarColunaSeNecessario(
+        db,
+        'vendas',
+        'status',
+        "TEXT NOT NULL DEFAULT 'entregue'",
+      );
+      await _adicionarColunaSeNecessario(db, 'vendas', 'dataEntrega', 'TEXT');
+      await _adicionarColunaSeNecessario(db, 'vendas', 'dataEntregue', 'TEXT');
+      await _adicionarColunaSeNecessario(
+        db,
+        'fabricacoes',
+        'vendaId',
+        'INTEGER',
+      );
+    }
   }
 
   /// v5: `produtos.unidadeConsumoId` passa a ser NOT NULL.

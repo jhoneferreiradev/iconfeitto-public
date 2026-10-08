@@ -1,23 +1,23 @@
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
+import 'package:iconfeitto/core/widgets/app_date_time_field.dart';
+import 'package:iconfeitto/core/widgets/form_builder_searchable_dropdown_field.dart';
+import 'package:iconfeitto/features/dashboard/widgets/dashboard_cards.dart';
+import 'package:iconfeitto/shared/models/lancamento_financeiro.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirm_dialog.dart';
-import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/forma_pagamento.dart';
-import '../../../shared/models/lancamento_financeiro.dart';
-import '../../dashboard/widgets/dashboard_cards.dart';
 import '../widgets/quitacao_row.dart';
 
 class LancamentoFinanceiroFormScreen extends StatefulWidget {
@@ -351,8 +351,9 @@ class _LancamentoFinanceiroFormScreenState
               ),
               Text(
                 valorFinal.toCurrency(),
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -569,30 +570,28 @@ class _LancamentoFinanceiroFormScreenState
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
       valorLancamento: vinculado
-          ? original.valorLancamento
+          ? original!.valorLancamento
           : numeroOuZero(valores['valorLancamento']),
       valorDesconto: numeroOuZero(valores['valorDesconto']),
       valorAcrescimo: numeroOuZero(valores['valorAcrescimo']),
       valorTaxasImpostos: numeroOuZero(valores['valorTaxasImpostos']),
-      dataCompensacao:
-          _tipoDoLancamento(valores) == TipoLancamentoFinanceiro.receita
+      dataCompensacao: _tipoDoLancamento(valores) == TipoLancamentoFinanceiro.receita
           ? valores['dataCompensacao'] as DateTime?
           : null,
       tipoLancamento: vinculado
-          ? original.tipoLancamento
+          ? original!.tipoLancamento
           : valores['tipoLancamento'] as TipoLancamentoFinanceiro,
       formaPagamento: vinculado
-          ? original.formaPagamento
+          ? original!.formaPagamento
           : valores['formaPagamento'] as FormaPagamento?,
       observacao: original?.observacao ?? '',
       quitacoes: _quitacoes,
       pessoaFinanceiro: vinculado
-          ? original.pessoaFinanceiro
+          ? original!.pessoaFinanceiro
           : valores['pessoaFinanceiro'] as PessoaFinanceiro,
       lancamentoPai: original?.lancamentoPai,
       operacaoOrigemId: original?.operacaoOrigemId ?? 'null',
-      tipoOperacaoOriem:
-          original?.tipoOperacaoOriem ?? TipoOperacaoOrigem.avulso,
+      tipoOperacaoOriem: original?.tipoOperacaoOriem ?? TipoOperacaoOrigem.avulso,
     );
   }
 

@@ -7,6 +7,7 @@ import '../../../core/utils/data_registro.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
 import '../../../core/widgets/app_number_field.dart';
+import '../../../core/widgets/app_input_decoration.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -19,6 +20,7 @@ import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
 import '../pdf/venda_pdf.dart';
 import '../widgets/pagamento_operacao_section.dart';
+import '../widgets/venda_status_chip.dart';
 import 'venda_list_screen.dart';
 
 class VendaFormScreen extends StatefulWidget {
@@ -36,6 +38,8 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
   final _itens = <int>[];
   int _proximoId = 0;
   String? _clienteId;
+  TipoVenda _tipoVenda = TipoVenda.programada;
+  bool _executandoAcao = false;
 
   // Recebimento
   final _pagamentoKey = GlobalKey<PagamentoOperacaoSectionState>();
@@ -56,6 +60,7 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
     super.initState();
     final venda = _vendaOriginal;
     _clienteId = venda?.clienteId;
+    _tipoVenda = venda?.tipo ?? TipoVenda.programada;
     if (venda == null) {
       _itens.add(_proximoId++);
     } else {
@@ -75,6 +80,8 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
     final valores = <String, dynamic>{
       'data': venda?.data ?? DateTime.now(),
       'cliente': venda?.clienteId,
+      'tipoVenda': venda?.tipo ?? TipoVenda.programada,
+      'dataEntrega': venda?.dataEntrega ?? DateTime.now(),
     };
     if (venda != null) {
       for (var i = 0; i < venda.itens.length; i++) {
@@ -124,7 +131,7 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
           ..sort((a, b) => a.nome.compareTo(b.nome));
     final resumo = _calcularResumo();
     return AppScaffold(
-      title: venda == null ? 'Nova venda' : 'Editar venda',
+      title: venda == null ? 'Nova venda' : 'Venda',
       actions: [
         if (venda != null) ...[
           IconButton(
@@ -151,13 +158,45 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
         initialValue: _valoresIniciais(venda),
         child: CenteredListView(
           children: [
+            if (venda != null) _buildAndamento(venda),
             if (_financeiroBloqueado) _buildAvisoBloqueio(),
+            if (venda != null && !venda.itensEditaveis && !_financeiroBloqueado)
+              _buildAviso(
+                'Os itens, o cliente e as datas ficam bloqueados enquanto a '
+                'venda está "${venda.status.label}". Você ainda pode ajustar '
+                'o pagamento. Para alterar o pedido, reabra a venda.',
+              ),
             ..._protegerTodos([
               SectionCard(
                 title: 'Dados da venda',
                 child: Column(
                   children: [
-                    const AppDateTimeField(name: 'data', label: 'Data'),
+                    FormBuilderDropdown<TipoVenda>(
+                      name: 'tipoVenda',
+                      decoration: AppInputDecoration.of(
+                        'Tipo da venda',
+                        icon: Icons.local_shipping_outlined,
+                      ),
+                      validator: FormBuilderValidators.required(
+                        errorText: 'Selecione o tipo da venda',
+                      ),
+                      onChanged: (tipo) => setState(
+                        () => _tipoVenda = tipo ?? TipoVenda.programada,
+                      ),
+                      items: [
+                        for (final tipo in TipoVenda.values)
+                          DropdownMenuItem(value: tipo, child: Text(tipo.label)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const AppDateTimeField(name: 'data', label: 'Data do pedido'),
+                    if (_tipoVenda == TipoVenda.programada) ...[
+                      const SizedBox(height: 12),
+                      const AppDateTimeField(
+                        name: 'dataEntrega',
+                        label: 'Data de entrega',
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,25 +223,29 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
                   children: [for (final id in _itens) _buildItem(id, produtos)],
                 ),
               ),
-              PagamentoOperacaoSection(
-                key: _pagamentoKey,
-                formKey: _formKey,
-                tipo: TipoLancamentoFinanceiro.receita,
-                origem: TipoOperacaoOrigem.venda,
-                total: _totalVenda,
-                data: _dataVenda,
-                existentes: _lancamentosExistentes,
-                bloqueado: _financeiroBloqueado,
-                editando: venda != null,
-              ),
             ]),
+            PagamentoOperacaoSection(
+              key: _pagamentoKey,
+              formKey: _formKey,
+              tipo: TipoLancamentoFinanceiro.receita,
+              origem: TipoOperacaoOrigem.venda,
+              total: _totalVenda,
+              data: _dataVenda,
+              existentes: _lancamentosExistentes,
+              bloqueado: _financeiroBloqueado,
+              editando: venda != null,
+            ),
             _buildResumo(resumo),
             if (!_financeiroBloqueado) ...[
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: _salvar,
                 icon: const Icon(Icons.check),
-                label: const Text('Salvar venda'),
+                label: Text(
+                  venda != null && !venda.itensEditaveis
+                      ? 'Salvar pagamento'
+                      : 'Salvar venda',
+                ),
               ),
             ],
           ],
@@ -214,41 +257,248 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
   static const _mensagemVendaBloqueada =
       'Esta venda possui pagamentos (quitações) nos lançamentos financeiros '
       'e não pode ser editada. Para alterá-la, remova as quitações no '
-      'financeiro.';
+      'financeiro. O andamento (produção, entrega) continua disponível.';
 
-  /// Com quitação em algum lançamento, a venda inteira fica somente leitura.
+  /// Itens, cliente e datas só são editáveis com o pedido recém-recebido e
+  /// sem quitações.
+  bool get _itensBloqueados {
+    final venda = _vendaOriginal;
+    return _financeiroBloqueado || (venda != null && !venda.itensEditaveis);
+  }
+
   List<Widget> _protegerTodos(List<Widget> widgets) => [
     for (final widget in widgets)
       IgnorePointer(
-        ignoring: _financeiroBloqueado,
-        child: Opacity(
-          opacity: _financeiroBloqueado ? 0.65 : 1,
-          child: widget,
-        ),
+        ignoring: _itensBloqueados,
+        child: Opacity(opacity: _itensBloqueados ? 0.65 : 1, child: widget),
       ),
   ];
 
-  Widget _buildAvisoBloqueio() {
+  Widget _buildAvisoBloqueio() => _buildAviso(
+    _mensagemVendaBloqueada,
+    icone: Icons.lock_outline,
+    erro: true,
+  );
+
+  Widget _buildAviso(String mensagem, {IconData? icone, bool erro = false}) {
     final cores = Theme.of(context).colorScheme;
+    final fundo = erro ? cores.errorContainer : cores.secondaryContainer;
+    final texto = erro ? cores.onErrorContainer : cores.onSecondaryContainer;
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      color: cores.errorContainer,
+      color: fundo,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.lock_outline, color: cores.onErrorContainer),
+            Icon(icone ?? Icons.info_outline, color: texto),
             const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _mensagemVendaBloqueada,
-                style: TextStyle(color: cores.onErrorContainer),
-              ),
-            ),
+            Expanded(child: Text(mensagem, style: TextStyle(color: texto))),
           ],
         ),
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Andamento da venda
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAndamento(Venda venda) {
+    final tema = Theme.of(context).textTheme;
+    final acoes = <Widget>[];
+    FilledButton acao(String rotulo, IconData icone, VoidCallback aoPressionar) =>
+        FilledButton.icon(
+          onPressed: _executandoAcao ? null : aoPressionar,
+          icon: Icon(icone),
+          label: Text(rotulo),
+        );
+    OutlinedButton acaoSecundaria(
+      String rotulo,
+      IconData icone,
+      VoidCallback aoPressionar,
+    ) => OutlinedButton.icon(
+      onPressed: _executandoAcao ? null : aoPressionar,
+      icon: Icon(icone),
+      label: Text(rotulo),
+    );
+
+    for (final proximo in venda.proximosStatus) {
+      switch (proximo) {
+        case StatusVenda.emProducao:
+          acoes.add(
+            acao('Iniciar produção', Icons.soup_kitchen_outlined, _iniciarProducao),
+          );
+        case StatusVenda.aguardandoRetirada:
+          acoes.add(
+            acaoSecundaria(
+              'Aguardando retirada',
+              Icons.storefront_outlined,
+              () => _mudarStatus(StatusVenda.aguardandoRetirada),
+            ),
+          );
+        case StatusVenda.emEntrega:
+          acoes.add(
+            acaoSecundaria(
+              'Saiu para entrega',
+              Icons.local_shipping_outlined,
+              () => _mudarStatus(StatusVenda.emEntrega),
+            ),
+          );
+        case StatusVenda.entregue:
+          acoes.add(
+            acao('Marcar como entregue', Icons.check_circle_outline, _entregar),
+          );
+        case StatusVenda.cancelada:
+          acoes.add(
+            acaoSecundaria('Cancelar venda', Icons.block_outlined, _cancelar),
+          );
+        case StatusVenda.pedido:
+          break;
+      }
+    }
+    if (venda.entregue || venda.status == StatusVenda.cancelada) {
+      acoes.add(
+        acaoSecundaria('Reabrir venda', Icons.undo_outlined, _reabrir),
+      );
+    }
+
+    return SectionCard(
+      title: 'Andamento',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              VendaStatusChip(status: venda.status),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  [
+                    venda.tipo.label,
+                    if (venda.dataEntrega != null)
+                      'entrega prevista ${_formatarData(venda.dataEntrega!)}',
+                    if (venda.dataEntregue != null)
+                      'entregue em ${_formatarData(venda.dataEntregue!)}',
+                  ].join(' · '),
+                  style: tema.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            venda.entregue
+                ? 'O produto final já saiu do estoque.'
+                : 'O estoque do produto final só é movimentado quando a venda '
+                      'é entregue. Insumos e preparos saem na produção.',
+            style: tema.bodySmall,
+          ),
+          if (acoes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: acoes),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executar(Future<void> Function() operacao) async {
+    setState(() => _executandoAcao = true);
+    try {
+      await operacao();
+    } on SaldoEstoqueInsuficienteException catch (error) {
+      _avisar(error.message);
+    } on StateError catch (error) {
+      _avisar(error.message);
+    } finally {
+      if (mounted) setState(() => _executandoAcao = false);
+    }
+  }
+
+  Future<bool> _confirmar(String titulo, String mensagem, String acao) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(titulo),
+        content: Text(mensagem),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(acao),
+          ),
+        ],
+      ),
+    );
+    return confirmou == true;
+  }
+
+  Future<void> _iniciarProducao() async {
+    final venda = _vendaOriginal;
+    if (venda == null) return;
+    final confirmou = await _confirmar(
+      'Iniciar produção?',
+      'Serão registradas as fabricações dos produtos e preparos deste pedido, '
+          'consumindo os insumos do estoque.',
+      'Iniciar',
+    );
+    if (!confirmou) return;
+    await _executar(() => _repo.iniciarProducaoVenda(venda.id));
+  }
+
+  Future<void> _mudarStatus(StatusVenda status) async {
+    final venda = _vendaOriginal;
+    if (venda == null) return;
+    await _executar(() => _repo.alterarStatusVenda(venda.id, status));
+  }
+
+  Future<void> _entregar() async {
+    final venda = _vendaOriginal;
+    if (venda == null) return;
+    final data = await showDatePicker(
+      context: context,
+      helpText: 'Data da entrega',
+      initialDate: DateTime.now(),
+      firstDate: venda.data.subtract(const Duration(days: 1)),
+      lastDate: DateTime(2100),
+    );
+    if (data == null) return;
+    await _executar(
+      () => _repo.entregarVenda(venda.id, dataComHorarioDeRegistro(data)),
+    );
+  }
+
+  Future<void> _cancelar() async {
+    final venda = _vendaOriginal;
+    if (venda == null) return;
+    final confirmou = await _confirmar(
+      'Cancelar venda?',
+      'As fabricações já feitas para esta venda continuam registradas no '
+          'estoque.',
+      'Cancelar venda',
+    );
+    if (!confirmou) return;
+    await _executar(
+      () => _repo.alterarStatusVenda(venda.id, StatusVenda.cancelada),
+    );
+  }
+
+  Future<void> _reabrir() async {
+    final venda = _vendaOriginal;
+    if (venda == null) return;
+    final confirmou = await _confirmar(
+      'Reabrir venda?',
+      venda.entregue
+          ? 'A entrega será desfeita e o produto volta ao estoque.'
+          : 'A venda voltará ao andamento.',
+      'Reabrir',
+    );
+    if (!confirmou) return;
+    await _executar(() => _repo.reabrirVenda(venda.id));
   }
 
   double _totalVenda() => _formKey.currentState == null
@@ -509,15 +759,25 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
       lancamentos = montados;
     }
 
+    final tipo = valores['tipoVenda'] as TipoVenda;
     final venda = Venda(
       id: vendaId,
       data: dataVenda,
       clienteId: clienteId,
       itens: itens,
       lancamentosFinanceiros: lancamentos,
+      tipo: tipo,
+      status: vendaOriginal?.status ?? StatusVenda.pedido,
+      dataEntrega: tipo == TipoVenda.programada
+          ? valores['dataEntrega'] as DateTime?
+          : null,
+      dataEntregue: vendaOriginal?.dataEntregue,
     );
     try {
-      if (vendaOriginal == null) {
+      if (vendaOriginal != null && !vendaOriginal.itensEditaveis) {
+        // Venda em andamento: só o financeiro pode mudar.
+        await _repo.atualizarFinanceiroDaVenda(vendaOriginal.id, lancamentos);
+      } else if (vendaOriginal == null) {
         await _repo.salvarVenda(venda);
       } else {
         await _repo.atualizarVenda(venda, atualizarFinanceiro: true);

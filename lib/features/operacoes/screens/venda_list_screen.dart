@@ -8,6 +8,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/operacao.dart';
 import '../pdf/venda_pdf.dart';
+import '../widgets/venda_status_chip.dart';
 
 Future<bool> confirmarExclusaoVenda(BuildContext context, Venda venda) async {
   final confirmou = await showDialog<bool>(
@@ -57,6 +58,7 @@ class VendaListScreen extends StatefulWidget {
 class _VendaListScreenState extends State<VendaListScreen> {
   String _busca = '';
   DateTime? _dataFiltro;
+  StatusVenda? _statusFiltro;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +95,22 @@ class _VendaListScreenState extends State<VendaListScreen> {
                             margin: EdgeInsets.zero,
                             child: ListTile(
                               title: Text(cliente),
-                              subtitle: Text(_formatarData(venda.data)),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    VendaStatusChip(status: venda.status),
+                                    Text(
+                                      '${venda.tipo.label} · pedido em '
+                                      '${_formatarData(venda.data)}'
+                                      '${venda.dataEntrega == null ? '' : ' · entrega em ${_formatarData(venda.dataEntrega!)}'}',
+                                    ),
+                                  ],
+                                ),
+                              ),
                               onTap: () =>
                                   context.push('/vendas/${venda.id}/editar'),
                               trailing: Row(
@@ -189,12 +206,34 @@ class _VendaListScreenState extends State<VendaListScreen> {
               tooltip: 'Limpar data',
               onPressed: () => setState(() => _dataFiltro = null),
             ),
+          PopupMenuButton<String>(
+            tooltip: 'Filtrar por andamento',
+            icon: Icon(
+              _statusFiltro == null
+                  ? Icons.filter_list
+                  : Icons.filter_list_alt,
+            ),
+            onSelected: (valor) => setState(
+              () => _statusFiltro = StatusVenda.values
+                  .where((status) => status.name == valor)
+                  .firstOrNull,
+            ),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'todos',
+                child: Text('Todos os andamentos'),
+              ),
+              for (final status in StatusVenda.values)
+                PopupMenuItem(value: status.name, child: Text(status.label)),
+            ],
+          ),
         ],
       ),
     );
   }
 
   bool _vendaFiltrada(Venda venda) {
+    if (_statusFiltro != null && venda.status != _statusFiltro) return false;
     if (_dataFiltro != null &&
         (venda.data.year != _dataFiltro!.year ||
             venda.data.month != _dataFiltro!.month ||
