@@ -794,14 +794,6 @@ class AppRepository extends ChangeNotifier {
               movimento.tipo == TipoMovimentoEstoque.compra,
         )
         .toList();
-    if (vinculados.isNotEmpty) {
-      if (vinculados.length != compra.itens.length) {
-        throw StateError(
-          'Não foi possível localizar todas as movimentações da compra.',
-        );
-      }
-      return vinculados;
-    }
 
     final candidatos = movimentacoes
         .where((movimento) => movimento.tipo == TipoMovimentoEstoque.compra)

@@ -3,15 +3,16 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/data_registro.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_date_time_field.dart';
-import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_input_decoration.dart';
+import '../../../core/widgets/app_number_field.dart';
 import '../../../core/widgets/app_scaffold.dart';
-import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/form_builder_searchable_dropdown_field.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/cliente.dart';
@@ -156,8 +157,10 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
           setState(() {});
         },
         initialValue: _valoresIniciais(venda),
-        child: CenteredListView(
-          children: [
+        child: ResponsiveFormLayout(
+          primaryFlex: 4,
+          secondaryFlex: 7,
+          primary: [
             if (venda != null) _buildAndamento(venda),
             if (_financeiroBloqueado) _buildAvisoBloqueio(),
             if (venda != null && !venda.itensEditaveis && !_financeiroBloqueado)
@@ -185,11 +188,17 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
                       ),
                       items: [
                         for (final tipo in TipoVenda.values)
-                          DropdownMenuItem(value: tipo, child: Text(tipo.label)),
+                          DropdownMenuItem(
+                            value: tipo,
+                            child: Text(tipo.label),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const AppDateTimeField(name: 'data', label: 'Data do pedido'),
+                    const AppDateTimeField(
+                      name: 'data',
+                      label: 'Data do pedido',
+                    ),
                     if (_tipoVenda == TipoVenda.programada) ...[
                       const SizedBox(height: 12),
                       const AppDateTimeField(
@@ -212,17 +221,6 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
                   ],
                 ),
               ),
-              SectionCard(
-                title: 'Produtos',
-                trailing: IconButton(
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Adicionar produto',
-                  onPressed: produtos.isEmpty ? null : _adicionarItem,
-                ),
-                child: Column(
-                  children: [for (final id in _itens) _buildItem(id, produtos)],
-                ),
-              ),
             ]),
             PagamentoOperacaoSection(
               key: _pagamentoKey,
@@ -235,20 +233,39 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
               bloqueado: _financeiroBloqueado,
               editando: venda != null,
             ),
-            _buildResumo(resumo),
-            if (!_financeiroBloqueado) ...[
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: _salvar,
-                icon: const Icon(Icons.check),
-                label: Text(
-                  venda != null && !venda.itensEditaveis
-                      ? 'Salvar pagamento'
-                      : 'Salvar venda',
-                ),
-              ),
-            ],
           ],
+          secondary: [
+            SectionCard(
+              title: 'Produtos',
+              trailing: IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: 'Adicionar produto',
+                onPressed: produtos.isEmpty ? null : _adicionarItem,
+              ),
+              child: Column(
+                children: [for (final id in _itens) _buildItem(id, produtos)],
+              ),
+            ),
+          ],
+          footer: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.md,
+            children: [
+              _buildResumo(resumo),
+              if (!_financeiroBloqueado) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _salvar,
+                  icon: const Icon(Icons.check),
+                  label: Text(
+                    venda != null && !venda.itensEditaveis
+                        ? 'Salvar pagamento'
+                        : 'Salvar venda',
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -293,7 +310,9 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
           children: [
             Icon(icone ?? Icons.info_outline, color: texto),
             const SizedBox(width: 12),
-            Expanded(child: Text(mensagem, style: TextStyle(color: texto))),
+            Expanded(
+              child: Text(mensagem, style: TextStyle(color: texto)),
+            ),
           ],
         ),
       ),
@@ -307,12 +326,15 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
   Widget _buildAndamento(Venda venda) {
     final tema = Theme.of(context).textTheme;
     final acoes = <Widget>[];
-    FilledButton acao(String rotulo, IconData icone, VoidCallback aoPressionar) =>
-        FilledButton.icon(
-          onPressed: _executandoAcao ? null : aoPressionar,
-          icon: Icon(icone),
-          label: Text(rotulo),
-        );
+    FilledButton acao(
+      String rotulo,
+      IconData icone,
+      VoidCallback aoPressionar,
+    ) => FilledButton.icon(
+      onPressed: _executandoAcao ? null : aoPressionar,
+      icon: Icon(icone),
+      label: Text(rotulo),
+    );
     OutlinedButton acaoSecundaria(
       String rotulo,
       IconData icone,
@@ -327,7 +349,11 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
       switch (proximo) {
         case StatusVenda.emProducao:
           acoes.add(
-            acao('Iniciar produção', Icons.soup_kitchen_outlined, _iniciarProducao),
+            acao(
+              'Iniciar produção',
+              Icons.soup_kitchen_outlined,
+              _iniciarProducao,
+            ),
           );
         case StatusVenda.aguardandoRetirada:
           acoes.add(
@@ -358,9 +384,7 @@ class _VendaFormScreenState extends State<VendaFormScreen> {
       }
     }
     if (venda.entregue || venda.status == StatusVenda.cancelada) {
-      acoes.add(
-        acaoSecundaria('Reabrir venda', Icons.undo_outlined, _reabrir),
-      );
+      acoes.add(acaoSecundaria('Reabrir venda', Icons.undo_outlined, _reabrir));
     }
 
     return SectionCard(

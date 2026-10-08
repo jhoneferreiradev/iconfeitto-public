@@ -184,10 +184,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
           ]),
           footer: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.md,
             children: [
               _buildTotal(),
               if (!_financeiroBloqueado) ...[
-                const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: _salvar,
                   icon: const Icon(Icons.check),
