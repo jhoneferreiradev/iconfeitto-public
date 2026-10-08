@@ -570,7 +570,7 @@ class _LancamentoFinanceiroFormScreenState
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
       valorLancamento: vinculado
-          ? original!.valorLancamento
+          ? original.valorLancamento
           : numeroOuZero(valores['valorLancamento']),
       valorDesconto: numeroOuZero(valores['valorDesconto']),
       valorAcrescimo: numeroOuZero(valores['valorAcrescimo']),
@@ -579,15 +579,15 @@ class _LancamentoFinanceiroFormScreenState
           ? valores['dataCompensacao'] as DateTime?
           : null,
       tipoLancamento: vinculado
-          ? original!.tipoLancamento
+          ? original.tipoLancamento
           : valores['tipoLancamento'] as TipoLancamentoFinanceiro,
       formaPagamento: vinculado
-          ? original!.formaPagamento
+          ? original.formaPagamento
           : valores['formaPagamento'] as FormaPagamento?,
       observacao: original?.observacao ?? '',
       quitacoes: _quitacoes,
       pessoaFinanceiro: vinculado
-          ? original!.pessoaFinanceiro
+          ? original.pessoaFinanceiro
           : valores['pessoaFinanceiro'] as PessoaFinanceiro,
       lancamentoPai: original?.lancamentoPai,
       operacaoOrigemId: original?.operacaoOrigemId ?? 'null',

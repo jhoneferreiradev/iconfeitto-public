@@ -603,8 +603,41 @@ class AppRepository extends ChangeNotifier {
       );
     }
 
+    // recupere a data da compra original, do banco
+    final compraDoBancoRaw = await _db.query(
+      'compras',
+      where: 'id = ?',
+      whereArgs: [compra.id],
+    );
+    final compraDoBanco = compraDoBancoRaw.isNotEmpty
+        ? compraDoBancoRaw.first
+        : null;
+    final dataCompraOriginal = compraDoBanco != null
+        ? DateTime.parse(compraDoBanco['data'] as String)
+        : null;
+
+    final dataCompraAlterada =
+        dataCompraOriginal != null && dataCompraOriginal != compra.data;
+
     final movimentosAntigos = _movimentosDaCompra(compras[indice]);
     final movimentosNovos = _criarMovimentosCompra(compra);
+
+    bool deveRemover(MovimentoEstoque mov) {
+      final idx = compra.itens.indexWhere(
+        (item) =>
+            item.produtoId == mov.produtoId &&
+            item.quantidade == mov.quantidade &&
+            item.unidadeId == mov.unidadeId &&
+            mov.valorUnitario == item.valorUnitario,
+      );
+      return idx >= 0;
+    }
+
+    if (!dataCompraAlterada) {
+      movimentosAntigos.removeWhere(deveRemover);
+      movimentosNovos.removeWhere(deveRemover);
+    }
+
     final idsAntigos = movimentosAntigos
         .map((movimento) => movimento.id)
         .toSet();
@@ -903,16 +936,14 @@ class AppRepository extends ChangeNotifier {
         .toSet();
     final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(const [], removerIds: idsRemovidos);
-    await _db.transaction(
-      (transaction) async {
-        await _removerVendaDoBanco(transaction, vendaId, movimentosDaVenda);
-        await _excluirLancamentosDaOperacaoDoBanco(
-          transaction,
-          TipoOperacaoOrigem.venda,
-          vendaId,
-        );
-      },
-    );
+    await _db.transaction((transaction) async {
+      await _removerVendaDoBanco(transaction, vendaId, movimentosDaVenda);
+      await _excluirLancamentosDaOperacaoDoBanco(
+        transaction,
+        TipoOperacaoOrigem.venda,
+        vendaId,
+      );
+    });
 
     movimentacoes.removeWhere(
       (movimento) => idsRemovidos.contains(movimento.id),
@@ -937,18 +968,16 @@ class AppRepository extends ChangeNotifier {
     return indice;
   }
 
-  Future<void> _gravarStatusDaVenda(
-    DatabaseExecutor database,
-    Venda venda,
-  ) => database.update(
-    'vendas',
-    {
-      'status': venda.status.name,
-      'dataEntregue': venda.dataEntregue?.toIso8601String(),
-    },
-    where: 'id = ?',
-    whereArgs: [venda.id],
-  );
+  Future<void> _gravarStatusDaVenda(DatabaseExecutor database, Venda venda) =>
+      database.update(
+        'vendas',
+        {
+          'status': venda.status.name,
+          'dataEntregue': venda.dataEntregue?.toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [venda.id],
+      );
 
   bool _temFichaDeFabricacao(Produto? produto) =>
       produto != null &&
@@ -971,7 +1000,9 @@ class AppRepository extends ChangeNotifier {
       );
     }
     final atualizada = venda.copyWith(status: novo);
-    await _db.transaction((transaction) => _gravarStatusDaVenda(transaction, atualizada));
+    await _db.transaction(
+      (transaction) => _gravarStatusDaVenda(transaction, atualizada),
+    );
     vendas[indice] = atualizada;
     notifyListeners();
   }
@@ -1091,7 +1122,9 @@ class AppRepository extends ChangeNotifier {
       await salvarFabricacoes(fabricacoesDaVenda);
     }
     final atualizada = venda.copyWith(status: StatusVenda.emProducao);
-    await _db.transaction((transaction) => _gravarStatusDaVenda(transaction, atualizada));
+    await _db.transaction(
+      (transaction) => _gravarStatusDaVenda(transaction, atualizada),
+    );
     vendas[indice] = atualizada;
     notifyListeners();
   }
@@ -1119,7 +1152,10 @@ class AppRepository extends ChangeNotifier {
     await _db.transaction((transaction) async {
       await _gravarStatusDaVenda(transaction, entregue);
       for (final movimento in movimentosNovos) {
-        await transaction.insert('movimentos_estoque', _movimentoToRow(movimento));
+        await transaction.insert(
+          'movimentos_estoque',
+          _movimentoToRow(movimento),
+        );
       }
     });
     vendas[indice] = entregue;
@@ -1140,7 +1176,9 @@ class AppRepository extends ChangeNotifier {
     }
     final temProducao = fabricacoes.any((f) => f.vendaId == venda.id);
     final destino = venda.tipo == TipoVenda.programada && temProducao
-        ? (venda.entregue ? StatusVenda.aguardandoRetirada : StatusVenda.emProducao)
+        ? (venda.entregue
+              ? StatusVenda.aguardandoRetirada
+              : StatusVenda.emProducao)
         : StatusVenda.pedido;
     final reaberta = venda.copyWith(status: destino, limparDataEntregue: true);
 
@@ -1250,16 +1288,16 @@ class AppRepository extends ChangeNotifier {
   List<MovimentoEstoque> _criarMovimentosVenda(Venda venda) => [
     if (venda.entregue)
       for (final item in venda.itens)
-      MovimentoEstoque(
-        id: novoId(),
-        operacaoId: venda.id,
-        data: venda.dataReferencia,
-        produtoId: item.produtoId,
-        tipo: TipoMovimentoEstoque.venda,
-        quantidade: item.quantidade,
-        valorUnitario: item.valorUnitario,
-        unidadeId: item.unidadeId,
-      ),
+        MovimentoEstoque(
+          id: novoId(),
+          operacaoId: venda.id,
+          data: venda.dataReferencia,
+          produtoId: item.produtoId,
+          tipo: TipoMovimentoEstoque.venda,
+          quantidade: item.quantidade,
+          valorUnitario: item.valorUnitario,
+          unidadeId: item.unidadeId,
+        ),
   ];
 
   List<MovimentoEstoque> _movimentosDaVenda(Venda venda) {
@@ -2162,7 +2200,8 @@ class AppRepository extends ChangeNotifier {
 
     for (final lancamento in lancamentosFinanceiros) {
       final paiId = paiPorLancamento[lancamento.id];
-      if (paiId != null) lancamento.lancamentoPai = lancamentoFinanceiroPorId(paiId);
+      if (paiId != null)
+        lancamento.lancamentoPai = lancamentoFinanceiroPorId(paiId);
     }
   }
 
@@ -2251,13 +2290,16 @@ class AppRepository extends ChangeNotifier {
   }
 
   List<PessoaFinanceiro> get pessoasCartaoCredito => pessoasFinanceiro
-      .where((p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito)
+      .where(
+        (p) => p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito,
+      )
       .toList();
 
   List<PessoaFinanceiro> get pessoasBandeiraCartao => pessoasFinanceiro
       .where(
         (p) =>
-            p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.bandeiraCartaoCredito,
+            p.tipoPessoaFinanceiro ==
+            TipoPessoaFinanceiro.bandeiraCartaoCredito,
       )
       .toList();
 
@@ -2306,12 +2348,17 @@ class AppRepository extends ChangeNotifier {
   }
 
   Future<void> excluirCartaoCredito(String id) async {
-    _validarPessoaSemLancamentos(id, TipoPessoaFinanceiro.cartaoCredito, 'cartão');
+    _validarPessoaSemLancamentos(
+      id,
+      TipoPessoaFinanceiro.cartaoCredito,
+      'cartão',
+    );
     await _db.delete('cartoes_credito', where: 'id = ?', whereArgs: [id]);
     cartoesCredito.removeWhere((c) => c.id == id);
     pessoasFinanceiro.removeWhere(
       (p) =>
-          p.id == id && p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito,
+          p.id == id &&
+          p.tipoPessoaFinanceiro == TipoPessoaFinanceiro.cartaoCredito,
     );
     notifyListeners();
   }
@@ -2320,7 +2367,9 @@ class AppRepository extends ChangeNotifier {
   Future<PessoaFinanceiro> salvarBandeiraCartao(
     BandeiraCartaoCredito bandeira,
   ) async {
-    final indice = bandeirasCartaoCredito.indexWhere((b) => b.id == bandeira.id);
+    final indice = bandeirasCartaoCredito.indexWhere(
+      (b) => b.id == bandeira.id,
+    );
     final linha = {
       'id': bandeira.id,
       'nome': bandeira.nome,
