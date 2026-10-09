@@ -27,8 +27,6 @@ class Item {
     required this.custoOperacional,
     this.saldoEstoque = 0,
     required this.tipo,
-    bool? podeSerVendido,
-    bool? podeSerComprado,
     this.possuiFichaTecnica = false,
     this.tempoPreparoMinutos = 0,
     this.rendimentoReceita = 0,

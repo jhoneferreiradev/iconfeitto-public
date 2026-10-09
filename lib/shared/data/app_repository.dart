@@ -155,8 +155,6 @@ class AppRepository extends ChangeNotifier {
           ativo: (row['ativo'] as int) == 1,
           custoMedio: row['custoMedio'] as double,
           saldoEstoque: row['saldoEstoque'] as double,
-          podeSerVendido: (row['podeSerVendido'] as int) == 1,
-          podeSerComprado: (row['podeSerComprado'] as int) == 1,
           tipo: TipoItem.fromString((row['tipo'] as String)),
           possuiFichaTecnica: (row['possuiFichaTecnica'] as int) == 1,
           tempoPreparoMinutos: row['tempoPreparoMinutos'] as int,
