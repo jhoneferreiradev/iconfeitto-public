@@ -325,6 +325,13 @@ class AppRepository extends ChangeNotifier {
   }
 
   void _loadPessoasFinanceiras() {
+    pessoasFinanceiro.add(
+      PessoaFinanceiro(
+        id: empresa.id,
+        nome: empresa.nome ?? "Esta empresa",
+        tipoPessoaFinanceiro: TipoPessoaFinanceiro.empresaCorrente,
+      ),
+    );
     pessoasFinanceiro.addAll(
       clientes.map(
         (e) => PessoaFinanceiro(

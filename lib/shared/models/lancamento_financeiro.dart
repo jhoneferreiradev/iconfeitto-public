@@ -89,7 +89,8 @@ enum TipoPessoaFinanceiro {
   cliente("Cliente"),
   fornecedor("Fornecedor"),
   cartaoCredito("Cartão de crédito"),
-  bandeiraCartaoCredito("Bandeira");
+  bandeiraCartaoCredito("Bandeira"),
+  empresaCorrente("Empresa");
 
   const TipoPessoaFinanceiro(this.label);
   final String label;
@@ -156,6 +157,7 @@ class LancamentoFinanceiro extends Equatable {
   bool get hasQuitacoes => quitacoes.isNotEmpty;
   double get valorQuitado =>
       quitacoes.fold(0.0, (sum, quitacao) => sum + quitacao.valorQuitado);
+
   /// Valor a pagar/receber: valor menos desconto, mais acréscimo, com as taxas
   /// e impostos reduzindo a receita (o que se recebe) e somando à despesa.
   double get valorTotal => calcularValorTotal(
@@ -178,6 +180,7 @@ class LancamentoFinanceiro extends Equatable {
         : taxasImpostos;
     return valor - desconto + acrescimo + taxas;
   }
+
   double get valorRestante => valorTotal - valorQuitado;
   DateTime get dataUltimaQuitacao =>
       quitacoes.isEmpty ? dataCriacao : quitacoesOrdenadas.last.dataQuitacao;
