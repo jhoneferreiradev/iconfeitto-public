@@ -4,9 +4,9 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
-import '../../../shared/models/operacao.dart';
 import '../../../shared/models/produto.dart';
 import '../pdf/movimentos_pdf.dart';
+import '../widgets/movimento_estoque_dialogs.dart';
 
 class EstoqueScreen extends StatefulWidget {
   const EstoqueScreen({super.key});
@@ -53,13 +53,29 @@ class _EstoqueScreenState extends State<EstoqueScreen> {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.print_outlined),
-                              tooltip: 'Imprimir últimas movimentações',
-                              onPressed: () => MovimentosPdf.imprimir(produto),
+                              tooltip: 'Prévia das últimas movimentações',
+                              onPressed: () => MovimentosPdf.visualizar(context, produto),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              tooltip: 'Ajustar estoque',
-                              onPressed: () => _ajustar(context, repo, produto),
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.tune),
+                              tooltip: 'Operações de estoque',
+                              onSelected: (operacao) {
+                                if (operacao == 'ajuste') {
+                                  mostrarAjusteEstoque(context, produto);
+                                } else {
+                                  mostrarSaidaConsumo(context, produto);
+                                }
+                              },
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: 'ajuste',
+                                  child: Text('Ajustar saldo e custo'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'consumo',
+                                  child: Text('Saída para consumo'),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -73,72 +89,6 @@ class _EstoqueScreenState extends State<EstoqueScreen> {
         );
       },
     );
-  }
-
-  Future<void> _ajustar(
-    BuildContext context,
-    AppRepository repo,
-    Produto produto,
-  ) async {
-    final saldoController = TextEditingController(
-      text: produto.saldoEstoque.toDecimal(),
-    );
-    final custoController = TextEditingController(
-      text: produto.custoMedio.toDecimal(),
-    );
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Ajustar ${produto.nome}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: saldoController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(labelText: 'Saldo'),
-            ),
-            TextField(
-              controller: custoController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(labelText: 'Custo médio'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Aplicar'),
-          ),
-        ],
-      ),
-    );
-    if (!context.mounted) return;
-    if (confirmado != true) return;
-    final saldo = saldoController.text.toDouble();
-    final custo = custoController.text.toDouble();
-    if (saldo == null || custo == null || saldo < 0 || custo < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe um saldo e custo válidos.')),
-      );
-      return;
-    }
-    try {
-      await repo.ajustarEstoque(produto.id, saldo, custo);
-    } on SaldoEstoqueInsuficienteException catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
-      }
-    }
   }
 
   Widget _buildFiltros(BuildContext context) {

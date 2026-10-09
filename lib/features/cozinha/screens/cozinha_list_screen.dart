@@ -83,9 +83,9 @@ class CozinhaListScreen extends StatelessWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.print_outlined),
-                              tooltip: 'Imprimir',
+                              tooltip: 'Prévia de impressão',
                               onPressed: () =>
-                                  FabricacaoPdf.imprimir(fabricacao),
+                                  FabricacaoPdf.visualizar(context, fabricacao),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete_outline),

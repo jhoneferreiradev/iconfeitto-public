@@ -1,89 +1,77 @@
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:material_ui/material_ui.dart';
 
-import '../../../core/theme/app_spacing.dart';
+import '../../../core/pdf/pdf_padrao.dart';
+import '../../../core/pdf/pdf_relatorio.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/data/app_repository.dart';
-import '../../../shared/models/produto.dart';
-import '../../../shared/models/tipo_item.dart';
+import '../../../shared/models/lancamento_financeiro.dart';
 
-class ItemListPdf {
-  static Future<void> imprimir(
-    List<Produto> itens, {
+/// Lista de lançamentos financeiros no padrão de impressão do app.
+class LancamentoFinanceiroListPdf {
+  static Future<void> visualizar(
+    BuildContext context,
+    List<LancamentoFinanceiro> lancamentos, {
     required String titulo,
-    required bool listaDeEstoque,
-  }) async {
+  }) => relatorio(lancamentos, titulo: titulo).visualizar(context);
+
+  static PdfRelatorio relatorio(
+    List<LancamentoFinanceiro> lancamentos, {
+    required String titulo,
+  }) {
     final repo = AppRepository.instance;
-    final documento = pw.Document(title: titulo);
-    documento.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          pw.Text(
-            titulo,
-            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 16),
-          pw.TableHelper.fromTextArray(
-            headers: listaDeEstoque
-                ? ['Item', 'Tipo', 'Custo médio', 'Saldo em estoque']
-                : ['Item', 'Tipo', 'Custo por rendimento', 'Valor de venda'],
-            data: [
-              for (final item in itens)
-                listaDeEstoque
-                    ? [
-                        item.nome,
-                        item.tipo.label,
-                        item.custoMedio.toCurrency(),
-                        '${item.saldoEstoque.toDecimal()} ${repo.unidadePorId(item.unidadeEstoqueId).sigla}',
-                      ]
-                    : [
-                        item.nome,
-                        '${item.tipo.label} ',
-                        CalculadoraCustoProduto(
-                          rendimentoReceita: item.rendimentoReceita,
-                          custoFichaTecnica: repo.custoTotalFicha(item),
-                          custoOperacional: item.custoOperacional,
-                          custoUnitarioEmbalagem: repo.custoEmbalagem(item),
-                        ).custoRendimentoUnitario.toCurrency(),
-                        item.tipo == TipoItem.produto
-                            ? item.precoVenda.toCurrency()
-                            : '',
-                      ],
+    final ordenados = [...lancamentos]
+      ..sort((a, b) => a.dataVencimento.compareTo(b.dataVencimento));
+    final totalValores = ordenados.fold<double>(0, (s, l) => s + l.valorTotal);
+    final totalAberto = ordenados.fold<double>(
+      0,
+      (s, l) => s + (l.isEncerrado ? 0 : l.valorRestante),
+    );
+
+    return PdfRelatorio(
+      titulo: titulo,
+      gerar: (_) => PdfPadrao.gerar(
+        empresa: repo.empresa,
+        tituloDocumento: titulo,
+        referencia: titulo,
+        titulo: PdfPadrao.titulo(
+          sobretitulo: 'Relatório financeiro',
+          titulo: titulo,
+          destaques: [(rotulo: 'Lançamentos', valor: '${ordenados.length}')],
+        ),
+        conteudo: (_) => [
+          PdfPadrao.tabela(
+            colunas: const [
+              'Vencimento',
+              'Descrição',
+              'Pessoa',
+              'Situação',
+              'Total',
+              'Em aberto',
             ],
-            headerStyle: pw.TextStyle(
-              color: PdfColors.white,
-              fontWeight: pw.FontWeight.bold,
-            ),
-            headerDecoration: const pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFF8B3A62),
-            ),
-            cellPadding: pw.EdgeInsets.all(AppSpacing.xs),
-            border: pw.TableBorder.all(color: PdfColors.grey300),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(3),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(2),
-              3: const pw.FlexColumnWidth(2),
-            },
-            cellAlignments: {
-              0: pw.Alignment.centerLeft,
-              1: pw.Alignment.center,
-              2: pw.Alignment.centerRight,
-              3: pw.Alignment.centerRight,
-            },
-            headerAlignments: {
-              0: pw.Alignment.centerLeft,
-              1: pw.Alignment.center,
-              2: pw.Alignment.center,
-              3: pw.Alignment.center,
-            },
+            larguras: const [1.6, 3.4, 2.4, 1.8, 1.6, 1.6],
+            alinhadasADireita: const {4, 5},
+            linhas: [
+              for (final item in ordenados)
+                [
+                  item.dataVencimento.toFormattedDate(),
+                  item.descricao,
+                  item.pessoaFinanceiro.nome,
+                  item.statusLancamento.label,
+                  item.valorTotal.toCurrency(),
+                  (item.isEncerrado ? 0.0 : item.valorRestante).toCurrency(),
+                ],
+            ],
+          ),
+          PdfPadrao.espaco(14),
+          PdfPadrao.caixaTotal(
+            rotulo: 'Total dos lançamentos',
+            valor: totalValores.toCurrency(),
+            detalhes: [
+              PdfDetalheTotal('Em aberto', totalAberto.toCurrency()),
+            ],
           ),
         ],
       ),
     );
-    await Printing.layoutPdf(onLayout: (_) async => documento.save());
   }
 }

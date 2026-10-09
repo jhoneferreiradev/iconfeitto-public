@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 21,
+      version: 22,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -371,6 +371,101 @@ class AppDatabase {
     );
   }
 
+  /// v22: o ajuste de estoque passa a ser soberano (define o saldo) em vez de
+  /// uma diferença. Converte os ajustes existentes pelo saldo que eles
+  /// produziam e registra, como ajuste inicial, o saldo que o produto já tinha
+  /// antes da primeira movimentação (o saldo passa a ser sempre calculado
+  /// reproduzindo as movimentações).
+  Future<void> _migrarAjustesParaSaldoAbsoluto(Database db) async {
+    final fatores = {
+      for (final unidade in await db.query(
+        'unidades_medida',
+        columns: ['id', 'fatorParaBase'],
+      ))
+        '${unidade['id']}': (unidade['fatorParaBase'] as num).toDouble(),
+    };
+    double fator(Object? unidadeId) => fatores['$unidadeId'] ?? 1;
+    bool ehTipo(Object? tipo, String nome) => '$tipo'.contains(nome);
+
+    var ultimoId =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COALESCE(MAX(id), 0) FROM movimentos_estoque'),
+        ) ??
+        0;
+
+    final produtos = await db.query(
+      'produtos',
+      columns: ['id', 'saldoEstoque', 'custoMedio', 'unidadeEstoqueId'],
+    );
+    for (final produto in produtos) {
+      final fatorEstoque = fator(produto['unidadeEstoqueId']);
+      final movimentos = [
+        ...await db.query(
+          'movimentos_estoque',
+          where: 'produtoId = ?',
+          whereArgs: [produto['id']],
+        ),
+      ]..sort((a, b) {
+        final porData = DateTime.parse(
+          a['data'] as String,
+        ).compareTo(DateTime.parse(b['data'] as String));
+        return porData != 0
+            ? porData
+            : (a['id'] as int).compareTo(b['id'] as int);
+      });
+
+      double emEstoque(Map<String, Object?> movimento) =>
+          (movimento['quantidade'] as num).toDouble() *
+          fator(movimento['unidadeId']) /
+          fatorEstoque;
+      double variacao(Map<String, Object?> movimento) {
+        final entrada =
+            ehTipo(movimento['tipo'], 'compra') ||
+            ehTipo(movimento['tipo'], 'producao') ||
+            ehTipo(movimento['tipo'], 'ajuste');
+        return entrada ? emEstoque(movimento) : -emEstoque(movimento);
+      }
+
+      // Saldo que o produto tinha antes de qualquer movimentação.
+      final saldoInicial =
+          (produto['saldoEstoque'] as num).toDouble() -
+          movimentos.fold<double>(0, (soma, m) => soma + variacao(m));
+
+      var saldo = saldoInicial;
+      for (final movimento in movimentos) {
+        if (ehTipo(movimento['tipo'], 'ajuste')) {
+          saldo += emEstoque(movimento);
+          await db.update(
+            'movimentos_estoque',
+            {'quantidade': saldo * fatorEstoque / fator(movimento['unidadeId'])},
+            where: 'id = ?',
+            whereArgs: [movimento['id']],
+          );
+        } else {
+          saldo += variacao(movimento);
+        }
+      }
+
+      if (saldoInicial > 1e-9) {
+        final primeira = movimentos.isEmpty
+            ? DateTime(2000)
+            : DateTime.parse(
+                movimentos.first['data'] as String,
+              ).subtract(const Duration(seconds: 1));
+        await db.insert('movimentos_estoque', {
+          'id': ++ultimoId,
+          'operacaoId': null,
+          'data': primeira.toIso8601String(),
+          'produtoId': produto['id'],
+          'tipo': 'ajuste',
+          'quantidade': saldoInicial,
+          'valorUnitario': (produto['custoMedio'] as num).toDouble(),
+          'unidadeId': produto['unidadeEstoqueId'],
+        });
+      }
+    }
+  }
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createCustosOperacionaisTable(db);
@@ -547,6 +642,10 @@ class AppDatabase {
         'vendaId',
         'INTEGER',
       );
+    }
+
+    if (oldVersion < 22) {
+      await _migrarAjustesParaSaldoAbsoluto(db);
     }
   }
 

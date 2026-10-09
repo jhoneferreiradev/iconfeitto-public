@@ -50,11 +50,12 @@ class _ProdutoListScreenState extends State<ProdutoListScreen> {
           title: widget.title,
           actions: [
             IconButton(
-              tooltip: 'Imprimir lista',
+              tooltip: 'Prévia de impressão da lista',
               icon: const Icon(Icons.print_outlined),
               onPressed: itens.isEmpty
                   ? null
-                  : () => ItemListPdf.imprimir(
+                  : () => ItemListPdf.visualizar(
+                      context,
                       itens,
                       titulo: widget.title,
                       listaDeEstoque: _listaDeEstoque,
@@ -160,8 +161,8 @@ class _ProdutoListScreenState extends State<ProdutoListScreen> {
             if (isProduto)
               IconButton(
                 icon: const Icon(Icons.print_outlined),
-                tooltip: 'Imprimir ficha técnica',
-                onPressed: () => FichaTecnicaPdf.imprimir(item),
+                tooltip: 'Prévia de impressão da ficha técnica',
+                onPressed: () => FichaTecnicaPdf.visualizar(context, item),
               ),
             IconButton(
               icon: const Icon(Icons.delete_outline),

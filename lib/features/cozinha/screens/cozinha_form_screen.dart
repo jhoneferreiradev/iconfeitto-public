@@ -94,8 +94,8 @@ class _CozinhaFormScreenState extends State<CozinhaFormScreen> {
         if (fabricacao != null) ...[
           IconButton(
             icon: const Icon(Icons.print_outlined),
-            tooltip: 'Imprimir',
-            onPressed: () => FabricacaoPdf.imprimir(fabricacao),
+            tooltip: 'Prévia de impressão',
+            onPressed: () => FabricacaoPdf.visualizar(context, fabricacao),
           ),
           if (!_ehVinculada(fabricacao))
             IconButton(

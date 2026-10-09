@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/utils/data_registro.dart';
+import '../domain/estoque_calculator.dart';
 import '../models/cartao_credito.dart';
 import '../models/cliente.dart';
 import '../models/custo_operacional.dart';
@@ -563,9 +565,6 @@ class AppRepository extends ChangeNotifier {
 
   Future<void> salvarCompra(Compra compra) async {
     final movimentosNovos = _criarMovimentosCompra(compra);
-    final saldosIniciais = _capturarSaldosIniciais(
-      movimentosNovos.map((movimento) => movimento.produtoId),
-    );
     _validarSaldoEstoque(movimentosNovos);
     await _db.transaction((transaction) async {
       await _inserirCompra(transaction, compra, movimentosNovos);
@@ -579,7 +578,6 @@ class AppRepository extends ChangeNotifier {
       produtosSemMovimentacoes: movimentosNovos
           .map((movimento) => movimento.produtoId)
           .toSet(),
-      saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
 
@@ -603,48 +601,11 @@ class AppRepository extends ChangeNotifier {
       );
     }
 
-    // recupere a data da compra original, do banco
-    final compraDoBancoRaw = await _db.query(
-      'compras',
-      where: 'id = ?',
-      whereArgs: [compra.id],
-    );
-    final compraDoBanco = compraDoBancoRaw.isNotEmpty
-        ? compraDoBancoRaw.first
-        : null;
-    final dataCompraOriginal = compraDoBanco != null
-        ? DateTime.parse(compraDoBanco['data'] as String)
-        : null;
-
-    final dataCompraAlterada =
-        dataCompraOriginal != null && dataCompraOriginal != compra.data;
-
     final movimentosAntigos = _movimentosDaCompra(compras[indice]);
     final movimentosNovos = _criarMovimentosCompra(compra);
-
-    bool deveRemover(MovimentoEstoque mov) {
-      final idx = compra.itens.indexWhere(
-        (item) =>
-            item.produtoId == mov.produtoId &&
-            item.quantidade == mov.quantidade &&
-            item.unidadeId == mov.unidadeId &&
-            mov.valorUnitario == item.valorUnitario,
-      );
-      return idx >= 0;
-    }
-
-    if (!dataCompraAlterada) {
-      movimentosAntigos.removeWhere(deveRemover);
-      movimentosNovos.removeWhere(deveRemover);
-    }
-
     final idsAntigos = movimentosAntigos
         .map((movimento) => movimento.id)
         .toSet();
-    final saldosIniciais = _capturarSaldosIniciais({
-      ...movimentosAntigos.map((movimento) => movimento.produtoId),
-      ...movimentosNovos.map((movimento) => movimento.produtoId),
-    });
     _validarSaldoEstoque(movimentosNovos, removerIds: idsAntigos);
     await _db.transaction((transaction) async {
       for (final movimento in movimentosAntigos) {
@@ -681,7 +642,6 @@ class AppRepository extends ChangeNotifier {
         ...movimentosAntigos.map((movimento) => movimento.produtoId),
         ...movimentosNovos.map((movimento) => movimento.produtoId),
       },
-      saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
 
@@ -708,9 +668,6 @@ class AppRepository extends ChangeNotifier {
     final idsRemovidos = movimentosDaCompra
         .map((movimento) => movimento.id)
         .toSet();
-    final saldosIniciais = _capturarSaldosIniciais(
-      movimentosDaCompra.map((movimento) => movimento.produtoId),
-    );
     _validarSaldoEstoque(const [], removerIds: idsRemovidos);
     await _db.transaction((transaction) async {
       for (final movimento in movimentosDaCompra) {
@@ -742,7 +699,6 @@ class AppRepository extends ChangeNotifier {
       produtosSemMovimentacoes: movimentosDaCompra
           .map((movimento) => movimento.produtoId)
           .toSet(),
-      saldosIniciais: saldosIniciais,
     );
     await _persistirProdutos();
     notifyListeners();
@@ -787,7 +743,6 @@ class AppRepository extends ChangeNotifier {
   ];
 
   List<MovimentoEstoque> _movimentosDaCompra(Compra compra) {
-
     final candidatos = movimentacoes
         .where((movimento) => movimento.tipo == TipoMovimentoEstoque.compra)
         .toList();
@@ -803,19 +758,11 @@ class AppRepository extends ChangeNotifier {
       );
       if (indice >= 0) correspondentes.add(candidatos.removeAt(indice));
     }
-    if (correspondentes.length != compra.itens.length) {
-      throw StateError(
-        'Não foi possível localizar todas as movimentações da compra.',
-      );
-    }
     return correspondentes;
   }
 
   Future<void> salvarVenda(Venda venda) async {
     final movimentosNovos = _criarMovimentosVenda(venda);
-    final saldosIniciais = _capturarSaldosIniciais(
-      movimentosNovos.map((movimento) => movimento.produtoId),
-    );
     _validarSaldoEstoque(movimentosNovos);
     await _db.transaction((transaction) async {
       await _inserirVenda(transaction, venda, movimentosNovos);
@@ -826,7 +773,7 @@ class AppRepository extends ChangeNotifier {
     vendas.add(venda);
     _registrarLancamentos(venda.lancamentosFinanceiros);
     movimentacoes.addAll(movimentosNovos);
-    recalcularEstoque(saldosIniciais: saldosIniciais);
+    recalcularEstoque();
     await _persistirProdutos();
     notifyListeners();
   }
@@ -861,7 +808,6 @@ class AppRepository extends ChangeNotifier {
       ...movimentosAntigos.map((movimento) => movimento.produtoId),
       ...movimentosNovos.map((movimento) => movimento.produtoId),
     };
-    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(movimentosNovos, removerIds: idsAntigos);
     await _db.transaction((transaction) async {
       await _removerVendaDoBanco(transaction, venda.id, movimentosAntigos);
@@ -885,10 +831,7 @@ class AppRepository extends ChangeNotifier {
       _removerLancamentosDaOperacao(TipoOperacaoOrigem.venda, venda.id);
       _registrarLancamentos(venda.lancamentosFinanceiros);
     }
-    recalcularEstoque(
-      produtosSemMovimentacoes: produtosAfetados,
-      saldosIniciais: saldosIniciais,
-    );
+    recalcularEstoque(produtosSemMovimentacoes: produtosAfetados);
     await _persistirProdutos();
     notifyListeners();
   }
@@ -919,7 +862,6 @@ class AppRepository extends ChangeNotifier {
     final produtosAfetados = movimentosDaVenda
         .map((movimento) => movimento.produtoId)
         .toSet();
-    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(const [], removerIds: idsRemovidos);
     await _db.transaction((transaction) async {
       await _removerVendaDoBanco(transaction, vendaId, movimentosDaVenda);
@@ -935,10 +877,7 @@ class AppRepository extends ChangeNotifier {
     );
     vendas.removeAt(indice);
     _removerLancamentosDaOperacao(TipoOperacaoOrigem.venda, vendaId);
-    recalcularEstoque(
-      produtosSemMovimentacoes: produtosAfetados,
-      saldosIniciais: saldosIniciais,
-    );
+    recalcularEstoque(produtosSemMovimentacoes: produtosAfetados);
     await _persistirProdutos();
     notifyListeners();
   }
@@ -1130,9 +1069,6 @@ class AppRepository extends ChangeNotifier {
       dataEntregue: dataEntregue,
     );
     final movimentosNovos = _criarMovimentosVenda(entregue);
-    final saldosIniciais = _capturarSaldosIniciais(
-      movimentosNovos.map((movimento) => movimento.produtoId),
-    );
     _validarSaldoEstoque(movimentosNovos);
     await _db.transaction((transaction) async {
       await _gravarStatusDaVenda(transaction, entregue);
@@ -1145,7 +1081,7 @@ class AppRepository extends ChangeNotifier {
     });
     vendas[indice] = entregue;
     movimentacoes.addAll(movimentosNovos);
-    recalcularEstoque(saldosIniciais: saldosIniciais);
+    recalcularEstoque();
     await _persistirProdutos();
     notifyListeners();
   }
@@ -1170,7 +1106,6 @@ class AppRepository extends ChangeNotifier {
     final movimentosAntigos = _movimentosDaVenda(venda);
     final idsAntigos = movimentosAntigos.map((m) => m.id).toSet();
     final produtosAfetados = movimentosAntigos.map((m) => m.produtoId).toSet();
-    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(const [], removerIds: idsAntigos);
     await _db.transaction((transaction) async {
       for (final movimento in movimentosAntigos) {
@@ -1184,10 +1119,7 @@ class AppRepository extends ChangeNotifier {
     });
     movimentacoes.removeWhere((movimento) => idsAntigos.contains(movimento.id));
     vendas[indice] = reaberta;
-    recalcularEstoque(
-      produtosSemMovimentacoes: produtosAfetados,
-      saldosIniciais: saldosIniciais,
-    );
+    recalcularEstoque(produtosSemMovimentacoes: produtosAfetados);
     await _persistirProdutos();
     notifyListeners();
   }
@@ -1404,9 +1336,6 @@ class AppRepository extends ChangeNotifier {
       );
     }
 
-    final saldosIniciais = _capturarSaldosIniciais(
-      movimentosNovos.map((movimento) => movimento.produtoId),
-    );
     _validarSaldoEstoque(movimentosNovos);
     await _db.transaction((transaction) async {
       for (final fabricacao in lista) {
@@ -1436,7 +1365,7 @@ class AppRepository extends ChangeNotifier {
     });
     fabricacoes.addAll(lista);
     movimentacoes.addAll(movimentosNovos);
-    recalcularEstoque(saldosIniciais: saldosIniciais);
+    recalcularEstoque();
     await _persistirProdutos();
     notifyListeners();
   }
@@ -1482,7 +1411,6 @@ class AppRepository extends ChangeNotifier {
     final produtosAfetados = movimentosRemovidos
         .map((movimento) => movimento.produtoId)
         .toSet();
-    final saldosIniciais = _capturarSaldosIniciais(produtosAfetados);
     _validarSaldoEstoque(const [], removerIds: idsRemovidos);
     await _db.transaction((transaction) async {
       for (final movimento in movimentosRemovidos) {
@@ -1510,10 +1438,7 @@ class AppRepository extends ChangeNotifier {
       (movimento) => idsRemovidos.contains(movimento.id),
     );
     fabricacoes.removeWhere((f) => idsDasFabricacoes.contains(f.id));
-    recalcularEstoque(
-      produtosSemMovimentacoes: produtosAfetados,
-      saldosIniciais: saldosIniciais,
-    );
+    recalcularEstoque(produtosSemMovimentacoes: produtosAfetados);
     await _persistirProdutos();
     notifyListeners();
   }
@@ -1572,29 +1497,80 @@ class AppRepository extends ChangeNotifier {
     return correspondentes;
   }
 
+  /// Ajuste de saldo e custo médio. É uma operação soberana: define o saldo
+  /// e o custo do produto no momento em que acontece, e o que veio antes dela
+  /// (inclusive lançamentos retroativos) não altera o que vem depois.
+  ///
+  /// Sem [data] (ou com a data de hoje) o ajuste vale a partir de agora. Em
+  /// uma data passada ele vale ao fim daquele dia.
   Future<void> ajustarEstoque(
     String produtoId,
     double novoSaldo,
-    double novoCusto,
-  ) async {
+    double novoCusto, {
+    DateTime? data,
+  }) async {
     final produto = produtoPorId(produtoId);
     if (produto == null) return;
+    if (novoSaldo < 0 || novoCusto < 0) {
+      throw StateError('Informe um saldo e um custo maiores ou iguais a zero.');
+    }
 
-    final movimento = MovimentoEstoque(
-      id: novoId(),
-      data: DateTime.now(),
-      produtoId: produtoId,
-      tipo: TipoMovimentoEstoque.ajuste,
-      quantidade: novoSaldo - produto.saldoEstoque,
-      valorUnitario: novoCusto,
-      unidadeId: produto.unidadeEstoqueId,
+    await _registrarMovimentoAvulso(
+      MovimentoEstoque(
+        id: novoId(),
+        data: _momentoDoAjuste(data),
+        produtoId: produtoId,
+        tipo: TipoMovimentoEstoque.ajuste,
+        quantidade: novoSaldo,
+        valorUnitario: novoCusto,
+        unidadeId: produto.unidadeEstoqueId,
+      ),
     );
+  }
 
-    final saldosIniciais = _capturarSaldosIniciais([produtoId]);
+  /// Saída de estoque para consumo próprio, na unidade de estoque do produto.
+  /// A [data] pode ser retroativa; o horário é o do registro.
+  Future<void> registrarConsumo(
+    String produtoId,
+    double quantidade, {
+    DateTime? data,
+  }) async {
+    final produto = produtoPorId(produtoId);
+    if (produto == null) return;
+    if (quantidade <= 0) {
+      throw StateError('Informe uma quantidade maior que zero.');
+    }
+
+    await _registrarMovimentoAvulso(
+      MovimentoEstoque(
+        id: novoId(),
+        data: dataComHorarioDeRegistro(data ?? DateTime.now()),
+        produtoId: produtoId,
+        tipo: TipoMovimentoEstoque.consumo,
+        quantidade: quantidade,
+        valorUnitario: produto.custoMedio,
+        unidadeId: produto.unidadeEstoqueId,
+      ),
+    );
+  }
+
+  DateTime _momentoDoAjuste(DateTime? data) {
+    final agora = DateTime.now();
+    if (data == null) return agora;
+    final dia = DateTime(data.year, data.month, data.day);
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+    if (dia.isAfter(hoje)) {
+      throw StateError('A data do ajuste não pode ser futura.');
+    }
+    if (dia == hoje) return agora;
+    return DateTime(dia.year, dia.month, dia.day, 23, 59, 59, 999);
+  }
+
+  Future<void> _registrarMovimentoAvulso(MovimentoEstoque movimento) async {
     _validarSaldoEstoque([movimento]);
     await _db.insert('movimentos_estoque', _movimentoToRow(movimento));
     movimentacoes.add(movimento);
-    recalcularEstoque(saldosIniciais: saldosIniciais);
+    recalcularEstoque();
     await _persistirProdutos();
     notifyListeners();
   }
@@ -1641,6 +1617,14 @@ class AppRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  late final EstoqueCalculator _estoque = EstoqueCalculator(
+    (unidadeId) => unidadePorId(unidadeId).fatorParaBase,
+  );
+
+  /// Garante que as movimentações propostas (e a retirada de [removerIds])
+  /// não deixem nenhuma saída sem saldo. A conferência é feita na linha do
+  /// tempo completa do produto, depois de aplicar tudo de uma vez; só valem
+  /// como erro as saídas que ficariam sem saldo por causa desta mudança.
   void _validarSaldoEstoque(
     List<MovimentoEstoque> movimentosPropostos, {
     Set<String> removerIds = const {},
@@ -1656,107 +1640,43 @@ class AppRepository extends ChangeNotifier {
       if (produto == null) {
         throw StateError('Um produto da operação não foi encontrado.');
       }
-      final eventos = [
-        ...movimentacoes.where(
-          (movimento) =>
-              movimento.produtoId == produtoId &&
-              !removerIds.contains(movimento.id),
-        ),
-        ...movimentosPropostos.where(
-          (movimento) => movimento.produtoId == produtoId,
-        ),
-      ]..sort(_compararMovimentos);
-
-      var saldo = _saldoInicialProduto(produto);
-      final fatorUnidadeEstoque = unidadePorId(produto.unidadeEstoqueId)
-          .fatorParaBase;
-      for (final movimento in eventos) {
-        final fatorUnidadeMovimento = unidadePorId(movimento.unidadeId)
-            .fatorParaBase;
-        final quantidade =
-            movimento.quantidade * fatorUnidadeMovimento / fatorUnidadeEstoque;
-        final saida = movimento.tipo == TipoMovimentoEstoque.ajuste
-            ? -quantidade
-            : (movimento.tipo == TipoMovimentoEstoque.compra ||
-                  movimento.tipo == TipoMovimentoEstoque.producao)
-            ? 0.0
-            : quantidade;
-
-        if (saida > 0 && saldo + 1e-9 < saida) {
-          throw SaldoEstoqueInsuficienteException(
-            produto: produto.nome,
-            unidade: unidadePorId(produto.unidadeEstoqueId).sigla,
-            disponivel: saldo < 0 ? 0 : saldo,
-            solicitado: saida,
-            data: movimento.data,
-          );
-        }
-
-        if (movimento.tipo == TipoMovimentoEstoque.compra ||
-            movimento.tipo == TipoMovimentoEstoque.producao) {
-          saldo += quantidade;
-        } else {
-          saldo -= saida;
-        }
-        if (saldo.abs() < 1e-9) saldo = 0;
+      final atuais = movimentacoes
+          .where((movimento) => movimento.produtoId == produtoId)
+          .toList();
+      final violacoesAntes = _estoque
+          .simular(
+            unidadeEstoqueId: produto.unidadeEstoqueId,
+            movimentos: atuais,
+          )
+          .violacoes
+          .map((passo) => passo.movimento.id)
+          .toSet();
+      final depois = _estoque.simular(
+        unidadeEstoqueId: produto.unidadeEstoqueId,
+        movimentos: [
+          ...atuais.where((movimento) => !removerIds.contains(movimento.id)),
+          ...movimentosPropostos.where(
+            (movimento) => movimento.produtoId == produtoId,
+          ),
+        ],
+      );
+      for (final passo in depois.violacoes) {
+        if (violacoesAntes.contains(passo.movimento.id)) continue;
+        throw SaldoEstoqueInsuficienteException(
+          produto: produto.nome,
+          unidade: unidadePorId(produto.unidadeEstoqueId).sigla,
+          disponivel: passo.saldoAntes < 0 ? 0 : passo.saldoAntes,
+          solicitado: passo.quantidade,
+          data: passo.movimento.data,
+        );
       }
     }
   }
 
-  /// Ordem das movimentações: pela data completa (dia, hora, minuto, segundo
-  /// e milissegundo) e, em caso de empate, pelo id numérico, que indica a
-  /// ordem de registro.
-  int _compararMovimentos(MovimentoEstoque a, MovimentoEstoque b) {
-    final dataComparacao = a.data.compareTo(b.data);
-    return dataComparacao != 0 ? dataComparacao : _compararIds(a.id, b.id);
-  }
-
-  /// Compara ids numericamente. Comparar como texto errava quando os ids têm
-  /// tamanhos diferentes (ex.: "9" depois de "10", ou ids sequenciais antigos
-  /// misturados com ids gerados por `novoId`).
-  int _compararIds(String a, String b) {
-    final numeroA = int.tryParse(a);
-    final numeroB = int.tryParse(b);
-    if (numeroA != null && numeroB != null) return numeroA.compareTo(numeroB);
-    return a.compareTo(b);
-  }
-
-  Map<String, double> _capturarSaldosIniciais(Iterable<String> produtoIds) => {
-    for (final produtoId in produtoIds)
-      if (produtoPorId(produtoId) case final produto?)
-        produtoId: _saldoInicialProduto(produto),
-  };
-
-  double _saldoInicialProduto(Produto produto) {
-    final variacaoMovimentacoes = movimentacoes
-        .where((movimento) => movimento.produtoId == produto.id)
-        .fold<double>(
-          0,
-          (saldo, movimento) =>
-              saldo + _variacaoEmUnidadeEstoque(produto, movimento),
-        );
-    return produto.saldoEstoque - variacaoMovimentacoes;
-  }
-
-  double _variacaoEmUnidadeEstoque(
-    Produto produto,
-    MovimentoEstoque movimento,
-  ) {
-    final fatorEstoque = unidadePorId(produto.unidadeEstoqueId).fatorParaBase;
-    final fatorMovimento = unidadePorId(movimento.unidadeId).fatorParaBase;
-    final quantidade = movimento.quantidade * fatorMovimento / fatorEstoque;
-    if (movimento.tipo == TipoMovimentoEstoque.compra ||
-        movimento.tipo == TipoMovimentoEstoque.producao ||
-        movimento.tipo == TipoMovimentoEstoque.ajuste) {
-      return quantidade;
-    }
-    return -quantidade;
-  }
-
-  void recalcularEstoque({
-    Set<String> produtosSemMovimentacoes = const {},
-    Map<String, double> saldosIniciais = const {},
-  }) {
+  /// Recalcula saldo e custo médio reproduzindo as movimentações de cada
+  /// produto. Produtos sem movimentação só são recalculados se estiverem em
+  /// [produtosSemMovimentacoes] (por exemplo, quando perderam a última).
+  void recalcularEstoque({Set<String> produtosSemMovimentacoes = const {}}) {
     final produtosComMovimento = movimentacoes
         .map((movimento) => movimento.produtoId)
         .toSet();
@@ -1765,49 +1685,14 @@ class AppRepository extends ChangeNotifier {
           !produtosSemMovimentacoes.contains(produto.id)) {
         continue;
       }
-      final saldoInicial =
-          saldosIniciais[produto.id] ?? _saldoInicialProduto(produto);
-      var saldo = saldoInicial;
-      var custo = saldo > 0 ? produto.custoMedio : 0.0;
-      var valorEstoque = saldo * custo;
-
-      final movimentosProduto =
-          movimentacoes
-              .where((movimento) => movimento.produtoId == produto.id)
-              .toList()
-            ..sort(_compararMovimentos);
-      for (final movimento in movimentosProduto) {
-        final unidadeMovimento = unidadePorId(movimento.unidadeId);
-        final unidadeProduto = unidadePorId(produto.unidadeEstoqueId);
-        final quantidade =
-            movimento.quantidade *
-            unidadeMovimento.fatorParaBase /
-            unidadeProduto.fatorParaBase;
-        final valorUnitario =
-            movimento.valorUnitario *
-            unidadeProduto.fatorParaBase /
-            unidadeMovimento.fatorParaBase;
-
-        if (movimento.tipo == TipoMovimentoEstoque.ajuste) {
-          saldo += quantidade;
-          valorEstoque += quantidade * valorUnitario;
-          custo = valorUnitario;
-        } else if (movimento.tipo == TipoMovimentoEstoque.compra ||
-            movimento.tipo == TipoMovimentoEstoque.producao) {
-          valorEstoque += quantidade * valorUnitario;
-          saldo += quantidade;
-          if (saldo > 0) custo = valorEstoque / saldo;
-        } else {
-          valorEstoque = (valorEstoque - quantidade * custo).clamp(
-            0,
-            double.infinity,
-          );
-          saldo -= quantidade;
-        }
-      }
-
-      produto.saldoEstoque = saldo;
-      produto.custoMedio = custo;
+      final simulacao = _estoque.simular(
+        unidadeEstoqueId: produto.unidadeEstoqueId,
+        movimentos: movimentacoes.where(
+          (movimento) => movimento.produtoId == produto.id,
+        ),
+      );
+      produto.saldoEstoque = simulacao.saldo;
+      produto.custoMedio = simulacao.custoMedio;
     }
   }
 
@@ -1856,13 +1741,16 @@ class AppRepository extends ChangeNotifier {
     (soma, item) => soma + custoItemFicha(item),
   );
 
-  /// Get the last 10 movements for a product.
-  List<MovimentoEstoque> ultimas10Movimentacoes(String produtoId) {
-    final movimentos = movimentacoes
-        .where((m) => m.produtoId == produtoId)
-        .toList();
-    movimentos.sort((a, b) => _compararMovimentos(b, a));
-    return movimentos.take(10).toList();
+  /// Últimas movimentações do produto (da mais recente para a mais antiga),
+  /// com o saldo e o custo médio resultantes depois de cada uma.
+  List<PassoEstoque> ultimasMovimentacoes(String produtoId, {int limite = 10}) {
+    final produto = produtoPorId(produtoId);
+    if (produto == null) return const [];
+    final simulacao = _estoque.simular(
+      unidadeEstoqueId: produto.unidadeEstoqueId,
+      movimentos: movimentacoes.where((m) => m.produtoId == produtoId),
+    );
+    return simulacao.passos.reversed.take(limite).toList();
   }
 
   // Helper methods for persistence

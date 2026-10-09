@@ -124,8 +124,8 @@ class _VendaListScreenState extends State<VendaListScreen> {
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.print_outlined),
-                                    tooltip: 'Imprimir',
-                                    onPressed: () => VendaPdf.imprimir(venda),
+                                    tooltip: 'Prévia de impressão',
+                                    onPressed: () => VendaPdf.visualizar(context, venda),
                                   ),
                                   PopupMenuButton<String>(
                                     tooltip: 'Ações da venda',

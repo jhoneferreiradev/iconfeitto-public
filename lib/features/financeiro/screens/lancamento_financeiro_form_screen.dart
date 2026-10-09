@@ -18,6 +18,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/section_card.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/forma_pagamento.dart';
+import '../pdf/lancamento_financeiro_pdf.dart';
 import '../widgets/quitacao_row.dart';
 
 class LancamentoFinanceiroFormScreen extends StatefulWidget {
@@ -96,6 +97,15 @@ class _LancamentoFinanceiroFormScreenState
     return AppScaffold(
       title: _isEdicao ? 'Editar lançamento' : 'Novo lançamento',
       actions: [
+        if (_isEdicao && _lancamentoOriginal != null)
+          IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Prévia de impressão',
+            onPressed: () => LancamentoFinanceiroPdf.visualizar(
+              context,
+              _lancamentoOriginal!,
+            ),
+          ),
         if (_isEdicao && !_vinculadoAOperacao)
           IconButton(
             icon: const Icon(Icons.delete_outline),
@@ -570,7 +580,7 @@ class _LancamentoFinanceiroFormScreenState
       dataCriacao: valores['dataCriacao'] as DateTime,
       dataVencimento: valores['dataVencimento'] as DateTime,
       valorLancamento: vinculado
-          ? original.valorLancamento
+          ? original!.valorLancamento
           : numeroOuZero(valores['valorLancamento']),
       valorDesconto: numeroOuZero(valores['valorDesconto']),
       valorAcrescimo: numeroOuZero(valores['valorAcrescimo']),
@@ -579,15 +589,15 @@ class _LancamentoFinanceiroFormScreenState
           ? valores['dataCompensacao'] as DateTime?
           : null,
       tipoLancamento: vinculado
-          ? original.tipoLancamento
+          ? original!.tipoLancamento
           : valores['tipoLancamento'] as TipoLancamentoFinanceiro,
       formaPagamento: vinculado
-          ? original.formaPagamento
+          ? original!.formaPagamento
           : valores['formaPagamento'] as FormaPagamento?,
       observacao: original?.observacao ?? '',
       quitacoes: _quitacoes,
       pessoaFinanceiro: vinculado
-          ? original.pessoaFinanceiro
+          ? original!.pessoaFinanceiro
           : valores['pessoaFinanceiro'] as PessoaFinanceiro,
       lancamentoPai: original?.lancamentoPai,
       operacaoOrigemId: original?.operacaoOrigemId ?? 'null',

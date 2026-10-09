@@ -1,36 +1,55 @@
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:material_ui/material_ui.dart';
 
-import '../../../core/theme/app_spacing.dart';
+import '../../../core/pdf/pdf_padrao.dart';
+import '../../../core/pdf/pdf_relatorio.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/data/app_repository.dart';
 import '../../../shared/models/produto.dart';
 import '../../../shared/models/tipo_item.dart';
 
+/// Lista de itens (estoque ou custos) no padrão de impressão do app.
 class ItemListPdf {
-  static Future<void> imprimir(
+  static Future<void> visualizar(
+    BuildContext context,
     List<Produto> itens, {
     required String titulo,
     required bool listaDeEstoque,
-  }) async {
+  }) => relatorio(
+    itens,
+    titulo: titulo,
+    listaDeEstoque: listaDeEstoque,
+  ).visualizar(context);
+
+  static PdfRelatorio relatorio(
+    List<Produto> itens, {
+    required String titulo,
+    required bool listaDeEstoque,
+  }) {
     final repo = AppRepository.instance;
-    final documento = pw.Document(title: titulo);
-    documento.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          pw.Text(
-            titulo,
-            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 16),
-          pw.TableHelper.fromTextArray(
-            headers: listaDeEstoque
-                ? ['Item', 'Tipo', 'Custo médio', 'Saldo em estoque']
-                : ['Item', 'Tipo', 'Custo por rendimento', 'Valor de venda'],
-            data: [
+    return PdfRelatorio(
+      titulo: titulo,
+      gerar: (_) => PdfPadrao.gerar(
+        empresa: repo.empresa,
+        tituloDocumento: titulo,
+        referencia: titulo,
+        titulo: PdfPadrao.titulo(
+          sobretitulo: 'Relatório',
+          titulo: titulo,
+          destaques: [(rotulo: 'Itens', valor: '${itens.length}')],
+        ),
+        conteudo: (_) => [
+          PdfPadrao.tabela(
+            colunas: listaDeEstoque
+                ? const ['Item', 'Tipo', 'Custo médio', 'Saldo em estoque']
+                : const [
+                    'Item',
+                    'Tipo',
+                    'Custo por rendimento',
+                    'Valor de venda',
+                  ],
+            larguras: const [3, 2, 2, 2],
+            alinhadasADireita: const {2, 3},
+            linhas: [
               for (final item in itens)
                 listaDeEstoque
                     ? [
@@ -41,7 +60,7 @@ class ItemListPdf {
                       ]
                     : [
                         item.nome,
-                        '${item.tipo.label} ',
+                        item.tipo.label,
                         CalculadoraCustoProduto(
                           rendimentoReceita: item.rendimentoReceita,
                           custoFichaTecnica: repo.custoTotalFicha(item),
@@ -53,37 +72,9 @@ class ItemListPdf {
                             : '',
                       ],
             ],
-            headerStyle: pw.TextStyle(
-              color: PdfColors.white,
-              fontWeight: pw.FontWeight.bold,
-            ),
-            headerDecoration: const pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFF8B3A62),
-            ),
-            cellPadding: pw.EdgeInsets.all(AppSpacing.xs),
-            border: pw.TableBorder.all(color: PdfColors.grey300),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(3),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(2),
-              3: const pw.FlexColumnWidth(2),
-            },
-            cellAlignments: {
-              0: pw.Alignment.centerLeft,
-              1: pw.Alignment.center,
-              2: pw.Alignment.centerRight,
-              3: pw.Alignment.centerRight,
-            },
-            headerAlignments: {
-              0: pw.Alignment.centerLeft,
-              1: pw.Alignment.center,
-              2: pw.Alignment.center,
-              3: pw.Alignment.center,
-            },
           ),
         ],
       ),
     );
-    await Printing.layoutPdf(onLayout: (_) async => documento.save());
   }
 }

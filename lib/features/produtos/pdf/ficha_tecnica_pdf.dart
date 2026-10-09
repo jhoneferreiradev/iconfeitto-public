@@ -1,26 +1,14 @@
-import 'dart:io';
-
-import 'package:intl/intl.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
+import '../../../core/pdf/pdf_padrao.dart';
+import '../../../core/pdf/pdf_relatorio.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/data/app_repository.dart';
-import '../../../shared/models/empresa.dart';
 import '../../../shared/models/item_ficha_tecnica.dart';
 import '../../../shared/models/produto.dart';
 import '../../../shared/models/tipo_item.dart';
-
-/// Paleta do documento.
-class _Cores {
-  static final primaria = PdfColor.fromInt(0xFF8B3A62);
-  static final primariaSuave = PdfColor.fromInt(0xFFF7ECF1);
-  static final texto = PdfColor.fromInt(0xFF2B2630);
-  static final apagado = PdfColor.fromInt(0xFF7A727C);
-  static final linha = PdfColor.fromInt(0xFFE8DFE4);
-  static final zebra = PdfColor.fromInt(0xFFFBF8FA);
-}
 
 /// Ingrediente que possui ficha técnica própria, exibido como receita.
 class _SubReceita {
@@ -36,62 +24,40 @@ class _SubReceita {
 /// custos, embalagens, ingredientes e, para os ingredientes que também têm
 /// ficha técnica, a receita de cada um em um bloco próprio.
 class FichaTecnicaPdf {
-  static Future<void> imprimir(Produto produto) async {
+  static Future<void> visualizar(BuildContext context, Produto produto) =>
+      relatorio(produto).visualizar(context);
+
+  static PdfRelatorio relatorio(Produto produto) {
     final repo = AppRepository.instance;
-    final doc = pw.Document(title: 'Ficha técnica - ${produto.nome}');
+    final titulo = 'Ficha técnica - ${produto.nome}';
 
-    final subReceitas = _coletarSubReceitas(repo, produto);
-    final detalhados = {for (final s in subReceitas) s.produto.id};
-    final custos = CalculadoraCustoProduto(
-      rendimentoReceita: produto.rendimentoReceita,
-      custoFichaTecnica: repo.custoTotalFicha(produto),
-      custoOperacional: produto.custoOperacional,
-      custoUnitarioEmbalagem: repo.custoEmbalagem(produto),
-    );
-
-    doc.addPage(
-      pw.MultiPage(
-        pageTheme: pw.PageTheme(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.fromLTRB(36, 40, 36, 32),
-          theme: pw.ThemeData.withFont(
-            base: pw.Font.helvetica(),
-            bold: pw.Font.helveticaBold(),
-            italic: pw.Font.helveticaOblique(),
-            boldItalic: pw.Font.helveticaBoldOblique(),
-          ),
-          buildBackground: (context) => pw.FullPage(
-            ignoreMargins: true,
-            child: pw.Align(
-              alignment: pw.Alignment.topCenter,
-              child: pw.SizedBox(
-                width: PdfPageFormat.a4.width,
-                height: 10,
-                child: pw.Container(color: _Cores.primaria),
-              ),
-            ),
-          ),
-        ),
-        footer: (context) => _rodape(context, repo.empresa, produto),
-        build: (context) => [
-          _cabecalhoEmpresa(repo.empresa),
-          pw.SizedBox(height: 18),
-          _tituloProduto(repo, produto),
-          pw.SizedBox(height: 22),
-          _secaoCustos(repo, produto, custos),
-          pw.SizedBox(height: 22),
-          _secaoEmbalagem(repo, produto),
-          pw.SizedBox(height: 22),
-          _secaoIngredientes(repo, produto, detalhados),
-          if (subReceitas.isNotEmpty)
-            ..._secaoSubReceitas(repo, subReceitas, detalhados),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      name: 'Ficha técnica - ${produto.nome}',
-      onLayout: (format) => doc.save(),
+    return PdfRelatorio(
+      titulo: titulo,
+      gerar: (_) {
+        final subReceitas = _coletarSubReceitas(repo, produto);
+        final detalhados = {for (final s in subReceitas) s.produto.id};
+        final custos = CalculadoraCustoProduto(
+          rendimentoReceita: produto.rendimentoReceita,
+          custoFichaTecnica: repo.custoTotalFicha(produto),
+          custoOperacional: produto.custoOperacional,
+          custoUnitarioEmbalagem: repo.custoEmbalagem(produto),
+        );
+        return PdfPadrao.gerar(
+          empresa: repo.empresa,
+          tituloDocumento: titulo,
+          referencia: produto.nome,
+          titulo: _tituloProduto(repo, produto),
+          conteudo: (_) => [
+            _secaoCustos(repo, produto, custos),
+            PdfPadrao.espaco(22),
+            _secaoEmbalagem(repo, produto),
+            PdfPadrao.espaco(22),
+            _secaoIngredientes(repo, produto, detalhados),
+            if (subReceitas.isNotEmpty)
+              ..._secaoSubReceitas(repo, subReceitas, detalhados),
+          ],
+        );
+      },
     );
   }
 
@@ -127,8 +93,6 @@ class FichaTecnicaPdf {
       p.possuiFichaTecnica &&
       p.fichaTecnica.isNotEmpty;
 
-  static bool _preenchido(String? texto) =>
-      texto != null && texto.trim().isNotEmpty;
 
   static String _formatarTempo(int minutos) {
     if (minutos < 60) return '$minutos min';
@@ -137,34 +101,11 @@ class FichaTecnicaPdf {
     return resto == 0 ? '$horas h' : '$horas h $resto min';
   }
 
-  static pw.MemoryImage? _carregarLogo(String? caminho) {
-    if (!_preenchido(caminho)) return null;
-    try {
-      final arquivo = File(caminho!);
-      if (!arquivo.existsSync()) return null;
-      return pw.MemoryImage(arquivo.readAsBytesSync());
-    } catch (_) {
-      return null;
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // Estilos e peças básicas
   // ---------------------------------------------------------------------------
 
-  static pw.TextStyle _estilo(
-    double tamanho, {
-    bool negrito = false,
-    PdfColor? cor,
-    double? espacamento,
-  }) {
-    return pw.TextStyle(
-      fontSize: tamanho,
-      fontWeight: negrito ? pw.FontWeight.bold : pw.FontWeight.normal,
-      color: cor ?? _Cores.texto,
-      letterSpacing: espacamento,
-    );
-  }
 
   static pw.Widget _celula(
     String texto, {
@@ -178,15 +119,15 @@ class FichaTecnicaPdf {
       child: pw.Text(
         texto,
         textAlign: alinhamento,
-        style: _estilo(tamanho, negrito: negrito, cor: cor),
+        style: PdfPadrao.estilo(tamanho, negrito: negrito, cor: cor),
       ),
     );
   }
 
   static pw.BoxDecoration _decoracaoLinha(int indice) {
     return pw.BoxDecoration(
-      color: indice.isOdd ? _Cores.zebra : null,
-      border: pw.Border(bottom: pw.BorderSide(color: _Cores.linha, width: 0.5)),
+      color: indice.isOdd ? PdfCores.zebra : null,
+      border: pw.Border(bottom: pw.BorderSide(color: PdfCores.linha, width: 0.5)),
     );
   }
 
@@ -196,7 +137,7 @@ class FichaTecnicaPdf {
   ) {
     return pw.TableRow(
       repeat: true,
-      decoration: pw.BoxDecoration(color: _Cores.primaria),
+      decoration: pw.BoxDecoration(color: PdfCores.primaria),
       children: [
         for (var i = 0; i < titulos.length; i++)
           pw.Padding(
@@ -204,7 +145,7 @@ class FichaTecnicaPdf {
             child: pw.Text(
               titulos[i].toUpperCase(),
               textAlign: alinhamentos[i],
-              style: _estilo(
+              style: PdfPadrao.estilo(
                 8,
                 negrito: true,
                 cor: PdfColors.white,
@@ -219,8 +160,8 @@ class FichaTecnicaPdf {
   static pw.TableRow _linhaTotal(String rotulo, double valor, int colunas) {
     return pw.TableRow(
       decoration: pw.BoxDecoration(
-        color: _Cores.primariaSuave,
-        border: pw.Border(top: pw.BorderSide(color: _Cores.primaria, width: 1)),
+        color: PdfCores.primariaSuave,
+        border: pw.Border(top: pw.BorderSide(color: PdfCores.primaria, width: 1)),
       ),
       children: [
         _celula(rotulo, negrito: true),
@@ -244,15 +185,15 @@ class FichaTecnicaPdf {
             width: 4,
             height: 15,
             decoration: pw.BoxDecoration(
-              color: _Cores.primaria,
+              color: PdfCores.primaria,
               borderRadius: pw.BorderRadius.circular(2),
             ),
           ),
           pw.SizedBox(width: 8),
-          pw.Text(titulo, style: _estilo(13, negrito: true)),
+          pw.Text(titulo, style: PdfPadrao.estilo(13, negrito: true)),
           if (apoio != null) ...[
             pw.Spacer(),
-            pw.Text(apoio, style: _estilo(8.5, cor: _Cores.apagado)),
+            pw.Text(apoio, style: PdfPadrao.estilo(8.5, cor: PdfCores.apagado)),
           ],
         ],
       ),
@@ -263,15 +204,15 @@ class FichaTecnicaPdf {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: pw.BoxDecoration(
-        color: _Cores.primariaSuave,
+        color: PdfCores.primariaSuave,
         borderRadius: pw.BorderRadius.circular(6),
       ),
       child: pw.Text(
         texto,
-        style: _estilo(
+        style: PdfPadrao.estilo(
           7,
           negrito: true,
-          cor: _Cores.primaria,
+          cor: PdfCores.primaria,
           espacamento: 0.5,
         ),
       ),
@@ -282,126 +223,23 @@ class FichaTecnicaPdf {
   // Cabeçalho e título
   // ---------------------------------------------------------------------------
 
-  static pw.Widget _cabecalhoEmpresa(Empresa empresa) {
-    final logo = _carregarLogo(empresa.logoPath);
-
-    final contatos = [
-      if (_preenchido(empresa.telefone)) 'Tel: ${empresa.telefone}',
-      if (_preenchido(empresa.instagram)) 'Instagram: ${empresa.instagram}',
-      if (_preenchido(empresa.facebook)) 'Facebook: ${empresa.facebook}',
-    ];
-
-    return pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        if (logo != null) ...[
-          pw.SizedBox(
-            width: 56,
-            height: 56,
-            child: pw.ClipRRect(
-              horizontalRadius: 10,
-              verticalRadius: 10,
-              child: pw.Image(logo, fit: pw.BoxFit.cover),
-            ),
-          ),
-          pw.SizedBox(width: 14),
-        ],
-        pw.Expanded(
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if (_preenchido(empresa.nome))
-                pw.Text(empresa.nome!, style: _estilo(17, negrito: true)),
-              if (contatos.isNotEmpty) ...[
-                pw.SizedBox(height: 3),
-                pw.Text(
-                  contatos.join('   ·   '),
-                  style: _estilo(9, cor: _Cores.apagado),
-                ),
-              ],
-              if (_preenchido(empresa.endereco)) ...[
-                pw.SizedBox(height: 2),
-                pw.Text(
-                  empresa.endereco!,
-                  style: _estilo(9, cor: _Cores.apagado),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   static pw.Widget _tituloProduto(AppRepository repo, Produto produto) {
     final sigla = repo.unidadePorId(produto.unidadeConsumoId).sigla;
-
-    final destaques = [
-      if (produto.rendimentoReceita > 0)
-        _destaque('Rendimento', '${produto.rendimentoReceita} $sigla'),
-      if (produto.tempoPreparoMinutos > 0)
-        _destaque(
-          'Tempo de preparo',
-          _formatarTempo(produto.tempoPreparoMinutos),
-        ),
-      if (produto.podeSerVendido)
-        _destaque('Preço de venda', produto.precoVenda.toCurrency()),
-    ];
-
-    return pw.Container(
-      padding: const pw.EdgeInsets.fromLTRB(18, 16, 18, 16),
-      decoration: pw.BoxDecoration(
-        color: _Cores.primariaSuave,
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Row(
-        children: [
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'FICHA TÉCNICA',
-                  style: _estilo(
-                    8.5,
-                    negrito: true,
-                    cor: _Cores.primaria,
-                    espacamento: 1.4,
-                  ),
-                ),
-                pw.SizedBox(height: 4),
-                pw.Text(produto.nome, style: _estilo(23, negrito: true)),
-                if (destaques.isNotEmpty) ...[
-                  pw.SizedBox(height: 12),
-                  pw.Wrap(spacing: 8, runSpacing: 6, children: destaques),
-                ],
-              ],
-            ),
+    return PdfPadrao.titulo(
+      sobretitulo: 'Ficha técnica',
+      titulo: produto.nome,
+      destaques: [
+        if (produto.rendimentoReceita > 0)
+          (rotulo: 'Rendimento', valor: '${produto.rendimentoReceita} $sigla'),
+        if (produto.tempoPreparoMinutos > 0)
+          (
+            rotulo: 'Tempo de preparo',
+            valor: _formatarTempo(produto.tempoPreparoMinutos),
           ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _destaque(String rotulo, String valor) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.white,
-        borderRadius: pw.BorderRadius.circular(14),
-        border: pw.Border.all(color: _Cores.linha, width: 0.8),
-      ),
-      child: pw.RichText(
-        text: pw.TextSpan(
-          children: [
-            pw.TextSpan(
-              text: '$rotulo  ',
-              style: _estilo(9, cor: _Cores.apagado),
-            ),
-            pw.TextSpan(text: valor, style: _estilo(9.5, negrito: true)),
-          ],
-        ),
-      ),
+        if (produto.podeSerVendido)
+          (rotulo: 'Preço de venda', valor: produto.precoVenda.toCurrency()),
+      ],
     );
   }
 
@@ -478,16 +316,16 @@ class FichaTecnicaPdf {
     bool total = false,
     bool destaque = false,
   }) {
-    final corTexto = destaque ? PdfColors.white : _Cores.texto;
-    final corDetalhe = destaque ? _Cores.primariaSuave : _Cores.apagado;
+    final corTexto = destaque ? PdfColors.white : PdfCores.texto;
+    final corDetalhe = destaque ? PdfCores.primariaSuave : PdfCores.apagado;
 
     final decoracao = destaque
-        ? pw.BoxDecoration(color: _Cores.primaria)
+        ? pw.BoxDecoration(color: PdfCores.primaria)
         : total
         ? pw.BoxDecoration(
-            color: _Cores.primariaSuave,
+            color: PdfCores.primariaSuave,
             border: pw.Border(
-              top: pw.BorderSide(color: _Cores.primaria, width: 1),
+              top: pw.BorderSide(color: PdfCores.primaria, width: 1),
             ),
           )
         : _decoracaoLinha(indice);
@@ -505,7 +343,7 @@ class FichaTecnicaPdf {
             children: [
               pw.Text(
                 titulo,
-                style: _estilo(
+                style: PdfPadrao.estilo(
                   destaque ? 12 : 10,
                   negrito: total || destaque,
                   cor: corTexto,
@@ -514,7 +352,7 @@ class FichaTecnicaPdf {
               if (detalhe != null)
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(top: 1.5),
-                  child: pw.Text(detalhe, style: _estilo(8, cor: corDetalhe)),
+                  child: pw.Text(detalhe, style: PdfPadrao.estilo(8, cor: corDetalhe)),
                 ),
             ],
           ),
@@ -563,7 +401,7 @@ class FichaTecnicaPdf {
         if (itens.isEmpty)
           pw.Text(
             'Nenhum item de embalagem cadastrado.',
-            style: _estilo(9.5, cor: _Cores.apagado),
+            style: PdfPadrao.estilo(9.5, cor: PdfCores.apagado),
           )
         else
           pw.Table(
@@ -637,9 +475,9 @@ class FichaTecnicaPdf {
         pw.Container(
           padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: pw.BoxDecoration(
-            color: _Cores.primariaSuave,
+            color: PdfCores.primariaSuave,
             border: pw.Border(
-              left: pw.BorderSide(color: _Cores.primaria, width: 3),
+              left: pw.BorderSide(color: PdfCores.primaria, width: 3),
             ),
           ),
           child: pw.Row(
@@ -649,13 +487,13 @@ class FichaTecnicaPdf {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(receita.nome, style: _estilo(11.5, negrito: true)),
+                    pw.Text(receita.nome, style: PdfPadrao.estilo(11.5, negrito: true)),
                     pw.SizedBox(height: 2),
                     pw.Text(
                       'Usado na receita: '
                       '${formatarNumero(sub.usadoEm.quantidade)} '
                       '${unidadeUsada.sigla}',
-                      style: _estilo(8.5, cor: _Cores.apagado),
+                      style: PdfPadrao.estilo(8.5, cor: PdfCores.apagado),
                     ),
                   ],
                 ),
@@ -663,7 +501,7 @@ class FichaTecnicaPdf {
               if (meta.isNotEmpty)
                 pw.Text(
                   meta,
-                  style: _estilo(9, cor: _Cores.primaria, negrito: true),
+                  style: PdfPadrao.estilo(9, cor: PdfCores.primaria, negrito: true),
                 ),
             ],
           ),
@@ -686,7 +524,7 @@ class FichaTecnicaPdf {
         padding: const pw.EdgeInsets.symmetric(vertical: 6),
         child: pw.Text(
           'Nenhum ingrediente cadastrado.',
-          style: _estilo(9.5, cor: _Cores.apagado),
+          style: PdfPadrao.estilo(9.5, cor: PdfCores.apagado),
         ),
       );
     }
@@ -734,7 +572,7 @@ class FichaTecnicaPdf {
               pw.Flexible(
                 child: pw.Text(
                   ingrediente?.nome ?? 'Ingrediente removido',
-                  style: _estilo(10),
+                  style: PdfPadrao.estilo(10),
                 ),
               ),
               if (temReceita) ...[pw.SizedBox(width: 6), _selo('RECEITA')],
@@ -757,34 +595,4 @@ class FichaTecnicaPdf {
   // Rodapé
   // ---------------------------------------------------------------------------
 
-  static pw.Widget _rodape(
-    pw.Context context,
-    Empresa empresa,
-    Produto produto,
-  ) {
-    final geradoEm = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
-    final origem = _preenchido(empresa.nome) ? '${empresa.nome}  ·  ' : '';
-
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 14),
-      padding: const pw.EdgeInsets.only(top: 8),
-      decoration: pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: _Cores.linha, width: 0.8)),
-      ),
-      child: pw.Row(
-        children: [
-          pw.Expanded(
-            child: pw.Text(
-              '$origem${produto.nome}  ·  gerado em $geradoEm',
-              style: _estilo(8, cor: _Cores.apagado),
-            ),
-          ),
-          pw.Text(
-            'Página ${context.pageNumber} de ${context.pagesCount}',
-            style: _estilo(8, cor: _Cores.apagado),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -953,7 +953,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
   // ---------------------------------------------------------------------------
 
   void _imprimirFichaTecnica() {
-    _salvar(onSuccess: FichaTecnicaPdf.imprimir);
+    _salvar(
+      onSuccess: (produto) => FichaTecnicaPdf.visualizar(context, produto),
+    );
   }
 
   Future<void> _salvar({required ValueChanged<Produto> onSuccess}) async {

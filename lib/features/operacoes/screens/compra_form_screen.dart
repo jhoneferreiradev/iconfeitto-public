@@ -99,8 +99,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         if (compra != null) ...[
           IconButton(
             icon: const Icon(Icons.print_outlined),
-            tooltip: 'Imprimir',
-            onPressed: () => CompraPdf.imprimir(compra),
+            tooltip: 'Prévia de impressão',
+            onPressed: () => CompraPdf.visualizar(context, compra),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
@@ -184,10 +184,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
           ]),
           footer: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: AppSpacing.md,
             children: [
               _buildTotal(),
               if (!_financeiroBloqueado) ...[
+                const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: _salvar,
                   icon: const Icon(Icons.check),
@@ -626,7 +626,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     for (final widget in widgets)
       IgnorePointer(
         ignoring: _financeiroBloqueado,
-        child: Opacity(opacity: _financeiroBloqueado ? 0.65 : 1, child: widget),
+        child: Opacity(
+          opacity: _financeiroBloqueado ? 0.65 : 1,
+          child: widget,
+        ),
       ),
   ];
 
@@ -681,12 +684,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     if (_formKey.currentState?.saveAndValidate() != true) return;
     final valores = _formKey.currentState!.value;
     final itens = <ItemOperacao>[];
-
-    final existeItemDuplicado = _validarItemDuplicado(valores);
-    if (existeItemDuplicado) {
-      return;
-    }
-
     for (final id in _itens) {
       final produtoId = valores['produto_$id'] as String;
       final quantidade = _numero(valores['quantidade_$id']);
@@ -767,7 +764,10 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
         if (compraOriginal == null) {
           await _repo.salvarCompra(compra);
         } else {
-          await _repo.atualizarCompra(compra, atualizarFinanceiro: true);
+          await _repo.atualizarCompra(
+            compra,
+            atualizarFinanceiro: true,
+          );
         }
       } catch (_) {
         for (final produtoId in novosProdutos) {
@@ -787,44 +787,5 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
-  }
-
-  bool _validarItemDuplicado(Map<String, dynamic> valores) {
-    // este método precisa validar a unidade também
-
-    final itensDuplicados = <String>{};
-    for (var i = 0; i < _itens.length; i++) {
-      final idA = _itens[i];
-      final produtoA = valores['produto_$idA'] as String;
-      final quantidadeA = _numero(valores['quantidade_$idA']);
-      final unidadeA = valores['unidade_$idA'] as String;
-      final unitarioA = _modoUnitario[idA] ?? true;
-      final valorA = _numero(
-        valores[unitarioA ? 'valor_unitario_$idA' : 'valor_total_$idA'],
-      );
-      for (var j = i + 1; j < _itens.length; j++) {
-        final idB = _itens[j];
-        final produtoB = valores['produto_$idB'] as String;
-        final unidadeB = valores['unidade_$idB'] as String;
-        final quantidadeB = _numero(valores['quantidade_$idB']);
-        final unitarioB = _modoUnitario[idB] ?? true;
-        final valorB = _numero(
-          valores[unitarioB ? 'valor_unitario_$idB' : 'valor_total_$idB'],
-        );
-        if (produtoA == produtoB &&
-            quantidadeA == quantidadeB &&
-            valorA == valorB &&
-            unidadeA == unidadeB) {
-          itensDuplicados.add(produtoA);
-        }
-      }
-    }
-    if (itensDuplicados.isNotEmpty) {
-      _avisar(
-        'Existem itens duplicados na compra (mesma quantidade, valor e unidade)}',
-      );
-      return true;
-    }
-    return false;
   }
 }

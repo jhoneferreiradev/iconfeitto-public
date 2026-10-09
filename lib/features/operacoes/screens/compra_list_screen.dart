@@ -87,8 +87,8 @@ class _CompraListScreenState extends State<CompraListScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.print_outlined),
-              tooltip: 'Imprimir',
-              onPressed: () => CompraPdf.imprimir(compra),
+              tooltip: 'Prévia de impressão',
+              onPressed: () => CompraPdf.visualizar(context, compra),
             ),
             PopupMenuButton<String>(
               tooltip: 'Ações da compra',

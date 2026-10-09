@@ -9,6 +9,8 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
 import '../data/financeiro_metrics.dart';
+import '../pdf/lancamento_financeiro_list_pdf.dart';
+import '../pdf/lancamento_financeiro_pdf.dart';
 import '../widgets/financeiro_kpis.dart';
 
 class LancamentoFinanceiroListScreen extends StatefulWidget {
@@ -56,17 +58,17 @@ class _LancamentoFinanceiroListScreenState
         return AppScaffold(
           title: widget.title,
           actions: [
-            // IconButton(
-            //   tooltip: 'Imprimir lista',
-            //   icon: const Icon(Icons.print_outlined),
-            //   onPressed: itens.isEmpty
-            //       ? null
-            //       : () => Lan.imprimir(
-            //           itens,
-            //           titulo: widget.title,
-            //           listaDeLancamentos: _lancamentos,
-            //         ),
-            // ),
+            IconButton(
+              tooltip: 'Prévia de impressão da lista',
+              icon: const Icon(Icons.print_outlined),
+              onPressed: itens.isEmpty
+                  ? null
+                  : () => LancamentoFinanceiroListPdf.visualizar(
+                      context,
+                      itens,
+                      titulo: widget.title,
+                    ),
+            ),
           ],
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => context.push('/financeiro/lancamentos/novo'),
@@ -167,12 +169,11 @@ class _LancamentoFinanceiroListScreenState
         title: Row(
           children: [
             Expanded(child: Text(item.descricao)),
-            // if (isProduto)
-            //   IconButton(
-            //     icon: const Icon(Icons.print_outlined),
-            //     tooltip: 'Imprimir ficha técnica',
-            //     onPressed: () => FichaTecnicaPdf.imprimir(item),
-            //   ),
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              tooltip: 'Prévia de impressão do lançamento',
+              onPressed: () => LancamentoFinanceiroPdf.visualizar(context, item),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: item.tipoOperacaoOriem == TipoOperacaoOrigem.avulso

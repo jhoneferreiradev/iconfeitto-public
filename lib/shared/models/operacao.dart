@@ -184,7 +184,21 @@ class Fabricacao {
   });
 }
 
-enum TipoMovimentoEstoque { compra, venda, consumoFabricacao, producao, ajuste }
+enum TipoMovimentoEstoque {
+  compra('Compra'),
+  venda('Venda'),
+  consumoFabricacao('Consumo (fabricação)'),
+  producao('Produção'),
+
+  /// Define o saldo e o custo médio do produto naquele momento.
+  ajuste('Ajuste'),
+
+  /// Saída de produto para consumo próprio (sem venda nem fabricação).
+  consumo('Saída para consumo');
+
+  const TipoMovimentoEstoque(this.label);
+  final String label;
+}
 
 class SaldoEstoqueInsuficienteException implements Exception {
   final String produto;
