@@ -26,10 +26,9 @@ class Item {
     required this.custoMedio,
     required this.custoOperacional,
     this.saldoEstoque = 0,
-    TipoItem? tipo,
+    required this.tipo,
     bool? podeSerVendido,
     bool? podeSerComprado,
-    bool? isEmbalagem,
     this.possuiFichaTecnica = false,
     this.tempoPreparoMinutos = 0,
     this.rendimentoReceita = 0,
@@ -38,31 +37,11 @@ class Item {
     required this.fichaTecnica,
     required this.fichaTecnicaEmbalagem,
     this.precoVenda = 0,
-  }) : tipo =
-           tipo ??
-           _inferirTipo(
-             isEmbalagem: isEmbalagem ?? false,
-             podeSerVendido: podeSerVendido ?? true,
-             podeSerComprado: podeSerComprado ?? true,
-             possuiFichaTecnica: possuiFichaTecnica,
-           );
+  });
 
   bool get podeSerVendido => tipo == TipoItem.produto;
   bool get podeSerComprado => TipoItem.tiposCompra.contains(tipo);
   bool get isEmbalagem => tipo == TipoItem.embalagem;
-
-  static TipoItem _inferirTipo({
-    required bool isEmbalagem,
-    required bool podeSerVendido,
-    required bool podeSerComprado,
-    required bool possuiFichaTecnica,
-  }) {
-    if (isEmbalagem) return TipoItem.embalagem;
-    if (podeSerVendido) return TipoItem.produto;
-    if (possuiFichaTecnica) return TipoItem.preparo;
-    if (podeSerComprado) return TipoItem.insumo;
-    return TipoItem.produto;
-  }
 }
 
 typedef Produto = Item;

@@ -157,9 +157,7 @@ class AppRepository extends ChangeNotifier {
           saldoEstoque: row['saldoEstoque'] as double,
           podeSerVendido: (row['podeSerVendido'] as int) == 1,
           podeSerComprado: (row['podeSerComprado'] as int) == 1,
-          tipo: row['tipo'] == null
-              ? null
-              : TipoItem.fromString(row['tipo'] as String),
+          tipo: TipoItem.fromString((row['tipo'] as String)),
           possuiFichaTecnica: (row['possuiFichaTecnica'] as int) == 1,
           tempoPreparoMinutos: row['tempoPreparoMinutos'] as int,
           rendimentoReceita: row['rendimentoReceita'] as int,
@@ -168,7 +166,6 @@ class AppRepository extends ChangeNotifier {
           fichaTecnica: fichaTecnica,
           fichaTecnicaEmbalagem: fichaTecnicaEmbalagem,
           custoOperacional: row['custoOperacional'] as double,
-          isEmbalagem: (row['isEmbalagem'] as int) == 1,
           precoVenda: row['precoVenda'] as double,
         ),
       );
