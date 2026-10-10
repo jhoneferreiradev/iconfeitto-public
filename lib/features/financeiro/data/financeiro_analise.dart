@@ -46,11 +46,20 @@ class AnaliseFinanceira {
   final FiltroFinanceiro filtro;
   final IntervaloDatas intervalo;
 
-  // Carteira
-  final double aReceber;
-  final double aPagar;
-  final double aReceberEmAtraso;
-  final double aPagarEmAtraso;
+  // Carteira sem considerar o período
+  final double recebidoTodoPeriodo;
+  final double pagoTodoPeriodo;
+  final double saldoTodoPeriodo;
+  final double aReceberTodoPeriodo;
+  final double aPagarTodoPeriodo;
+  final double aReceberEmAtrasoTodoPeriodo;
+  final double aPagarEmAtrasoTodoPeriodo;
+
+  // Carteira considerando apenas o período filtrado
+  final double aReceberDentroDoPeriodo;
+  final double aPagarDentroDoPeriodo;
+  final double aReceberEmAtrasoDentroDoPeriodo;
+  final double aPagarEmAtrasoDentroDoPeriodo;
 
   // Período: previsto
   final double previstoReceitas;
@@ -84,10 +93,19 @@ class AnaliseFinanceira {
   const AnaliseFinanceira({
     required this.filtro,
     required this.intervalo,
-    required this.aReceber,
-    required this.aPagar,
-    required this.aReceberEmAtraso,
-    required this.aPagarEmAtraso,
+
+    required this.recebidoTodoPeriodo,
+    required this.pagoTodoPeriodo,
+    required this.saldoTodoPeriodo,
+
+    required this.aReceberTodoPeriodo,
+    required this.aPagarTodoPeriodo,
+    required this.aReceberEmAtrasoTodoPeriodo,
+    required this.aPagarEmAtrasoTodoPeriodo,
+    required this.aReceberDentroDoPeriodo,
+    required this.aPagarDentroDoPeriodo,
+    required this.aReceberEmAtrasoDentroDoPeriodo,
+    required this.aPagarEmAtrasoDentroDoPeriodo,
     required this.previstoReceitas,
     required this.previstoDespesas,
     required this.quantidadeLancamentos,
@@ -109,8 +127,16 @@ class AnaliseFinanceira {
     required this.taxasPorPessoa,
   });
 
-  double get saldoPrevisto => aReceber - aPagar;
-  double get totalEmAtraso => aReceberEmAtraso + aPagarEmAtraso;
+  double get saldoPrevistoTodoPeriodo =>
+      aReceberTodoPeriodo - aPagarTodoPeriodo;
+  double get totalEmAtrasoTodoPeriodo =>
+      aReceberEmAtrasoTodoPeriodo + aPagarEmAtrasoTodoPeriodo;
+  double get totalEmAtrasoDentroDoPeriodo =>
+      aReceberEmAtrasoDentroDoPeriodo + aPagarEmAtrasoDentroDoPeriodo;
+  double get totalEmAbertoDentroDoPeriodo =>
+      aReceberEmAtrasoDentroDoPeriodo + aPagarEmAtrasoDentroDoPeriodo;
+  double get saldoPrevistoDentroDoPeriodo =>
+      aReceberDentroDoPeriodo - aPagarDentroDoPeriodo;
   double get resultadoRealizado => recebido - pago;
   double get resultadoAnterior => recebidoAnterior - pagoAnterior;
   double get resultadoPrevisto => previstoReceitas - previstoDespesas;
@@ -157,7 +183,13 @@ class AnaliseFinanceira {
     final base = lancamentos.where(passaBase).toList();
 
     // Carteira e faixas de vencimento (tudo o que está em aberto).
-    var aReceber = 0.0, aPagar = 0.0, aReceberAtraso = 0.0, aPagarAtraso = 0.0;
+    var aReceberTodoPeriodo = 0.0,
+        aPagarTodoPeriodo = 0.0,
+        aReceberAtrasoTodoPeriodo = 0.0,
+        aPagarAtrasoTodoPeriodo = 0.0,
+        recebidoTodoPeriodo = 0.0,
+        pagoTodoPeriodo = 0.0,
+        saldoTodoPeriodo = 0.0;
     final faixasReceber = List<double>.filled(6, 0);
     final faixasPagar = List<double>.filled(6, 0);
     int indiceFaixa(LancamentoFinanceiro l) {
@@ -175,21 +207,31 @@ class AnaliseFinanceira {
       final restante = l.valorRestante;
       final faixa = indiceFaixa(l);
       if (l.isReceita) {
-        aReceber += restante;
+        aReceberTodoPeriodo += restante;
         faixasReceber[faixa] += restante;
-        if (vencido(l)) aReceberAtraso += restante;
+        if (vencido(l)) aReceberAtrasoTodoPeriodo += restante;
       } else {
-        aPagar += restante;
+        aPagarTodoPeriodo += restante;
         faixasPagar[faixa] += restante;
-        if (vencido(l)) aPagarAtraso += restante;
+        if (vencido(l)) aPagarAtrasoTodoPeriodo += restante;
       }
     }
+
+    for (final l in base.where(passaForma).where((l) => l.hasQuitacoes)) {
+      if (l.isReceita) {
+        recebidoTodoPeriodo += l.valorQuitado;
+      } else {
+        pagoTodoPeriodo += l.valorQuitado;
+      }
+    }
+    saldoTodoPeriodo = recebidoTodoPeriodo - pagoTodoPeriodo;
+
     const rotulosFaixas = [
       'Atrasado',
-      '0–7 dias',
-      '8–15 dias',
-      '16–30 dias',
-      '31–60 dias',
+      '0-7 dias',
+      '8-15 dias',
+      '16-30 dias',
+      '31-60 dias',
       '60+ dias',
     ];
 
@@ -199,7 +241,12 @@ class AnaliseFinanceira {
         .where((l) => intervalo.contem(l.dataVencimento))
         .where(passaSituacao)
         .toList();
-    var previstoReceitas = 0.0, previstoDespesas = 0.0;
+    var previstoReceitas = 0.0,
+        previstoDespesas = 0.0,
+        aReceberDentroDoPeriodo = 0.0,
+        aPagarDentroDoPeriodo = 0.0,
+        aReceberEmAtrasoDentroDoPeriodo = 0.0,
+        aPagarEmAtrasoDentroDoPeriodo = 0.0;
     var taxas = 0.0, descontos = 0.0, acrescimos = 0.0;
     var abertoReceitas = 0.0, atrasadoReceitas = 0.0;
     final receitasPorPessoa = <String, double>{};
@@ -226,7 +273,11 @@ class AnaliseFinanceira {
         }
         if (emAberto(l)) {
           abertoReceitas += l.valorRestante;
-          if (vencido(l)) atrasadoReceitas += l.valorRestante;
+          aReceberDentroDoPeriodo += l.valorRestante;
+          if (vencido(l)) {
+            atrasadoReceitas += l.valorRestante;
+            aReceberEmAtrasoDentroDoPeriodo += l.valorRestante;
+          }
         }
       } else {
         previstoDespesas += l.valorTotal;
@@ -235,6 +286,8 @@ class AnaliseFinanceira {
           (v) => v + l.valorTotal,
           ifAbsent: () => l.valorTotal,
         );
+        aPagarDentroDoPeriodo += l.valorRestante;
+        if (vencido(l)) aPagarEmAtrasoDentroDoPeriodo += l.valorRestante;
       }
     }
 
@@ -309,20 +362,30 @@ class AnaliseFinanceira {
     }
 
     List<ParteDoTotal> ordenar(Map<String, double> mapa, {int? limite}) {
-      final lista = mapa.entries
-          .map((e) => ParteDoTotal(e.key, e.value))
-          .toList()
-        ..sort((a, b) => b.valor.compareTo(a.valor));
+      final lista =
+          mapa.entries.map((e) => ParteDoTotal(e.key, e.value)).toList()
+            ..sort((a, b) => b.valor.compareTo(a.valor));
       return limite == null ? lista : lista.take(limite).toList();
     }
 
     return AnaliseFinanceira(
       filtro: filtro,
       intervalo: intervalo,
-      aReceber: aReceber,
-      aPagar: aPagar,
-      aReceberEmAtraso: aReceberAtraso,
-      aPagarEmAtraso: aPagarAtraso,
+
+      recebidoTodoPeriodo: recebidoTodoPeriodo,
+      pagoTodoPeriodo: pagoTodoPeriodo,
+      saldoTodoPeriodo: saldoTodoPeriodo,
+
+      aReceberTodoPeriodo: aReceberTodoPeriodo,
+      aPagarTodoPeriodo: aPagarTodoPeriodo,
+      aReceberEmAtrasoTodoPeriodo: aReceberAtrasoTodoPeriodo,
+      aPagarEmAtrasoTodoPeriodo: aPagarAtrasoTodoPeriodo,
+
+      aReceberDentroDoPeriodo: aReceberDentroDoPeriodo,
+      aPagarDentroDoPeriodo: aPagarDentroDoPeriodo,
+      aReceberEmAtrasoDentroDoPeriodo: aReceberEmAtrasoDentroDoPeriodo,
+      aPagarEmAtrasoDentroDoPeriodo: aPagarEmAtrasoDentroDoPeriodo,
+
       previstoReceitas: previstoReceitas,
       previstoDespesas: previstoDespesas,
       quantidadeLancamentos: doPeriodo.length,
@@ -334,7 +397,9 @@ class AnaliseFinanceira {
       descontos: descontos,
       acrescimos: acrescimos,
       taxaDeRecebimento: previstoReceitas > _limite
-          ? _entreZeroEUm((previstoReceitas - abertoReceitas) / previstoReceitas)
+          ? _entreZeroEUm(
+              (previstoReceitas - abertoReceitas) / previstoReceitas,
+            )
           : null,
       inadimplencia: previstoReceitas > _limite
           ? _entreZeroEUm(atrasadoReceitas / previstoReceitas)

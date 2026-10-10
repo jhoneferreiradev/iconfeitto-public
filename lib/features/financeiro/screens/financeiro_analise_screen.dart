@@ -112,47 +112,78 @@ class _FinanceiroAnaliseScreenState extends State<FinanceiroAnaliseScreen> {
     subtitulo:
         'Saldo ainda não quitado, de todos os vencimentos '
         '(não depende do período)',
-    children: [
-      KpiCard(
-        titulo: 'A receber',
-        icon: Icons.south_west,
-        cor: corReceita,
-        valor: a.aReceber,
-        exibeVariacao: false,
-        dica: 'Saldo das receitas ainda não recebidas.',
-      ),
-      KpiCard(
-        titulo: 'A pagar',
-        icon: Icons.north_east,
-        cor: corDespesa,
-        valor: a.aPagar,
-        exibeVariacao: false,
-        dica: 'Saldo das despesas ainda não pagas.',
-      ),
-      KpiCard(
-        titulo: 'Saldo previsto',
-        icon: Icons.balance_outlined,
-        cor: corRoxa,
-        valor: a.saldoPrevisto,
-        exibeVariacao: false,
-        dica: 'A receber menos a pagar.',
-      ),
-      KpiCard(
-        titulo: 'A receber em atraso',
-        icon: Icons.schedule_outlined,
-        cor: corAlerta,
-        valor: a.aReceberEmAtraso,
-        exibeVariacao: false,
-        dica: 'Receitas com vencimento passado e saldo em aberto.',
-      ),
-      KpiCard(
-        titulo: 'A pagar em atraso',
-        icon: Icons.warning_amber_outlined,
-        cor: Theme.of(context).colorScheme.error,
-        valor: a.aPagarEmAtraso,
-        exibeVariacao: false,
-        dica: 'Despesas com vencimento passado e saldo em aberto.',
-      ),
+    rows: [
+      [
+        KpiCard(
+          titulo: 'Recebido (todo período)',
+          icon: Icons.south_west,
+          cor: corReceita,
+          valor: a.recebidoTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Saldo recebido em todo o período',
+        ),
+        KpiCard(
+          titulo: 'Pago (todo período)',
+          icon: Icons.north_east,
+          cor: corDespesa,
+          valor: a.pagoTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Saldo pago em todo o período',
+        ),
+        KpiCard(
+          titulo: 'Saldo (todo período)',
+          icon: Icons.balance_outlined,
+          cor: corRoxa,
+          valor: a.saldoTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Saldo em todo o período.',
+        ),
+      ],
+
+      [
+        KpiCard(
+          titulo: 'A receber',
+          icon: Icons.south_west,
+          cor: corReceita,
+          valor: a.aReceberTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Saldo das receitas ainda não recebidas.',
+        ),
+        KpiCard(
+          titulo: 'A pagar',
+          icon: Icons.north_east,
+          cor: corDespesa,
+          valor: a.aPagarTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Saldo das despesas ainda não pagas.',
+        ),
+        KpiCard(
+          titulo: 'Saldo previsto',
+          icon: Icons.balance_outlined,
+          cor: corRoxa,
+          valor: a.saldoPrevistoTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'A receber menos a pagar.',
+        ),
+      ],
+      [
+        KpiCard(
+          titulo: 'A receber em atraso',
+          icon: Icons.schedule_outlined,
+          cor: corAlerta,
+          valor: a.aReceberEmAtrasoTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Receitas com vencimento passado e saldo em aberto.',
+        ),
+        KpiCard(
+          titulo: 'A pagar em atraso',
+          icon: Icons.warning_amber_outlined,
+          cor: Theme.of(context).colorScheme.error,
+          valor: a.aPagarEmAtrasoTodoPeriodo,
+          exibeVariacao: false,
+          dica: 'Despesas com vencimento passado e saldo em aberto.',
+        ),
+      ],
     ],
   );
 
@@ -161,114 +192,147 @@ class _FinanceiroAnaliseScreenState extends State<FinanceiroAnaliseScreen> {
     subtitulo:
         '$periodo · variação em relação ao período anterior · '
         '${a.quantidadeLancamentos} lançamentos previstos',
-    children: [
-      KpiCard(
-        titulo: 'Recebido',
-        icon: Icons.add_circle_outline,
-        cor: corReceita,
-        valor: a.recebido,
-        variacao: DashboardMetrics.variacao(a.recebido, a.recebidoAnterior),
-        dica: 'Receitas quitadas dentro do período.',
-      ),
-      KpiCard(
-        titulo: 'Pago',
-        icon: Icons.remove_circle_outline,
-        cor: corDespesa,
-        valor: a.pago,
-        altaEhRuim: true,
-        variacao: DashboardMetrics.variacao(a.pago, a.pagoAnterior),
-        dica: 'Despesas quitadas dentro do período.',
-      ),
-      KpiCard(
-        titulo: 'Resultado realizado',
-        icon: Icons.account_balance_wallet_outlined,
-        cor: corNeutra,
-        valor: a.resultadoRealizado,
-        variacao: DashboardMetrics.variacao(
-          a.resultadoRealizado,
-          a.resultadoAnterior,
+    rows: [
+      [
+        KpiCard(
+          titulo: 'A receber',
+          icon: Icons.add_circle_outline,
+          cor: corReceita,
+          valor: a.aReceberDentroDoPeriodo,
+          exibeVariacao: false,
+          dica: 'Receitas em aberto dentro do período.',
         ),
-        dica: 'Recebido menos pago no período.',
-      ),
-      KpiCard(
-        titulo: 'Receitas previstas',
-        icon: Icons.event_available_outlined,
-        cor: corReceita,
-        valor: a.previstoReceitas,
-        exibeVariacao: false,
-        dica: 'Total das receitas com vencimento no período.',
-      ),
-      KpiCard(
-        titulo: 'Despesas previstas',
-        icon: Icons.event_busy_outlined,
-        cor: corDespesa,
-        valor: a.previstoDespesas,
-        exibeVariacao: false,
-        dica: 'Total das despesas com vencimento no período.',
-      ),
+        KpiCard(
+          titulo: 'A pagar',
+          icon: Icons.remove_circle_outline,
+          cor: corDespesa,
+          valor: a.aPagarDentroDoPeriodo,
+          altaEhRuim: true,
+          exibeVariacao: false,
+          dica: 'Despesas em aberto dentro do período.',
+        ),
+        KpiCard(
+          titulo: 'Saldo previsto',
+          icon: Icons.balance_outlined,
+          cor: corRoxa,
+          valor: a.saldoPrevistoDentroDoPeriodo,
+          exibeVariacao: false,
+          dica: 'A receber menos a pagar dentro do período.',
+        ),
+      ],
+      [
+        KpiCard(
+          titulo: 'Recebido',
+          icon: Icons.add_circle_outline,
+          cor: corReceita,
+          valor: a.recebido,
+          variacao: DashboardMetrics.variacao(a.recebido, a.recebidoAnterior),
+          dica: 'Receitas quitadas dentro do período.',
+        ),
+        KpiCard(
+          titulo: 'Pago',
+          icon: Icons.remove_circle_outline,
+          cor: corDespesa,
+          valor: a.pago,
+          altaEhRuim: true,
+          variacao: DashboardMetrics.variacao(a.pago, a.pagoAnterior),
+          dica: 'Despesas quitadas dentro do período.',
+        ),
+        KpiCard(
+          titulo: 'Resultado realizado',
+          icon: Icons.account_balance_wallet_outlined,
+          cor: corNeutra,
+          valor: a.resultadoRealizado,
+          variacao: DashboardMetrics.variacao(
+            a.resultadoRealizado,
+            a.resultadoAnterior,
+          ),
+          dica: 'Recebido menos pago no período.',
+        ),
+      ],
+      [
+        KpiCard(
+          titulo: 'A receber em atraso',
+          icon: Icons.schedule_outlined,
+          cor: corAlerta,
+          valor: a.aReceberEmAtrasoDentroDoPeriodo,
+          exibeVariacao: false,
+          dica: 'Receitas com vencimento passado e saldo em aberto.',
+        ),
+        KpiCard(
+          titulo: 'A pagar em atraso',
+          icon: Icons.warning_amber_outlined,
+          cor: Theme.of(context).colorScheme.error,
+          valor: a.aPagarEmAtrasoDentroDoPeriodo,
+          exibeVariacao: false,
+          dica: 'Despesas com vencimento passado e saldo em aberto.',
+        ),
+      ],
     ],
   );
 
   Widget _indicadores(AnaliseFinanceira a) => SecaoKpis(
     titulo: 'Indicadores e custos financeiros',
     subtitulo: 'Sobre os lançamentos com vencimento no período',
-    children: [
-      if (a.taxaDeRecebimento != null)
+    rows: [
+      [
+        if (a.taxaDeRecebimento != null)
+          KpiCard(
+            titulo: 'Taxa de recebimento',
+            icon: Icons.task_alt_outlined,
+            cor: corReceita,
+            valor: a.taxaDeRecebimento! * 100,
+            formatar: _percentual,
+            exibeVariacao: false,
+            dica: 'Parte das receitas previstas que já foi recebida.',
+          ),
+        if (a.inadimplencia != null)
+          KpiCard(
+            titulo: 'Inadimplência',
+            icon: Icons.report_gmailerrorred_outlined,
+            cor: Theme.of(context).colorScheme.error,
+            valor: a.inadimplencia! * 100,
+            formatar: _percentual,
+            exibeVariacao: false,
+            dica: 'Parte das receitas previstas vencida e ainda em aberto.',
+          ),
+        // if (a.prazoMedioRecebimento != null)
+        //   KpiCard(
+        //     titulo: 'Prazo médio de recebimento',
+        //     icon: Icons.hourglass_bottom_outlined,
+        //     cor: corRoxa,
+        //     valor: a.prazoMedioRecebimento!,
+        //     formatar: (v) => '${v.round()} dias',
+        //     exibeVariacao: false,
+        //     dica:
+        //         'Dias entre a criação do lançamento e o recebimento, '
+        //         'ponderado pelo valor.',
+        //   ),
         KpiCard(
-          titulo: 'Taxa de recebimento',
-          icon: Icons.task_alt_outlined,
-          cor: corReceita,
-          valor: a.taxaDeRecebimento! * 100,
-          formatar: _percentual,
+          titulo: 'Taxas e impostos',
+          icon: Icons.percent,
+          cor: corAlerta,
+          valor: a.taxasImpostos,
           exibeVariacao: false,
-          dica: 'Parte das receitas previstas que já foi recebida.',
+          dica: 'Taxas de bandeira e impostos dos lançamentos do período.',
         ),
-      if (a.inadimplencia != null)
-        KpiCard(
-          titulo: 'Inadimplência',
-          icon: Icons.report_gmailerrorred_outlined,
-          cor: Theme.of(context).colorScheme.error,
-          valor: a.inadimplencia! * 100,
-          formatar: _percentual,
-          exibeVariacao: false,
-          dica: 'Parte das receitas previstas vencida e ainda em aberto.',
-        ),
-      if (a.prazoMedioRecebimento != null)
-        KpiCard(
-          titulo: 'Prazo médio de recebimento',
-          icon: Icons.hourglass_bottom_outlined,
-          cor: corRoxa,
-          valor: a.prazoMedioRecebimento!,
-          formatar: (v) => '${v.round()} dias',
-          exibeVariacao: false,
-          dica:
-              'Dias entre a criação do lançamento e o recebimento, '
-              'ponderado pelo valor.',
-        ),
-      KpiCard(
-        titulo: 'Taxas e impostos',
-        icon: Icons.percent,
-        cor: corAlerta,
-        valor: a.taxasImpostos,
-        exibeVariacao: false,
-        dica: 'Taxas de bandeira e impostos dos lançamentos do período.',
-      ),
-      KpiCard(
-        titulo: 'Descontos',
-        icon: Icons.sell_outlined,
-        cor: corNeutra,
-        valor: a.descontos,
-        exibeVariacao: false,
-        dica: 'Descontos aplicados nos lançamentos do período.',
-      ),
-      KpiCard(
-        titulo: 'Acréscimos',
-        icon: Icons.add_chart_outlined,
-        cor: corRoxa,
-        valor: a.acrescimos,
-        exibeVariacao: false,
-        dica: 'Juros, multas e outros acréscimos do período.',
-      ),
+        // KpiCard(
+        //   titulo: 'Descontos',
+        //   icon: Icons.sell_outlined,
+        //   cor: corNeutra,
+        //   valor: a.descontos,
+        //   exibeVariacao: false,
+        //   dica: 'Descontos aplicados nos lançamentos do período.',
+        // ),
+        // KpiCard(
+        //   titulo: 'Acréscimos',
+        //   icon: Icons.add_chart_outlined,
+        //   cor: corRoxa,
+        //   valor: a.acrescimos,
+        //   exibeVariacao: false,
+        //   dica: 'Juros, multas e outros acréscimos do período.',
+        // ),
+      ],
     ],
   );
 }

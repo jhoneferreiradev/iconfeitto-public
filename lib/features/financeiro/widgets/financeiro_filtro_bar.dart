@@ -93,7 +93,10 @@ class FinanceiroFiltroBar extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.filter_alt_outlined, color: tema.colorScheme.primary),
+                Icon(
+                  Icons.filter_alt_outlined,
+                  color: tema.colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -123,7 +126,8 @@ class FinanceiroFiltroBar extends StatelessWidget {
                     avatar: periodo == PeriodoFinanceiro.personalizado
                         ? const Icon(Icons.date_range_outlined, size: 18)
                         : null,
-                    onSelected: (_) => periodo == PeriodoFinanceiro.personalizado
+                    onSelected: (_) =>
+                        periodo == PeriodoFinanceiro.personalizado
                         ? _escolherPeriodo(context)
                         : aoAlterar(filtro.copyWith(periodo: periodo)),
                   ),
@@ -164,19 +168,19 @@ class FinanceiroFiltroBar extends StatelessWidget {
                   aoSelecionar: (forma) =>
                       aoAlterar(filtro.copyWith(forma: forma)),
                 ),
-                _dropdown<SituacaoFinanceira>(
-                  rotulo: 'Situação (previsto)',
-                  valor: filtro.situacao,
-                  itens: [
-                    for (final situacao in SituacaoFinanceira.values)
-                      (situacao, situacao.label),
-                  ],
-                  aoSelecionar: (situacao) => aoAlterar(
-                    filtro.copyWith(
-                      situacao: situacao ?? SituacaoFinanceira.todas,
-                    ),
-                  ),
-                ),
+                // _dropdown<SituacaoFinanceira>(
+                //   rotulo: 'Situação (previsto)',
+                //   valor: filtro.situacao,
+                //   itens: [
+                //     for (final situacao in SituacaoFinanceira.values)
+                //       (situacao, situacao.label),
+                //   ],
+                //   aoSelecionar: (situacao) => aoAlterar(
+                //     filtro.copyWith(
+                //       situacao: situacao ?? SituacaoFinanceira.todas,
+                //     ),
+                //   ),
+                // ),
                 _dropdown<PessoaFinanceiro>(
                   rotulo: 'Pessoa',
                   valor: filtro.pessoa,

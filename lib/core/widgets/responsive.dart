@@ -1,6 +1,8 @@
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../theme/app_spacing.dart';
+
 /// Largura a partir da qual o menu lateral substitui a gaveta (tablet).
 const double kLarguraTablet = 840;
 
@@ -37,16 +39,23 @@ class ContentWidth extends StatelessWidget {
 
 /// Distribui os cartões em quantas colunas couberem (mínimo [minItemWidth]).
 class ResponsiveCardGrid extends StatelessWidget {
-  final List<Widget> children;
+  late List<List<Widget>> rows;
   final double minItemWidth;
   final double spacing;
 
-  const ResponsiveCardGrid({
+  ResponsiveCardGrid({
     super.key,
-    required this.children,
+    List<Widget>? children,
+    List<List<Widget>>? rows,
     this.minItemWidth = 420,
     this.spacing = 12,
-  });
+  }) {
+    if (children != null && children.isNotEmpty) {
+      this.rows = [children];
+    } else {
+      this.rows = rows ?? [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,16 +66,25 @@ class ResponsiveCardGrid extends StatelessWidget {
             .floor()
             .clamp(1, 4);
         final larguraItem = (largura - spacing * (colunas - 1)) / colunas;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (var i = 0; i < children.length; i++)
-              SizedBox(
-                width: larguraItem,
-                child: children[i],
-              ).entranceAnimation(i),
-          ],
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: AppSpacing.md,
+            children: [
+              for (var row in rows)
+                Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    for (var i = 0; i < row.length; i++)
+                      SizedBox(
+                        width: larguraItem,
+                        child: row[i],
+                      ).entranceAnimation(i),
+                  ],
+                ),
+            ],
+          ),
         );
       },
     );
