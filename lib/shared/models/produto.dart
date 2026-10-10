@@ -18,6 +18,7 @@ class Item {
   List<ItemFichaTecnica> fichaTecnica;
   List<ItemFichaTecnicaEmbalagem> fichaTecnicaEmbalagem;
   double precoVenda;
+  double quantidadeMinimaEstoque;
 
   Item({
     required this.id,
@@ -35,6 +36,7 @@ class Item {
     required this.fichaTecnica,
     required this.fichaTecnicaEmbalagem,
     this.precoVenda = 0,
+    this.quantidadeMinimaEstoque = 0,
   });
 
   bool get podeSerVendido => tipo == TipoItem.produto;

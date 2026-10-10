@@ -2,15 +2,19 @@ import 'package:sqflite/sqflite.dart';
 
 import 'app_database_version.dart';
 import 'app_database_version_000_0023.dart';
+import 'app_database_version_000_0024.dart';
+import 'app_database_version_000_0025.dart';
 
 mixin MixinAppDatabaseVersion {
   List<AppDatabaseVersion> get versions {
     _versions.sort((a, b) => a.versao.compareTo(b.versao));
     return _versions;
   }
-  
+
   final List<AppDatabaseVersion> _versions = [
     AppDatabaseVersion_000_0023(),
+    AppDatabaseVersion_000_0024(),
+    AppDatabaseVersion_000_0025(),
   ];
 
   static Future<void> adicionarColunaSeNecessario(

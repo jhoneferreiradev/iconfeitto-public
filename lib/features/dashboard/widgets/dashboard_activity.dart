@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:iconfeitto/core/theme/app_spacing.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/formatters.dart';
@@ -32,6 +33,7 @@ class AtividadesCard extends StatelessWidget {
               altura: 140,
             )
           : Column(
+              spacing: AppSpacing.md,
               children: [
                 for (final a in atividades)
                   Builder(
@@ -48,6 +50,7 @@ class AtividadesCard extends StatelessWidget {
                             horizontal: 4,
                           ),
                           child: Row(
+                            spacing: AppSpacing.md,
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(8),
@@ -57,9 +60,9 @@ class AtividadesCard extends StatelessWidget {
                                 ),
                                 child: Icon(icone, size: 18, color: cor),
                               ),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
+                                  spacing: AppSpacing.md,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
@@ -102,12 +105,14 @@ class EstoqueCard extends StatelessWidget {
   final double valorEmEstoque;
   final int totalItens;
   final List<Produto> semSaldo;
+  final List<Produto> comQuantidadeMinimaEstoque;
 
   const EstoqueCard({
     super.key,
     required this.valorEmEstoque,
     required this.totalItens,
     required this.semSaldo,
+    required this.comQuantidadeMinimaEstoque,
   });
 
   @override
@@ -124,6 +129,7 @@ class EstoqueCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.md,
         children: [
           Text(
             'Valor em estoque',
@@ -133,7 +139,6 @@ class EstoqueCard extends StatelessWidget {
             valor: valorEmEstoque,
             style: tema.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 16),
           if (totalItens == 0)
             Text(
               'Cadastre insumos e registre compras para acompanhar o estoque.',
@@ -141,9 +146,9 @@ class EstoqueCard extends StatelessWidget {
             )
           else if (semSaldo.isEmpty)
             Row(
+              spacing: AppSpacing.md,
               children: [
                 const Icon(Icons.check_circle, color: verde, size: 20),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Tudo certo: nenhum item zerado entre $totalItens cadastrados.',
@@ -154,13 +159,13 @@ class EstoqueCard extends StatelessWidget {
             )
           else ...[
             Row(
+              spacing: AppSpacing.md,
               children: [
                 Icon(
                   Icons.warning_amber_rounded,
                   color: scheme.error,
                   size: 20,
                 ),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '${semSaldo.length} ${semSaldo.length == 1 ? 'item sem saldo' : 'itens sem saldo'} — hora de comprar?',
@@ -171,10 +176,9 @@ class EstoqueCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.md,
               children: [
                 for (final item in semSaldo.take(6))
                   Chip(
@@ -188,6 +192,48 @@ class EstoqueCard extends StatelessWidget {
                 if (semSaldo.length > 6)
                   Chip(
                     label: Text('+${semSaldo.length - 6}'),
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide.none,
+                  ),
+              ],
+            ),
+          ],
+          if (comQuantidadeMinimaEstoque.isNotEmpty) ...[
+            const Divider(),
+            Row(
+              spacing: AppSpacing.md,
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: scheme.error,
+                  size: 20,
+                ),
+                Expanded(
+                  child: Text(
+                    '${comQuantidadeMinimaEstoque.length} ${comQuantidadeMinimaEstoque.length == 1 ? 'item com quantidade mínima' : 'itens com quantidade mínima'} — atenção ao estoque!',
+                    style: tema.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.md,
+              children: [
+                for (final item in comQuantidadeMinimaEstoque.take(6))
+                  Chip(
+                    label: Text(item.nome),
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: scheme.errorContainer.withValues(
+                      alpha: 0.5,
+                    ),
+                    side: BorderSide.none,
+                  ),
+                if (comQuantidadeMinimaEstoque.length > 6)
+                  Chip(
+                    label: Text('+${comQuantidadeMinimaEstoque.length - 6}'),
                     visualDensity: VisualDensity.compact,
                     side: BorderSide.none,
                   ),

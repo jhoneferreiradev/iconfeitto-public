@@ -72,6 +72,8 @@ class DashboardScreen extends StatelessWidget {
               valorEmEstoque: metrics.valorEmEstoque,
               totalItens: metrics.totalItensEstoque,
               semSaldo: metrics.itensSemSaldo,
+              comQuantidadeMinimaEstoque:
+                  metrics.itensComQuantidadeMinimaEstoque,
             ),
           ),
         ];

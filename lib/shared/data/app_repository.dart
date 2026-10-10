@@ -165,6 +165,7 @@ class AppRepository extends ChangeNotifier {
           fichaTecnicaEmbalagem: fichaTecnicaEmbalagem,
           custoOperacional: row['custoOperacional'] as double,
           precoVenda: row['precoVenda'] as double,
+          quantidadeMinimaEstoque: row['quantidadeMinimaEstoque'] as double,
         ),
       );
     }
@@ -1787,8 +1788,6 @@ class AppRepository extends ChangeNotifier {
     'ativo': produto.ativo ? 1 : 0,
     'custoMedio': produto.custoMedio,
     'saldoEstoque': produto.saldoEstoque,
-    'podeSerVendido': produto.podeSerVendido ? 1 : 0,
-    'podeSerComprado': produto.podeSerComprado ? 1 : 0,
     'tipo': produto.tipo.name,
     'possuiFichaTecnica': produto.possuiFichaTecnica ? 1 : 0,
     'tempoPreparoMinutos': produto.tempoPreparoMinutos,
@@ -1797,6 +1796,7 @@ class AppRepository extends ChangeNotifier {
     'rendimentoReceita': produto.rendimentoReceita,
     'custoOperacional': produto.custoOperacional,
     'precoVenda': produto.precoVenda,
+    'quantidadeMinimaEstoque': produto.quantidadeMinimaEstoque,
   };
 
   UnidadeMedida _unidadeFromRow(Map<String, dynamic> row) => UnidadeMedida(

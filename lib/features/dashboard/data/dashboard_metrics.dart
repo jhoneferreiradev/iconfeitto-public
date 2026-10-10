@@ -237,6 +237,16 @@ class DashboardMetrics {
       _itensDeEstoque.where((p) => p.saldoEstoque <= 0).toList()
         ..sort((a, b) => a.nome.compareTo(b.nome));
 
+  List<Produto> get itensComQuantidadeMinimaEstoque =>
+      _itensDeEstoque
+          .where(
+            (p) =>
+                p.quantidadeMinimaEstoque > 0 &&
+                p.saldoEstoque <= p.quantidadeMinimaEstoque,
+          )
+          .toList()
+        ..sort((a, b) => a.nome.compareTo(b.nome));
+
   List<Atividade> atividadesRecentes({
     int limite = 6,
     required String Function(String clienteId) nomeCliente,

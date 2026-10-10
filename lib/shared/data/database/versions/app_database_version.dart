@@ -1,7 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 
-import 'app_database_version_000_0023.dart';
-
 abstract class AppDatabaseVersion {
   int get versao;
   String get descricao;
@@ -38,10 +36,9 @@ class AppDatabaseVersion_000_0001 implements AppDatabaseVersion {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         ativo INTEGER NOT NULL,
-        custoMedio REAL NOT NULL,
-        saldoEstoque REAL NOT NULL,
-        podeSerVendido INTEGER NOT NULL,
-        podeSerComprado INTEGER NOT NULL,
+        custoMedio REAL NOT NULL DEFAULT 0,
+        saldoEstoque REAL NOT NULL DEFAULT 0,
+        quantidadeMinimaEstoque REAL NOT NULL DEFAULT 0,
         tipo TEXT NOT NULL DEFAULT 'produto',
         possuiFichaTecnica INTEGER NOT NULL,
         tempoPreparoMinutos INTEGER NOT NULL,
@@ -49,7 +46,6 @@ class AppDatabaseVersion_000_0001 implements AppDatabaseVersion {
         custoOperacional REAL NOT NULL,
         unidadeEstoqueId INTEGER NOT NULL,
         unidadeConsumoId INTEGER NOT NULL,
-        isEmbalagem INTEGER NOT NULL DEFAULT 0,
         custoEmbalagem REAL NOT NULL DEFAULT 0,
         precoVenda REAL NOT NULL DEFAULT 0,
         FOREIGN KEY (unidadeEstoqueId) REFERENCES unidades_medida(id),

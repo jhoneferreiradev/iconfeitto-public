@@ -144,6 +144,9 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       // Formato pt-BR (vírgula), senão "12.5" seria lido como 125 ao parsear.
       'saldoEstoque': formatarNumero(p?.saldoEstoque ?? 0.0)
           .replaceAll('.', ','),
+      'quantidadeMinimaEstoque': formatarNumero(
+        p?.quantidadeMinimaEstoque ?? 0.0,
+      ).replaceAll('.', ','),
       'unidadeEstoqueId': p?.unidadeEstoqueId,
       'unidadeConsumoId': p?.unidadeConsumoId,
       'calcularPrecoVendaUsandoMargemLucro': false,
@@ -263,10 +266,11 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
                     setState(() => _possuiFichaTecnica = value ?? false),
               ),
           ],
-          if (_possuiFichaTecnica)
-            _buildSaldoEstoque()
-          else
-            _linha([_buildSaldoEstoque(), _buildCustoMedio()]),
+          _linha([
+            _buildSaldoEstoque(),
+            _buildQuantidadeMinimaEstoque(),
+            if (_possuiFichaTecnica) _buildCustoMedio(),
+          ]),
         ],
       ),
     );
@@ -465,6 +469,16 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
       icon: Icons.inventory_2_outlined,
       min: 0,
       readOnly: true,
+    );
+  }
+
+  AppNumberField _buildQuantidadeMinimaEstoque() {
+    return const AppNumberField(
+      name: 'quantidadeMinimaEstoque',
+      label: 'Qtde mínima',
+      icon: Icons.inventory_2_outlined,
+      min: 0,
+      readOnly: false,
     );
   }
 
@@ -1012,6 +1026,7 @@ class _ProdutoFormScreenState extends State<ProdutoFormScreen> {
           : _numero(valores['custoMedio']),
       // Campo somente leitura: preserva o valor real em vez de reparsear o texto.
       saldoEstoque: _produtoOriginal?.saldoEstoque ?? 0,
+      quantidadeMinimaEstoque: _numero(valores['quantidadeMinimaEstoque']),
       unidadeEstoqueId: valores['unidadeEstoqueId'] as String,
       unidadeConsumoId: valores['unidadeConsumoId'] as String,
       rendimentoReceita: _isEmbalagem
