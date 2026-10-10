@@ -94,6 +94,13 @@ final List<AppGrupoNavegacao> gruposNavegacao = [
       ativo: (uri) => _prefixo(uri, '/financeiro/lancamentos'),
     ),
     AppDestino(
+      label: 'Análise financeira',
+      icon: Icons.insights_outlined,
+      selectedIcon: Icons.insights,
+      route: '/financeiro/analise',
+      ativo: (uri) => _prefixo(uri, '/financeiro/analise'),
+    ),
+    AppDestino(
       label: 'Cartões de crédito',
       icon: Icons.credit_card_outlined,
       selectedIcon: Icons.credit_card,
@@ -182,6 +189,7 @@ const List<String> _rotasRaiz = [
   '/unidades',
   '/cartoes',
   '/bandeiras',
+  '/financeiro/analise',
   '/empresa',
   '/produtos',
   '/itens/insumos',

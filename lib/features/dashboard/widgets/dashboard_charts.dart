@@ -18,52 +18,6 @@ const List<Color> _paleta = [
   Color(0xFF5B9BEA),
 ];
 
-TextStyle? _estiloEixo(BuildContext context) =>
-    Theme.of(context).textTheme.labelSmall
-        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
-
-/// Teto do eixo Y em quatro intervalos "redondos" (1, 2, 2,5, 5 ou 10 x 10^n).
-double _tetoDoEixo(double maximo) {
-  if (maximo <= 0) return 100;
-  final bruto = maximo * 1.1 / 4;
-  final ordem = math.pow(10, (math.log(bruto) / math.ln10).floor()).toDouble();
-  final normalizado = bruto / ordem;
-  final passo = switch (normalizado) {
-    <= 1 => 1.0,
-    <= 2 => 2.0,
-    <= 2.5 => 2.5,
-    <= 5 => 5.0,
-    _ => 10.0,
-  };
-  return passo * ordem * 4;
-}
-
-class _Legenda extends StatelessWidget {
-  final Color cor;
-  final String texto;
-
-  const _Legenda({required this.cor, required this.texto});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: cor,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(texto, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
-}
-
 BarTouchTooltipData _tooltipBarras(BuildContext context) {
   final scheme = Theme.of(context).colorScheme;
   return BarTouchTooltipData(
@@ -95,7 +49,7 @@ class VendasComprasChart extends StatelessWidget {
       0,
       (m, e) => math.max(m, math.max(e.vendas, e.compras)),
     );
-    final teto = _tetoDoEixo(maximo);
+    final teto = tetoDoEixo(maximo);
     return DashCard(
       titulo: 'Vendas x Compras',
       subtitulo:
@@ -111,8 +65,8 @@ class VendasComprasChart extends StatelessWidget {
                 const Wrap(
                   spacing: 16,
                   children: [
-                    _Legenda(cor: _corVendas, texto: 'Vendas'),
-                    _Legenda(cor: _corCompras, texto: 'Compras'),
+                    Legenda(cor: _corVendas, texto: 'Vendas'),
+                    Legenda(cor: _corCompras, texto: 'Compras'),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -151,7 +105,7 @@ class VendasComprasChart extends StatelessWidget {
                                       meta: meta,
                                       child: Text(
                                         moedaCompacta(v),
-                                        style: _estiloEixo(context),
+                                        style: estiloEixo(context),
                                       ),
                                     ),
                             ),
@@ -164,7 +118,7 @@ class VendasComprasChart extends StatelessWidget {
                                 meta: meta,
                                 child: Text(
                                   mesCurto(serie[v.toInt()].mes),
-                                  style: _estiloEixo(context),
+                                  style: estiloEixo(context),
                                 ),
                               ),
                             ),
@@ -224,7 +178,7 @@ class _FaturamentoDiarioChartState extends State<FaturamentoDiarioChart> {
     final serie = widget.metrics.serieDiaria(_dias);
     final total = serie.fold<double>(0, (s, e) => s + e.valor);
     final maximo = serie.fold<double>(0, (m, e) => math.max(m, e.valor));
-    final teto = _tetoDoEixo(maximo);
+    final teto = tetoDoEixo(maximo);
     final intervaloX = (_dias / 5).ceilToDouble();
     return DashCard(
       titulo: 'Faturamento diário',
@@ -296,7 +250,7 @@ class _FaturamentoDiarioChartState extends State<FaturamentoDiarioChart> {
                                   meta: meta,
                                   child: Text(
                                     moedaCompacta(v),
-                                    style: _estiloEixo(context),
+                                    style: estiloEixo(context),
                                   ),
                                 ),
                         ),
@@ -315,7 +269,7 @@ class _FaturamentoDiarioChartState extends State<FaturamentoDiarioChart> {
                               meta: meta,
                               child: Text(
                                 diaMes(serie[i].dia),
-                                style: _estiloEixo(context),
+                                style: estiloEixo(context),
                               ),
                             );
                           },

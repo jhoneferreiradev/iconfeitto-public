@@ -12,6 +12,7 @@ import '../../features/cozinha/screens/cozinha_list_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/empresa/screens/empresa_form_screen.dart';
 import '../../features/estoque/screens/estoque_screen.dart';
+import '../../features/financeiro/screens/financeiro_analise_screen.dart';
 import '../../features/financeiro/screens/lancamento_financeiro_form_screen.dart';
 import '../../features/financeiro/screens/lancamento_financeiro_list_screen.dart';
 import '../../features/fornecedores/screens/fornecedor_form_screen.dart';
@@ -201,6 +202,10 @@ final GoRouter appRouter = GoRouter(
           path: '/bandeiras/:id/editar',
           builder: (context, state) =>
               BandeiraFormScreen(bandeiraId: state.pathParameters['id']),
+        ),
+        GoRoute(
+          path: '/financeiro/analise',
+          builder: (context, state) => const FinanceiroAnaliseScreen(),
         ),
         GoRoute(
           path: '/financeiro/lancamentos',

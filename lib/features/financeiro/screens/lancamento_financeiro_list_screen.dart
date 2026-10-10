@@ -8,9 +8,7 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../shared/data/app_repository.dart';
-import '../data/financeiro_metrics.dart';
-import '../pdf/lancamento_financeiro_list_pdf.dart';
-import '../pdf/lancamento_financeiro_pdf.dart';
+import '../data/financeiro_analise.dart';
 import '../widgets/financeiro_kpis.dart';
 
 class LancamentoFinanceiroListScreen extends StatefulWidget {
@@ -51,24 +49,24 @@ class _LancamentoFinanceiroListScreenState
                 _busca.trim().toLowerCase(),
               );
         }).toList()..sort((a, b) => a.descricao.compareTo(b.descricao));
-        final resumo = ResumoFinanceiro.calcular(
+        final analise = AnaliseFinanceira.calcular(
           lancamentos: repo.lancamentosFinanceiros,
           agora: DateTime.now(),
         );
         return AppScaffold(
           title: widget.title,
           actions: [
-            IconButton(
-              tooltip: 'Prévia de impressão da lista',
-              icon: const Icon(Icons.print_outlined),
-              onPressed: itens.isEmpty
-                  ? null
-                  : () => LancamentoFinanceiroListPdf.visualizar(
-                      context,
-                      itens,
-                      titulo: widget.title,
-                    ),
-            ),
+            // IconButton(
+            //   tooltip: 'Imprimir lista',
+            //   icon: const Icon(Icons.print_outlined),
+            //   onPressed: itens.isEmpty
+            //       ? null
+            //       : () => Lan.imprimir(
+            //           itens,
+            //           titulo: widget.title,
+            //           listaDeLancamentos: _lancamentos,
+            //         ),
+            // ),
           ],
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => context.push('/financeiro/lancamentos/novo'),
@@ -125,7 +123,7 @@ class _LancamentoFinanceiroListScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        FinanceiroKpis(resumo: resumo),
+                        FinanceiroKpis(analise: analise),
                         const SizedBox(height: 16),
                         if (itens.isEmpty)
                           SizedBox(
@@ -169,11 +167,12 @@ class _LancamentoFinanceiroListScreenState
         title: Row(
           children: [
             Expanded(child: Text(item.descricao)),
-            IconButton(
-              icon: const Icon(Icons.print_outlined),
-              tooltip: 'Prévia de impressão do lançamento',
-              onPressed: () => LancamentoFinanceiroPdf.visualizar(context, item),
-            ),
+            // if (isProduto)
+            //   IconButton(
+            //     icon: const Icon(Icons.print_outlined),
+            //     tooltip: 'Imprimir ficha técnica',
+            //     onPressed: () => FichaTecnicaPdf.imprimir(item),
+            //   ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: item.tipoOperacaoOriem == TipoOperacaoOrigem.avulso

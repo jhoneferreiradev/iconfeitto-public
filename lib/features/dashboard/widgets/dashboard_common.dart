@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/formatters.dart';
@@ -70,6 +72,53 @@ String moedaCompacta(double valor) {
 String _umaCasa(double v) {
   final texto = v.toStringAsFixed(1).replaceAll('.', ',');
   return texto.endsWith(',0') ? texto.substring(0, texto.length - 2) : texto;
+}
+
+TextStyle? estiloEixo(BuildContext context) =>
+    Theme.of(context).textTheme.labelSmall
+        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+/// Teto do eixo Y em quatro intervalos "redondos" (1, 2, 2,5, 5 ou 10 x 10^n).
+double tetoDoEixo(double maximo) {
+  if (maximo <= 0) return 100;
+  final bruto = maximo * 1.1 / 4;
+  final ordem = math.pow(10, (math.log(bruto) / math.ln10).floor()).toDouble();
+  final normalizado = bruto / ordem;
+  final passo = switch (normalizado) {
+    <= 1 => 1.0,
+    <= 2 => 2.0,
+    <= 2.5 => 2.5,
+    <= 5 => 5.0,
+    _ => 10.0,
+  };
+  return passo * ordem * 4;
+}
+
+/// Quadradinho colorido + texto, para legendas de gráficos.
+class Legenda extends StatelessWidget {
+  final Color cor;
+  final String texto;
+
+  const Legenda({super.key, required this.cor, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: cor,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(texto, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
 }
 
 /// Cartão base dos blocos do dashboard, com título e subtítulo.
