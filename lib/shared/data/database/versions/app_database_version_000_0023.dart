@@ -1,9 +1,9 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:sqflite/sqflite.dart';
 
-import 'app_database_version.dart';
+import 'app_database_helpers.dart';
+import 'app_database_version_incremental.dart';
 
-class AppDatabaseVersion_000_0023 implements AppDatabaseVersion {
+class AppDatabaseVersion_000_0023 extends VersaoIncremental {
   @override
   int get versao => 23;
 
@@ -11,17 +11,6 @@ class AppDatabaseVersion_000_0023 implements AppDatabaseVersion {
   String get descricao => 'Exclusão do isEmbalagem do produto';
 
   @override
-  Future<void> aplicarMigracao(
-    Database db,
-    int oldVersion,
-    int newVersion,
-  ) async {
-    if (oldVersion < versao) {
-      debugPrint('Aplicando migração para a versão $versao: $descricao');
-      await db.execute('''
-        ALTER TABLE produtos
-        DROP COLUMN isEmbalagem
-      ''');
-    }
-  }
+  Future<void> migrar(Database db) =>
+      DatabaseHelpers.removerColunaSeExistir(db, 'produtos', 'isEmbalagem');
 }

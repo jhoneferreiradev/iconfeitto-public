@@ -1,10 +1,9 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:sqflite/sqflite.dart';
 
-import 'app_database_version.dart';
-import 'mixin_app_database_version.dart';
+import 'app_database_helpers.dart';
+import 'app_database_version_incremental.dart';
 
-class AppDatabaseVersion_000_0025 implements AppDatabaseVersion {
+class AppDatabaseVersion_000_0025 extends VersaoIncremental {
   @override
   int get versao => 25;
 
@@ -12,20 +11,11 @@ class AppDatabaseVersion_000_0025 implements AppDatabaseVersion {
   String get descricao => 'Adição da coluna quantidadeMinimaEstoque ao produto';
 
   @override
-  Future<void> aplicarMigracao(
-    Database db,
-    int oldVersion,
-    int newVersion,
-  ) async {
-    if (oldVersion < versao) {
-      debugPrint('Aplicando migração para a versão $versao: $descricao');
-
-      await MixinAppDatabaseVersion.adicionarColunaSeNecessario(
+  Future<void> migrar(Database db) =>
+      DatabaseHelpers.adicionarColunaSeNecessario(
         db,
         'produtos',
         'quantidadeMinimaEstoque',
         'REAL NOT NULL DEFAULT 0',
       );
-    }
-  }
 }
