@@ -1,3 +1,5 @@
+.vscode
+
 /frontend/.dart_tool
 
 /frontend/.idea
@@ -12,3 +14,16 @@
 /frontend/.flutter-plugins-dependencies
 /frontend/.analysis_options.yaml
 /frontend/build_windows.bat
+
+/backend/HELP.md
+/backend/target/
+/backend/.mvn/wrapper/maven-wrapper.jar
+!**/backend/src/main/**/target/
+!**/backend/src/test/**/target/
+
+/backend/.idea
+/backend/*.iws
+/backend/*.iml
+/backend/*.ipr
+
+/backend/.vscode/
