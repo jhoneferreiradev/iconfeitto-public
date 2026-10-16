@@ -16,5 +16,5 @@ void main() async {
   }
 
   await AppRepository.instance.initialize();
-  runApp(const ConfeitariaApp());
+  runApp(const IConfeittoApp());
 }
