@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.EntidadeBaseComDadosPadraoComConfeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBaseComDadosPadraoComConfeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.confeitaria.Confeitaria;
 import jakarta.persistence.*;
 import lombok.Data;

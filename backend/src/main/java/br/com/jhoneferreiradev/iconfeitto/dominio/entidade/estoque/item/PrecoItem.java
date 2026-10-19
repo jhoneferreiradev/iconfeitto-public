@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.item;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.EntidadeBase;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBase;
 import jakarta.persistence.*;
 import lombok.*;
 

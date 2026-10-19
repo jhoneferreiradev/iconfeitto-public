@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.usuario;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.EntidadeBaseComDadosPadraoComConfeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBaseComDadosPadraoComConfeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.confeitaria.Confeitaria;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

@@ -1,4 +1,4 @@
-package br.com.jhoneferreiradev.iconfeitto.dominio;
+package br.com.jhoneferreiradev.iconfeitto.dominio.entidade;
 
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.EntidadeBase;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBase;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.item.Item;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida.UnidadeMedida;
 import jakarta.persistence.*;

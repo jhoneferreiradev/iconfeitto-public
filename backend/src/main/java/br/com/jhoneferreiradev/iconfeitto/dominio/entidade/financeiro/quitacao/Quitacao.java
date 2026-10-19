@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.quitacao;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.EntidadeBase;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBase;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.FormaPagamento;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.lancamentofinanceiro.LancamentoFinanceiro;
 import jakarta.persistence.*;

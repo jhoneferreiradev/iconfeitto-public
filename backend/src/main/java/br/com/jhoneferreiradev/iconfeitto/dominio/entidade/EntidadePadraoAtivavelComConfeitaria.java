@@ -1,6 +1,5 @@
-package br.com.jhoneferreiradev.iconfeitto.dominio;
+package br.com.jhoneferreiradev.iconfeitto.dominio.entidade;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeComConfeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.confeitaria.Confeitaria;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;

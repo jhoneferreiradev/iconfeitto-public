@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.lancamentofinanceiro;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.EntidadeBaseComDadosPadraoComConfeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBaseComDadosPadraoComConfeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao.MovimentacaoEstoque;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.FormaPagamento;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.quitacao.Quitacao;
