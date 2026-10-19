@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface SaidaConsumoRepository extends JpaRepository<SaidaConsumo, Long>, RepositorioBaseComConfeitariaRepository<SaidaConsumo, Long> {
+public interface SaidaConsumoRepository extends
+        JpaRepository<SaidaConsumo, Long>,
+        RepositorioBaseComConfeitariaRepository<SaidaConsumo, Long> {
 }

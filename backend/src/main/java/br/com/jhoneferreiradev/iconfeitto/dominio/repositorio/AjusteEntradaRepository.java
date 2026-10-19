@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AjusteEntradaRepository extends JpaRepository<AjusteEntrada, Long>, RepositorioBaseComConfeitariaRepository<AjusteEntrada, Long> {
+public interface AjusteEntradaRepository extends
+        JpaRepository<AjusteEntrada, Long>,
+        RepositorioBaseComConfeitariaRepository<AjusteEntrada, Long> {
 }

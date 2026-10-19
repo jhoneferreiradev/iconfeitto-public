@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface LancamentoFinanceiroRepository extends JpaRepository<LancamentoFinanceiro, Long>, RepositorioBaseComConfeitariaRepository<LancamentoFinanceiro, Long> {
+public interface LancamentoFinanceiroRepository extends
+        JpaRepository<LancamentoFinanceiro, Long>,
+        RepositorioBaseComConfeitariaRepository<LancamentoFinanceiro, Long> {
 }
