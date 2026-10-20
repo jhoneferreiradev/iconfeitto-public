@@ -3,7 +3,7 @@ package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.cliente;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.PersonalidadeJuridica;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.Pessoa;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.TipoPessoa;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.confeitaria.Confeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;

@@ -1,7 +1,7 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida;
 
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadePadraoAtivavelComConfeitaria;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.confeitaria.Confeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
