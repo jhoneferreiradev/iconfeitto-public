@@ -1,0 +1,33 @@
+package br.com.jhoneferreiradev.iconfeitto.config.springfox;
+
+import br.com.jhoneferreiradev.iconfeitto.dominio.excecao.modelo.IConfeittoErro;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class SpringFoxConfig {
+
+    @Bean
+    public OpenAPI api() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("IConfeitto API")
+                        .version("1.0")
+                        .description("Documentação básica da API do sistema IConfeitto."))
+                .components(new Components()
+                        .addSchemas("IConfeittoErro", new Schema<IConfeittoErro>()
+                                .name("IConfeittoErro")
+                                .description("Modelo de erro retornado pela API")
+                                .example(new IConfeittoErro(400, "Campo de telefone é obrigatório")))
+                        .addSecuritySchemes("bearerAuth",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
+    }
+}

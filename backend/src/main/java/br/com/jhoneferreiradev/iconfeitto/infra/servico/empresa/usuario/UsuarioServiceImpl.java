@@ -6,6 +6,8 @@ import br.com.jhoneferreiradev.iconfeitto.dominio.servico.empresa.usuario.Usuari
 import br.com.jhoneferreiradev.iconfeitto.infra.servico.base.BaseServiceImpl;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class UsuarioServiceImpl extends BaseServiceImpl<Usuario> implements UsuarioService {
 
@@ -13,4 +15,13 @@ public class UsuarioServiceImpl extends BaseServiceImpl<Usuario> implements Usua
         super(repository, "Usuário");
     }
 
+    @Override
+    public Optional<Usuario> buscarPorEmailComConfeitaria(String email) {
+        return getRepository().findByEmail(email);
+    }
+
+    @Override
+    public UsuarioRepository getRepository() {
+        return (UsuarioRepository) super.getRepository();
+    }
 }
