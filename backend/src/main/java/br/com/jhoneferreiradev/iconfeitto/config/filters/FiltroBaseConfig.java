@@ -31,9 +31,13 @@ public class FiltroBaseConfig {
      * <p>
      * Use autenticadorMock para fins de teste. Troque o valor de teste@teste.com por um e-mail válido de um usuário cadastrado no banco de dados para simular a autenticação.
      * </p>
+     *
+     * <p>
+     * Caso precise incluir novo autenticador, basta criar uma nova implementação da interface AutenticadorService e configurar o bean correspondente.
+     * </p>
      */
     @Autowired
-    @Qualifier("autenticadorMock")
+    @Qualifier("autenticadorFirebase")
     private AutenticadorService autenticadorService;
 
     public void aplicarFiltro(HttpServletRequest request,
