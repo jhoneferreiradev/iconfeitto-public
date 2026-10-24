@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.usuario;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBaseComDadosPadraoComConfeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadePadraoAtivavelComConfeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,24 +23,22 @@ import java.util.List;
 @Entity
 @Table(name = "tb_usuario")
 @NoArgsConstructor
-public class Usuario extends EntidadeBaseComDadosPadraoComConfeitaria implements UserDetails {
+public class Usuario extends EntidadePadraoAtivavelComConfeitaria implements UserDetails {
 
     @EqualsAndHashCode.Include
     private String email;
 
     private String nome;
 
-    private String tokenExterno;
-
     @Enumerated(EnumType.STRING)
     private PerfilUsuario perfil;
 
-    public Usuario(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, String email, String nome,
-                   String tokenExterno, PerfilUsuario perfil) {
-        super(id, confeitaria, criadoEm);
+    public Usuario(Long id, Confeitaria confeitaria,
+                   OffsetDateTime criadoEm, boolean ativo,
+                   String email, String nome, PerfilUsuario perfil) {
+        super(id, confeitaria, criadoEm, ativo);
         this.email = email;
         this.nome = nome;
-        this.tokenExterno = tokenExterno;
         this.perfil = perfil;
     }
 

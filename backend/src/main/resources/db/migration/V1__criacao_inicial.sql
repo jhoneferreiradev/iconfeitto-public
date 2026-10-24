@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS tb_usuario
     nome           VARCHAR(100) NOT NULL,
     email          VARCHAR(100) NOT NULL,
     perfil         VARCHAR(50)  NOT NULL,
-    token_externo  VARCHAR(255) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_USUARIO_CONFEITARIA
     FOREIGN KEY (confeitaria_id) REFERENCES tb_confeitaria (id)
