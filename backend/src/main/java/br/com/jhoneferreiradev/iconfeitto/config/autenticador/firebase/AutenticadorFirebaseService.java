@@ -13,8 +13,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 public class AutenticadorFirebaseService implements AutenticadorService {
 
     private final FirebaseConfig firebaseConfig;
@@ -47,11 +45,6 @@ public class AutenticadorFirebaseService implements AutenticadorService {
         Usuario usuario = usuarioService
                 .buscarPorEmailComConfeitaria(email)
                 .orElseThrow(() -> new IConfeittoException("Acesso não autorizado", HttpStatus.UNAUTHORIZED));
-
-        if (isNotBlank(usuario.getTokenExterno())) {
-            usuario.setTokenExterno(null);
-            usuarioService.salvar(usuario);
-        }
 
         var usuarioAutenticado = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
 

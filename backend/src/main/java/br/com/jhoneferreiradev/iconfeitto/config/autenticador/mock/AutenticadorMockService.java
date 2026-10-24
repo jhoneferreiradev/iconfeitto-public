@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.Base64;
+
 @Slf4j
 public class AutenticadorMockService implements AutenticadorService {
 
@@ -27,10 +29,16 @@ public class AutenticadorMockService implements AutenticadorService {
     @Override
     public void autenticar(String token) {
         log.info("\n\n Autenticador de teste em utilização !!! \n\n");
+        var email = decodificarTokenParaEmail(token);
         var usuario = usuarioService
-                .buscarPorEmailComConfeitaria("teste@teste.com")
+                .buscarPorEmailComConfeitaria(email)
                 .orElseThrow(() -> new IConfeittoException("Acesso não autorizado", HttpStatus.UNAUTHORIZED));
         var usuarioAutenticado = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(usuarioAutenticado);
+    }
+
+    public static String decodificarTokenParaEmail(String token) {
+        byte[] bytes = Base64.getDecoder().decode(token);
+        return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 }

@@ -37,7 +37,7 @@ public class FiltroBaseConfig {
      * </p>
      */
     @Autowired
-    @Qualifier("autenticadorFirebase")
+    @Qualifier("autenticadorMock")
     private AutenticadorService autenticadorService;
 
     public void aplicarFiltro(HttpServletRequest request,
