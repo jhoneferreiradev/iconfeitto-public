@@ -3,14 +3,16 @@ package br.com.jhoneferreiradev.iconfeitto.config.springfox;
 import br.com.jhoneferreiradev.iconfeitto.dominio.excecao.modelo.IConfeittoErro;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class SpringFoxConfig {
+public class SpringDocConfig {
 
     @Bean
     public OpenAPI api() {
@@ -18,7 +20,19 @@ public class SpringFoxConfig {
                 .info(new Info()
                         .title("IConfeitto API")
                         .version("1.0")
-                        .description("Documentação básica da API do sistema IConfeitto."))
+                        .description("Documentação básica da API do sistema IConfeitto.")
+
+//                        .contact(
+//                                new Contact()
+//                                        .name("NOME_CONTATO")
+//                                        .email("EMAIL_CONTATO")
+//                                        .url("URL_SITE_CONTATO")
+//                        )
+                )
+
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+
+
                 .components(new Components()
                         .addSchemas("IConfeittoErro", new Schema<IConfeittoErro>()
                                 .name("IConfeittoErro")
