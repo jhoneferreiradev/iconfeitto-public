@@ -4,7 +4,9 @@ import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.C
 import br.com.jhoneferreiradev.iconfeitto.dominio.repositorio.empresa.confeitaria.ConfeitariaRepository;
 import br.com.jhoneferreiradev.iconfeitto.dominio.servico.empresa.confeitaria.ConfeitariaService;
 import br.com.jhoneferreiradev.iconfeitto.infra.servico.base.BaseServiceImpl;
+import org.springframework.stereotype.Service;
 
+@Service
 public class ConfeitariaServiceImpl extends BaseServiceImpl<Confeitaria> implements ConfeitariaService {
 
     public ConfeitariaServiceImpl(ConfeitariaRepository repository) {
