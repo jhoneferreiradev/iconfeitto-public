@@ -1,5 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.config.filters;
 
+import br.com.jhoneferreiradev.iconfeitto.config.security.SecurityConfigUtil;
 import br.com.jhoneferreiradev.iconfeitto.dominio.excecao.IConfeittoException;
 import com.google.firebase.auth.FirebaseAuthException;
 import jakarta.servlet.FilterChain;
@@ -12,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+
+import static br.com.jhoneferreiradev.iconfeitto.config.security.SecurityConfigUtil.PATH_MATCHER;
 
 @Configuration
 public class SecurityFilterProxy extends OncePerRequestFilter {
@@ -33,5 +36,23 @@ public class SecurityFilterProxy extends OncePerRequestFilter {
         }
 
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest req) throws ServletException {
+
+        String metodo = req.getMethod();
+        String caminho = req.getRequestURI().substring(req.getContextPath().length());
+
+        boolean isPublica = SecurityConfigUtil.listarRequisicoesPublicas().stream().anyMatch(publica ->
+                publica.metodo().matches(metodo)
+                        && PATH_MATCHER.match(publica.url(), caminho));
+
+        if (isPublica) {
+            return true;
+        }
+
+        return super.shouldNotFilter(req);
+    }
+
 
 }

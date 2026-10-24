@@ -60,17 +60,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(req -> {
                     req.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-                    req.requestMatchers(HttpMethod.POST, "/confeitarias").permitAll();
-                    req.requestMatchers(HttpMethod.POST, "/confeitarias/ativacoes").permitAll();
+                    List<SecurityConfigUtil.RequisicaoPublica> requisicoesPublicas = SecurityConfigUtil.listarRequisicoesPublicas();
 
-                    req.requestMatchers(HttpMethod.GET, "/usuarios/ativacoes").permitAll();
+                    for (SecurityConfigUtil.RequisicaoPublica requisicao : requisicoesPublicas) {
+                        req.requestMatchers(requisicao.metodo(), requisicao.url()).permitAll();
+                    }
 
-                    req.requestMatchers(
-                            "/v3/api-docs/**",
-                            "/swagger-ui/**",
-                            "/swagger-ui.html",
-                            "/webjars/**"
-                    ).permitAll();
                     req.anyRequest().authenticated();
                 })
 
