@@ -1,5 +1,8 @@
 package br.com.jhoneferreiradev.iconfeitto.infra.servico.empresa.usuario;
 
+import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.empresa.confeitaria.NovaConfeitariaDTOEntrada;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.usuario.PerfilUsuario;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.usuario.Usuario;
 import br.com.jhoneferreiradev.iconfeitto.dominio.repositorio.empresa.usuario.UsuarioRepository;
 import br.com.jhoneferreiradev.iconfeitto.dominio.servico.empresa.usuario.UsuarioService;
@@ -24,4 +27,15 @@ public class UsuarioServiceImpl extends BaseServiceImpl<Usuario> implements Usua
     public UsuarioRepository getRepository() {
         return (UsuarioRepository) super.getRepository();
     }
+
+    @Override
+    public void adicionarPrimeiroUsuarioDaConfeitaria(NovaConfeitariaDTOEntrada dtoNovaConfeitaria, Confeitaria confeitaria) {
+        Usuario usuario = new Usuario();
+        usuario.setEmail(dtoNovaConfeitaria.emailUsuarioMaster());
+        usuario.setNome(dtoNovaConfeitaria.nomeUsuarioMaster());
+        usuario.setConfeitaria(confeitaria);
+        usuario.setPerfil(PerfilUsuario.ADMINISTRADOR);
+        getRepository().save(usuario);
+    }
+
 }
