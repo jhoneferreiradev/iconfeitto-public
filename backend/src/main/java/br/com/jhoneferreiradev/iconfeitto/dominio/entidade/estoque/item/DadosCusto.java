@@ -1,7 +1,7 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.item;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida.UnidadeMedida;
-import jakarta.persistence.*;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Transient;
 import lombok.*;
 
 import java.math.BigDecimal;

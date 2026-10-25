@@ -1,9 +1,9 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao.ajuste;
 
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao.ItemMovimentacaoEstoque;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao.MovimentacaoEstoque;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao.TipoMovimentacaoEstoque;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

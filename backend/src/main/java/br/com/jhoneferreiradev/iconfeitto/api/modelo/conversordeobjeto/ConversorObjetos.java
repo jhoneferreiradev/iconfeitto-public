@@ -40,7 +40,7 @@ public final class ConversorObjetos {
 
         } catch (ReflectiveOperationException e) {
             throw new IConfeittoException(
-                    "Erro ao converter " + classeEntrada.getName() + " para " + classeSaida.getName(),
+                    "Erro ao converter " + classeEntrada.getSimpleName() + " para " + classeSaida.getSimpleName(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -95,7 +95,7 @@ public final class ConversorObjetos {
 
         if (objetoDestino.getClass().isRecord()) {
             throw new IConfeittoException(
-                    "Não é possível atualizar um record (imutável): " + objetoDestino.getClass().getName(),
+                    "Não é possível atualizar um record (imutável): " + objetoDestino.getClass().getSimpleName(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
@@ -116,7 +116,7 @@ public final class ConversorObjetos {
             }
         } catch (IllegalAccessException e) {
             throw new IConfeittoException(
-                    "Erro ao atualizar " + objetoDestino.getClass().getName(),
+                    "Erro ao atualizar " + objetoDestino.getClass().getSimpleName(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

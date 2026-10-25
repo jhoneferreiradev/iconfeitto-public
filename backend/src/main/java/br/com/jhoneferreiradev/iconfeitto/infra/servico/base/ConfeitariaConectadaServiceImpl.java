@@ -2,8 +2,8 @@ package br.com.jhoneferreiradev.iconfeitto.infra.servico.base;
 
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.usuario.Usuario;
-import br.com.jhoneferreiradev.iconfeitto.dominio.repositorio.empresa.usuario.UsuarioRepository;
 import br.com.jhoneferreiradev.iconfeitto.dominio.repositorio.base.ConfeitariaConectadaService;
+import br.com.jhoneferreiradev.iconfeitto.dominio.repositorio.empresa.usuario.UsuarioRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 

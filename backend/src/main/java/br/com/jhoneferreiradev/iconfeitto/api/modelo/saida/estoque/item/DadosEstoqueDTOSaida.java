@@ -1,10 +1,7 @@
 package br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.estoque.item;
 
-import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.identificadores.UnidadeMedidaIdDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 

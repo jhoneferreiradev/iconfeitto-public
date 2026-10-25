@@ -2,12 +2,11 @@ package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.item;
 
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBase;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida.UnidadeMedida;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
-
-import jakarta.persistence.*;
-import lombok.*;
 
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Data

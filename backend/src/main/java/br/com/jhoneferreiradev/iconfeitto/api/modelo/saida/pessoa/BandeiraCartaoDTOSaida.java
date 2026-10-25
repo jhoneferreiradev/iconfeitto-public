@@ -1,11 +1,11 @@
 package br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.pessoa;
 
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.PersonalidadeJuridica;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.bandeiracartao.TipoTaxaBandeiraCartao;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
 @Getter
+@NoArgsConstructor
 public class BandeiraCartaoDTOSaida extends AbstractPessoaDTOSaida {
 
     @Schema(
@@ -31,10 +32,10 @@ public class BandeiraCartaoDTOSaida extends AbstractPessoaDTOSaida {
             description = "Tipo da taxa cobrada pela bandeira")
     private TipoTaxaBandeiraCartao tipoTaxa;
 
-    public BandeiraCartaoDTOSaida(Long id, String nome, PersonalidadeJuridica personalidadeJuridica,
+    public BandeiraCartaoDTOSaida(Long id, String nome,
                                   Boolean ativo, BigDecimal taxa,
                                   Integer diasCompensacao, TipoTaxaBandeiraCartao tipoTaxa) {
-        super(id, nome, personalidadeJuridica, ativo);
+        super(id, nome, ativo);
         this.taxa = taxa;
         this.diasCompensacao = diasCompensacao;
         this.tipoTaxa = tipoTaxa;

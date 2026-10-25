@@ -1,8 +1,8 @@
 package br.com.jhoneferreiradev.iconfeitto.config.autenticador;
 
+import br.com.jhoneferreiradev.iconfeitto.config.autenticador.firebase.AutenticadorFirebaseService;
 import br.com.jhoneferreiradev.iconfeitto.config.autenticador.mock.AutenticadorMockService;
 import br.com.jhoneferreiradev.iconfeitto.config.firebase.FirebaseConfig;
-import br.com.jhoneferreiradev.iconfeitto.config.autenticador.firebase.AutenticadorFirebaseService;
 import br.com.jhoneferreiradev.iconfeitto.dominio.servico.empresa.usuario.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

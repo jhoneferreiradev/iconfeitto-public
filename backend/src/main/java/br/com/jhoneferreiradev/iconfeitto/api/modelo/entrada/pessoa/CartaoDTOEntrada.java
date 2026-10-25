@@ -1,7 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.pessoa;
 
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.PersonalidadeJuridica;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
@@ -9,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Schema(
         name = "Cartão",
@@ -18,6 +18,7 @@ import lombok.Getter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
 @Getter
+@NoArgsConstructor
 public class CartaoDTOEntrada extends AbstractPessoaDTOEntrada {
 
     @Schema(
@@ -37,10 +38,10 @@ public class CartaoDTOEntrada extends AbstractPessoaDTOEntrada {
     @Min(value = 1, groups = ValidacaoInclusao.class)
     private Integer diasParaFechamento;
 
-    public CartaoDTOEntrada(String nome, PersonalidadeJuridica personalidadeJuridica,
+    public CartaoDTOEntrada(String nome,
                             Boolean ativo,
                             Integer diaVencimento, Integer diasParaFechamento) {
-        super(nome, personalidadeJuridica, ativo);
+        super(nome, ativo);
         this.diaVencimento = diaVencimento;
         this.diasParaFechamento = diasParaFechamento;
     }

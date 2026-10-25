@@ -1,11 +1,11 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.lancamentofinanceiro;
 
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.EntidadeBaseComDadosPadraoComConfeitaria;
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.movimentacao.MovimentacaoEstoque;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.FormaPagamento;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.financeiro.quitacao.Quitacao;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.Pessoa;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

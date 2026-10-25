@@ -1,13 +1,13 @@
 package br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.pessoa;
 
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.PersonalidadeJuridica;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.bandeiracartao.TipoTaxaBandeiraCartao;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
 @Getter
+@NoArgsConstructor
 public class BandeiraCartaoDTOEntrada extends AbstractPessoaDTOEntrada {
 
     @Schema(
@@ -41,10 +42,10 @@ public class BandeiraCartaoDTOEntrada extends AbstractPessoaDTOEntrada {
     @NotNull(groups = ValidacaoInclusao.class)
     private TipoTaxaBandeiraCartao tipoTaxa;
 
-    public BandeiraCartaoDTOEntrada(String nome, PersonalidadeJuridica personalidadeJuridica,
+    public BandeiraCartaoDTOEntrada(String nome,
                                     Boolean ativo, BigDecimal taxa,
                                     Integer diasCompensacao, TipoTaxaBandeiraCartao tipoTaxa) {
-        super(nome, personalidadeJuridica, ativo);
+        super(nome, ativo);
         this.taxa = taxa;
         this.diasCompensacao = diasCompensacao;
         this.tipoTaxa = tipoTaxa;

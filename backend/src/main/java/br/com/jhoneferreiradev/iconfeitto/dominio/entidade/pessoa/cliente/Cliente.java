@@ -1,16 +1,15 @@
 package br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.cliente;
 
+import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.PersonalidadeJuridica;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.Pessoa;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.TipoPessoa;
-import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.Confeitaria;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
 
@@ -20,11 +19,14 @@ import java.time.OffsetDateTime;
 @Table(name = "tb_cliente")
 @DiscriminatorValue("00") // 00 = TipoPessoa.CLIENTE.getId()
 @PrimaryKeyJoinColumn(name = "id")
-@NoArgsConstructor
 public class Cliente extends Pessoa {
 
-    public Cliente(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, boolean ativo,
-                      PersonalidadeJuridica personalidadeJuridica, String nome, TipoPessoa tipoPessoa) {
-        super(id, confeitaria, criadoEm, ativo, personalidadeJuridica, nome, tipoPessoa);
+    public Cliente() {
+        this.setPersonalidadeJuridica(PersonalidadeJuridica.PF);
     }
+
+    public Cliente(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, boolean ativo, String nome, TipoPessoa tipoPessoa) {
+        super(id, confeitaria, criadoEm, ativo, PersonalidadeJuridica.PF, nome, tipoPessoa);
+    }
+
 }
