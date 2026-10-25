@@ -10,7 +10,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 
 @Schema(
-        name = "BandeiraCartaoDTOSaida",
+        name = "Bandeira de cartão",
         description = "Dados de uma bandeira de cartão")
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
@@ -18,19 +18,16 @@ import java.math.BigDecimal;
 public class BandeiraCartaoDTOSaida extends AbstractPessoaDTOSaida {
 
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "Taxa cobrada pela bandeira, interpretada conforme o tipo de taxa",
             example = "2.99")
     private BigDecimal taxa;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "Quantidade de dias para a compensação dos valores",
             example = "30")
     private Integer diasCompensacao;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "Tipo da taxa cobrada pela bandeira")
     private TipoTaxaBandeiraCartao tipoTaxa;
 

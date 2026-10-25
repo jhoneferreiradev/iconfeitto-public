@@ -1,6 +1,6 @@
 package br.com.jhoneferreiradev.iconfeitto.api.documentacao.estoque;
 
-import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.UnidadeMedidaDTOEntrada;
+import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.unidademedida.UnidadeMedidaDTOEntrada;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.estoque.UnidadeMedidaDTOSaida;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

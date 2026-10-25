@@ -12,7 +12,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 
 @Schema(
-        name = "BandeiraCartaoDTOEntrada",
+        name = "Bandeira de cartão",
         description = "Dados para a criação ou atualização de uma bandeira de cartão. " +
                 "Na atualização, atributos nulos ou não informados serão ignorados e não sobrescreverão os valores existentes",
         allOf = AbstractPessoaDTOEntrada.class)

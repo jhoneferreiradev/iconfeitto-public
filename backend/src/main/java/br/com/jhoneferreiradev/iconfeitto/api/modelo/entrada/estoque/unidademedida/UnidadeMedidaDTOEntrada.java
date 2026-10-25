@@ -1,15 +1,16 @@
-package br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque;
+package br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.unidademedida;
 
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida.GrupoUnidadeMedida;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
 @Schema(
-        name = "UnidadeMedidaDTOEntrada",
+        name = "Unidade de medida",
         description = "Dados para a criação ou atualização de uma unidade de medida. " +
                 "Na atualização, atributos nulos ou não informados serão ignorados e não sobrescreverão os valores existentes")
 public record UnidadeMedidaDTOEntrada(
@@ -38,6 +39,7 @@ public record UnidadeMedidaDTOEntrada(
                 description = "Fator de conversão desta unidade para a unidade base do grupo. Obrigatório na criação",
                 example = "1000")
         @NotNull(groups = ValidacaoInclusao.class)
+        @Min(value = 0, groups = ValidacaoInclusao.class)
         BigDecimal fatorParaBase,
 
         @Schema(

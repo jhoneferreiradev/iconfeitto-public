@@ -3,7 +3,7 @@ package br.com.jhoneferreiradev.iconfeitto.api.controller.estoque;
 import br.com.jhoneferreiradev.iconfeitto.api.documentacao.estoque.UnidadeMedidaControllerDoc;
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.conversordeobjeto.ConversorObjetos;
-import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.UnidadeMedidaDTOEntrada;
+import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.unidademedida.UnidadeMedidaDTOEntrada;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.estoque.UnidadeMedidaDTOSaida;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida.UnidadeMedida;
 import br.com.jhoneferreiradev.iconfeitto.dominio.servico.estoque.UnidadeMedidaService;

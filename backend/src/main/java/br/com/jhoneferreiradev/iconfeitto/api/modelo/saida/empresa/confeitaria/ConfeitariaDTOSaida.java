@@ -10,62 +10,53 @@ import lombok.NoArgsConstructor;
 import java.util.Set;
 
 @Schema(
-        name = "ConfeitariaDTOSaida",
+        name = "Confeitaria",
         description = "Dados de uma confeitaria")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 public class ConfeitariaDTOSaida {
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "ID único da confeitaria",
             example = "42")
     private Long id;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "Nome da confeitaria",
             example = "Confeitaria Doce Sabor")
     private String nome;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Personalidade jurídica da confeitaria",
             example = "PF")
     private PersonalidadeJuridica personalidadeJuridica;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Documento da confeitaria (CNPJ ou CPF)",
             example = "12.345.678/0001-90")
     private String documento;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Endereço da confeitaria",
             example = "Rua das Flores, 123, Bairro Jardim, Cidade Exemplo, Estado Exemplo, CEP 12345-678")
     private String endereco;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Telefone da confeitaria",
             example = "(11) 98765-4321")
     private String telefone;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Facebook da confeitaria",
             example = "facebook.com/doce-sabor")
     private String facebook;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Instagram da confeitaria",
             example = "instagram.com/doce-sabor")
     private String instagram;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED,
             description = "Custos operacionais da confeitaria")
     private Set<CustoOperacionalDTOSaida> custosOperacionais;
 }

@@ -2,10 +2,11 @@ package br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.empresa.confeitari
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 @Schema(
-        name = "NovaConfeitariaDTOEntrada",
+        name = "Nova confeitaria",
         description = "Dados para a criação de uma nova confeitaria")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record NovaConfeitariaDTOEntrada(
@@ -29,6 +30,7 @@ public record NovaConfeitariaDTOEntrada(
                 description = "Email do usuário master",
                 example = "joao.silva@example.com")
         @NotBlank
+        @Email
         String emailUsuarioMaster
 ) {
 }

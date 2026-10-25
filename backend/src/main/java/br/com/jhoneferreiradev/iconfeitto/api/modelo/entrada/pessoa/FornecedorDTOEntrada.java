@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Schema(
-        name = "FornecedorDTOEntrada",
+        name = "Fornecedor",
         description = "Dados para a criação ou atualização de um fornecedor. " +
                 "Na atualização, atributos nulos ou não informados serão ignorados e não sobrescreverão os valores existentes",
         allOf = AbstractPessoaDTOEntrada.class)

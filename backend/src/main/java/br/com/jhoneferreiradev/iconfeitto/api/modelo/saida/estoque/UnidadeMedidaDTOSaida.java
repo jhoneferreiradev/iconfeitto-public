@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 
 @Schema(
-        name = "UnidadeMedidaDTOSaida",
+        name = "Unidade de medida",
         description = "Dados de uma unidade de medida")
 public record UnidadeMedidaDTOSaida(
         @Schema(

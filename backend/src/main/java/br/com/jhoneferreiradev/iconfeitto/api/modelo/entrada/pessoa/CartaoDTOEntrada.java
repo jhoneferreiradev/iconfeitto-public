@@ -4,12 +4,14 @@ import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.PersonalidadeJuridica;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Schema(
-        name = "CartaoDTOEntrada",
+        name = "Cartão",
         description = "Dados para a criação ou atualização de um cartão. " +
                 "Na atualização, atributos nulos ou não informados serão ignorados e não sobrescreverão os valores existentes",
         allOf = AbstractPessoaDTOEntrada.class)
@@ -23,6 +25,8 @@ public class CartaoDTOEntrada extends AbstractPessoaDTOEntrada {
             description = "Dia do mês de vencimento da fatura do cartão. Obrigatório na criação",
             example = "10")
     @NotNull(groups = ValidacaoInclusao.class)
+    @Min(value = 1, groups = ValidacaoInclusao.class)
+    @Max(value = 31, groups = ValidacaoInclusao.class)
     private Integer diaVencimento;
 
     @Schema(
@@ -30,6 +34,7 @@ public class CartaoDTOEntrada extends AbstractPessoaDTOEntrada {
             description = "Quantidade de dias para o fechamento da fatura do cartão. Obrigatório na criação",
             example = "7")
     @NotNull(groups = ValidacaoInclusao.class)
+    @Min(value = 1, groups = ValidacaoInclusao.class)
     private Integer diasParaFechamento;
 
     public CartaoDTOEntrada(String nome, PersonalidadeJuridica personalidadeJuridica,

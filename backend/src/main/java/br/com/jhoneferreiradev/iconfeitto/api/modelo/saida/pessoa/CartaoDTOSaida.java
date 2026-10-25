@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Schema(
-        name = "CartaoDTOSaida",
+        name = "Cartão",
         description = "Dados de um cartão")
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
@@ -15,13 +15,11 @@ import lombok.Getter;
 public class CartaoDTOSaida extends AbstractPessoaDTOSaida {
 
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "Dia do mês de vencimento da fatura do cartão",
             example = "10")
     private Integer diaVencimento;
 
     @Schema(
-            requiredMode = Schema.RequiredMode.REQUIRED,
             description = "Quantidade de dias para o fechamento da fatura do cartão",
             example = "7")
     private Integer diasParaFechamento;

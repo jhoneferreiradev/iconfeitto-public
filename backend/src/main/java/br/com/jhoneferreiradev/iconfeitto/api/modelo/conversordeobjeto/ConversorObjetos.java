@@ -3,11 +3,18 @@ package br.com.jhoneferreiradev.iconfeitto.api.modelo.conversordeobjeto;
 import br.com.jhoneferreiradev.iconfeitto.dominio.excecao.IConfeittoException;
 import org.springframework.http.HttpStatus;
 
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 public final class ConversorObjetos {
 
@@ -22,6 +29,10 @@ public final class ConversorObjetos {
         if (origem == null) return null;
 
         try {
+            if (classeSaida.isRecord()) {
+                return converterParaRecord(origem, classeEntrada, classeSaida);
+            }
+
             T destino = classeSaida.getDeclaredConstructor().newInstance();
 
             for (Field campoDestino : camposDe(classeSaida)) {
@@ -32,7 +43,8 @@ public final class ConversorObjetos {
                 campoDestino.setAccessible(true);
 
                 Object valor = campoOrigem.get(origem);
-                campoDestino.set(destino, converterValor(valor, campoDestino));
+                campoDestino.set(destino,
+                        converterValor(valor, campoDestino.getGenericType(), campoDestino.getType()));
             }
             return destino;
 
@@ -41,6 +53,42 @@ public final class ConversorObjetos {
                     "Erro ao converter " + classeEntrada.getName() + " para " + classeSaida.getName(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    // Records são imutáveis: monta os valores de cada componente e chama o construtor canônico
+    private static <T> T converterParaRecord(Object origem, Class<?> classeEntrada, Class<T> classeSaida)
+            throws ReflectiveOperationException {
+
+        RecordComponent[] componentes = classeSaida.getRecordComponents();
+        Class<?>[] tipos = new Class<?>[componentes.length];
+        Object[] valores = new Object[componentes.length];
+
+        for (int i = 0; i < componentes.length; i++) {
+            RecordComponent componente = componentes[i];
+            Class<?> tipo = componente.getType();
+            tipos[i] = tipo;
+
+            Object valor = null;
+            Field campoOrigem = buscarCampo(classeEntrada, componente.getName());
+            if (campoOrigem != null) {
+                campoOrigem.setAccessible(true);
+                valor = converterValor(campoOrigem.get(origem), componente.getGenericType(), tipo);
+            }
+
+            // construtor canônico não aceita null em tipo primitivo
+            if (valor == null && tipo.isPrimitive()) {
+                valor = valorPadraoPrimitivo(tipo);
+            }
+            valores[i] = valor;
+        }
+
+        Constructor<T> construtor = classeSaida.getDeclaredConstructor(tipos);
+        construtor.setAccessible(true);
+        return construtor.newInstance(valores);
+    }
+
+    private static Object valorPadraoPrimitivo(Class<?> tipo) {
+        return Array.get(Array.newInstance(tipo, 1), 0);
     }
 
     // ---------- atualizar ----------
@@ -55,9 +103,16 @@ public final class ConversorObjetos {
                     "objetoOrigem e objetoDestino não podem ser nulos", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
+        if (objetoDestino.getClass().isRecord()) {
+            throw new IConfeittoException(
+                    "Não é possível atualizar um record (imutável): " + objetoDestino.getClass().getName(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
         try {
             for (Field campoOrigem : camposDeLeitura(objetoOrigem.getClass())) {
                 Field campoDestino = buscarCampo(objetoDestino.getClass(), campoOrigem.getName());
+                if (campoDestino == null) continue;
 
                 campoOrigem.setAccessible(true);
                 campoDestino.setAccessible(true);
@@ -65,7 +120,7 @@ public final class ConversorObjetos {
                 Object valor = campoOrigem.get(objetoOrigem);
                 if (valor == null && ignorarNulos) continue;
 
-                Object valorConvertido = converterValor(valor, campoDestino);
+                Object valorConvertido = converterValor(valor, campoDestino.getGenericType(), campoDestino.getType());
                 Object valorAtualDestino = campoDestino.get(objetoDestino);
                 campoDestino.set(objetoDestino, copiarValor(valorConvertido, valorAtualDestino));
             }
@@ -99,15 +154,13 @@ public final class ConversorObjetos {
 
     // ---------- conversão de valores ----------
 
-    private static Object converterValor(Object valor, Field campoDestino) {
+    private static Object converterValor(Object valor, Type tipoGenericoDestino, Class<?> tipoDestino) {
         if (valor == null) return null;
 
         // 1) Lista / Set: converte cada elemento
         if (valor instanceof Collection<?> colecao) {
-            return converterColecao(colecao, campoDestino);
+            return converterColecao(colecao, tipoGenericoDestino, tipoDestino);
         }
-
-        Class<?> tipoDestino = campoDestino.getType();
 
         // 2) Objeto do seu pacote: converte recursivamente
         if (ehDoPacote(valor.getClass()) && ehDoPacote(tipoDestino)) {
@@ -121,12 +174,12 @@ public final class ConversorObjetos {
         return valor;
     }
 
-    private static Collection<Object> converterColecao(Collection<?> origem, Field campoDestino) {
-        Collection<Object> resultado = Set.class.isAssignableFrom(campoDestino.getType())
+    private static Collection<Object> converterColecao(Collection<?> origem, Type tipoGenericoDestino, Class<?> tipoDestino) {
+        Collection<Object> resultado = Set.class.isAssignableFrom(tipoDestino)
                 ? new LinkedHashSet<>()
                 : new ArrayList<>();
 
-        Class<?> tipoElementoDestino = tipoDoElemento(campoDestino);
+        Class<?> tipoElementoDestino = tipoDoElemento(tipoGenericoDestino);
 
         for (Object elemento : origem) {
             if (elemento != null
@@ -143,8 +196,7 @@ public final class ConversorObjetos {
 
     // ---------- auxiliares ----------
 
-    private static Class<?> tipoDoElemento(Field campo) {
-        Type tipo = campo.getGenericType();
+    private static Class<?> tipoDoElemento(Type tipo) {
         if (tipo instanceof ParameterizedType pt) {
             Type arg = pt.getActualTypeArguments()[0];
             if (arg instanceof Class<?> c) return c;

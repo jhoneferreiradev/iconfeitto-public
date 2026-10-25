@@ -3,7 +3,6 @@ package br.com.jhoneferreiradev.iconfeitto.config.springfox;
 import br.com.jhoneferreiradev.iconfeitto.dominio.excecao.modelo.IConfeittoErro;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -18,9 +17,10 @@ public class SpringDocConfig {
     public OpenAPI api() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("IConfeitto API")
-                        .version("1.0")
-                        .description("Documentação básica da API do sistema IConfeitto.")
+                                .title("iConfeitto API")
+                                .version("1.0")
+                                .summary("Documentação da API do sistema iConfeitto")
+                                .description("Esta API fornece endpoints para aplicações de gerenciamento de Confeitarias. Inclui ficha técnica, estoque, faturamento e financeiro")
 
 //                        .contact(
 //                                new Contact()

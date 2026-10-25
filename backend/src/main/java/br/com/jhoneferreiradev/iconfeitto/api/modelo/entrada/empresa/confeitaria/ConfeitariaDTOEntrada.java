@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(
-        name = "ConfeitariaDTOEntrada",
+        name = "Confeitaria",
         description = "Dados para a atualização de uma confeitaria. " +
                 "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes")
 @JsonIgnoreProperties(ignoreUnknown = true)

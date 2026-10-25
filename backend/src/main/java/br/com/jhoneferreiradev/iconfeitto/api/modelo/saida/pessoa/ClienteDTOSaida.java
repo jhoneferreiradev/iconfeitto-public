@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Schema(
-        name = "ClienteDTOSaida",
+        name = "Cliente",
         description = "Dados de um cliente")
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
