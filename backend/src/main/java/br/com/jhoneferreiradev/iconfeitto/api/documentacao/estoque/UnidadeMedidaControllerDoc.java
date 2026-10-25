@@ -19,7 +19,7 @@ public interface UnidadeMedidaControllerDoc {
     ResponseEntity<UnidadeMedidaDTOSaida> adicionar(
             @RequestBody(
                     description = "Dados para a criação de uma nova unidade de medida",
-                    useParameterTypeSchema = true) UnidadeMedidaDTOEntrada dtoNovaUnidadeMedida);
+                    useParameterTypeSchema = true) UnidadeMedidaDTOEntrada dto);
 
     @Operation(
             summary = "Lista as unidades de medida",
@@ -47,6 +47,6 @@ public interface UnidadeMedidaControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de uma unidade de medida. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) UnidadeMedidaDTOEntrada dtoAtualizacao);
+                    useParameterTypeSchema = true) UnidadeMedidaDTOEntrada dto);
 
 }

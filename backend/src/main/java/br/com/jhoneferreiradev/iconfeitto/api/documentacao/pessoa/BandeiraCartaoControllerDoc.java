@@ -19,7 +19,7 @@ public interface BandeiraCartaoControllerDoc {
     ResponseEntity<BandeiraCartaoDTOSaida> adicionar(
             @RequestBody(
                     description = "Dados para a criação de uma nova bandeira de cartão",
-                    useParameterTypeSchema = true) BandeiraCartaoDTOEntrada dtoNovaBandeiraCartao);
+                    useParameterTypeSchema = true) BandeiraCartaoDTOEntrada dto);
 
     @Operation(
             summary = "Lista as bandeiras de cartão",
@@ -47,6 +47,6 @@ public interface BandeiraCartaoControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de uma bandeira de cartão. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) BandeiraCartaoDTOEntrada dtoAtualizacao);
+                    useParameterTypeSchema = true) BandeiraCartaoDTOEntrada dto);
 
 }

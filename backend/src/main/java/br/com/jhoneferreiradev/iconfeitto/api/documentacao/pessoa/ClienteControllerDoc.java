@@ -19,7 +19,7 @@ public interface ClienteControllerDoc {
     ResponseEntity<ClienteDTOSaida> adicionar(
             @RequestBody(
                     description = "Dados para a criação de um novo cliente",
-                    useParameterTypeSchema = true) ClienteDTOEntrada dtoNovaCliente);
+                    useParameterTypeSchema = true) ClienteDTOEntrada dto);
 
     @Operation(
             summary = "Lista os clientes",
@@ -47,6 +47,6 @@ public interface ClienteControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de um cliente. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) ClienteDTOEntrada dtoAtualizacao);
+                    useParameterTypeSchema = true) ClienteDTOEntrada dto);
 
 }

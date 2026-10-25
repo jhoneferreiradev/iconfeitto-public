@@ -19,7 +19,7 @@ public interface FornecedorControllerDoc {
     ResponseEntity<FornecedorDTOSaida> adicionar(
             @RequestBody(
                     description = "Dados para a criação de um novo fornecedor",
-                    useParameterTypeSchema = true) FornecedorDTOEntrada dtoNovaFornecedor);
+                    useParameterTypeSchema = true) FornecedorDTOEntrada dto);
 
     @Operation(
             summary = "Lista os fornecedores",
@@ -47,6 +47,6 @@ public interface FornecedorControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de um fornecedor. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) FornecedorDTOEntrada dtoAtualizacao);
+                    useParameterTypeSchema = true) FornecedorDTOEntrada dto);
 
 }

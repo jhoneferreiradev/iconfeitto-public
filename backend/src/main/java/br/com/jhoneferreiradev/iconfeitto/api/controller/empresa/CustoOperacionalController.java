@@ -1,8 +1,8 @@
 package br.com.jhoneferreiradev.iconfeitto.api.controller.empresa;
 
+import br.com.jhoneferreiradev.iconfeitto.api.controller.ControllerBase;
 import br.com.jhoneferreiradev.iconfeitto.api.documentacao.empresa.CustoOperacionalControllerDoc;
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
-import br.com.jhoneferreiradev.iconfeitto.api.modelo.conversordeobjeto.ConversorObjetos;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.empresa.custooperacional.CustoOperacionalDTOEntrada;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.empresa.custooperacional.CustoOperacionalDTOSaida;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.empresa.confeitaria.CustoOperacional;
@@ -17,54 +17,41 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/custos-operacionais")
-public class CustoOperacionalController implements CustoOperacionalControllerDoc {
+public class CustoOperacionalController
+        extends ControllerBase<CustoOperacional, CustoOperacionalDTOSaida, CustoOperacionalDTOEntrada>
+        implements CustoOperacionalControllerDoc {
 
     @Autowired
-    private CustoOperacionalService custoOperacionalService;
+    public CustoOperacionalController(CustoOperacionalService custoOperacionalService) {
+        super(custoOperacionalService, CustoOperacional.class, CustoOperacionalDTOSaida.class);
+    }
 
     @Transactional
     @PostMapping
     public ResponseEntity<CustoOperacionalDTOSaida> adicionar(@RequestBody @Validated(ValidacaoInclusao.class) CustoOperacionalDTOEntrada dto) {
-        CustoOperacional custo = ConversorObjetos.converter(dto, CustoOperacionalDTOEntrada.class, CustoOperacional.class);
-        custo = custoOperacionalService.salvar(custo);
-        CustoOperacionalDTOSaida saida = ConversorObjetos.converter(custo, CustoOperacional.class, CustoOperacionalDTOSaida.class);
-        return ResponseEntity.ok(saida);
+        return super.adicionar(dto);
     }
 
     @GetMapping
     public ResponseEntity<List<CustoOperacionalDTOSaida>> listar() {
-        final List<CustoOperacional> lista = custoOperacionalService.listarTodos();
-        List<CustoOperacionalDTOSaida> saidas = lista
-                .stream()
-                .map(custo ->
-                        ConversorObjetos.converter(custo, CustoOperacional.class, CustoOperacionalDTOSaida.class)).toList();
-        return ResponseEntity.ok(saidas);
+        return super.listar();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CustoOperacionalDTOSaida> buscarPorId(@PathVariable Long id) {
-        CustoOperacional custo = custoOperacionalService.getPorId(id);
-        CustoOperacionalDTOSaida saida = ConversorObjetos.converter(custo, CustoOperacional.class, CustoOperacionalDTOSaida.class);
-        return ResponseEntity.ok(saida);
+        return super.buscarPorId(id);
     }
 
     @Transactional
     @PatchMapping("/{id}")
-    public ResponseEntity<CustoOperacionalDTOSaida> atualizar(@PathVariable Long id, @RequestBody CustoOperacionalDTOEntrada dtoAtualizacao) {
-        CustoOperacional custoExistente = custoOperacionalService.getPorId(id);
-
-        ConversorObjetos.atualizarIgnorandoNulos(dtoAtualizacao, custoExistente);
-
-        custoExistente = custoOperacionalService.salvar(custoExistente);
-
-        CustoOperacionalDTOSaida saida = ConversorObjetos.converter(custoExistente, CustoOperacional.class, CustoOperacionalDTOSaida.class);
-        return ResponseEntity.ok(saida);
+    public ResponseEntity<CustoOperacionalDTOSaida> atualizar(@PathVariable Long id, @RequestBody CustoOperacionalDTOEntrada dto) {
+        return super.atualizar(id, dto);
     }
 
     @Transactional
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> remover(@PathVariable Long id) {
-        custoOperacionalService.remover(id);
+        getServicoBase().remover(id);
         return ResponseEntity.noContent().build();
     }
 }

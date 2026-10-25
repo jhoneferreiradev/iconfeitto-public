@@ -48,12 +48,11 @@ public interface CustoOperacionalControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de um custo operacional. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) CustoOperacionalDTOEntrada dtoAtualizacao);
+                    useParameterTypeSchema = true) CustoOperacionalDTOEntrada dto);
 
     @Operation(
             summary = "Remove um custo operacional",
             description = "Remove um custo operacional existente pelo seu ID")
-    @ApiResponse(responseCode = "204", description = "Custo operacional removido com sucesso")
     ResponseEntity<Void> remover(
             @Parameter(
                     description = "ID único do custo operacional cadastrado",

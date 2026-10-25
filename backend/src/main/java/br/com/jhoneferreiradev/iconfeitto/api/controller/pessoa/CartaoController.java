@@ -1,8 +1,8 @@
 package br.com.jhoneferreiradev.iconfeitto.api.controller.pessoa;
 
+import br.com.jhoneferreiradev.iconfeitto.api.controller.ControllerBase;
 import br.com.jhoneferreiradev.iconfeitto.api.documentacao.pessoa.CartaoControllerDoc;
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
-import br.com.jhoneferreiradev.iconfeitto.api.modelo.conversordeobjeto.ConversorObjetos;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.pessoa.CartaoDTOEntrada;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.pessoa.CartaoDTOSaida;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.pessoa.cartao.Cartao;
@@ -17,44 +17,35 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/cartoes")
-public class CartaoController implements CartaoControllerDoc {
+public class CartaoController
+        extends ControllerBase<Cartao, CartaoDTOSaida, CartaoDTOEntrada>
+        implements CartaoControllerDoc {
 
     @Autowired
-    private CartaoService cartaoService;
+    public CartaoController(CartaoService cartaoService) {
+        super(cartaoService, Cartao.class, CartaoDTOSaida.class);
+    }
 
     @Transactional
     @PostMapping
-    public ResponseEntity<CartaoDTOSaida> adicionar(@RequestBody @Validated(ValidacaoInclusao.class) CartaoDTOEntrada dtoNovaCartao) {
-        Cartao cartao = ConversorObjetos.converter(dtoNovaCartao, CartaoDTOEntrada.class, Cartao.class);
-        cartao = cartaoService.salvar(cartao);
-        CartaoDTOSaida saida = ConversorObjetos.converter(cartao, Cartao.class, CartaoDTOSaida.class);
-        return ResponseEntity.ok(saida);
+    public ResponseEntity<CartaoDTOSaida> adicionar(@RequestBody @Validated(ValidacaoInclusao.class) CartaoDTOEntrada dto) {
+        return super.adicionar(dto);
     }
 
     @GetMapping
     public ResponseEntity<List<CartaoDTOSaida>> listar() {
-        List<Cartao> cartoes = cartaoService.listarTodos();
-        List<CartaoDTOSaida> saidas = cartoes.stream().map(cartao -> ConversorObjetos.converter(cartao, Cartao.class, CartaoDTOSaida.class)).toList();
-        return ResponseEntity.ok(saidas);
+        return super.listar();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CartaoDTOSaida> buscarPorId(@PathVariable Long id) {
-        Cartao cartao = cartaoService.getPorId(id);
-        CartaoDTOSaida saida = ConversorObjetos.converter(cartao, Cartao.class, CartaoDTOSaida.class);
-        return ResponseEntity.ok(saida);
+        return super.buscarPorId(id);
     }
 
     @Transactional
     @PatchMapping("/{id}")
-    public ResponseEntity<CartaoDTOSaida> atualizar(@PathVariable Long id, @RequestBody CartaoDTOEntrada dtoAtualizacao) {
-        Cartao cartaoExistente = cartaoService.getPorId(id);
-
-        ConversorObjetos.atualizarIgnorandoNulos(dtoAtualizacao, cartaoExistente);
-
-        Cartao cartaoAtualizado = cartaoService.salvar(cartaoExistente);
-        CartaoDTOSaida saida = ConversorObjetos.converter(cartaoAtualizado, Cartao.class, CartaoDTOSaida.class);
-        return ResponseEntity.ok(saida);
+    public ResponseEntity<CartaoDTOSaida> atualizar(@PathVariable Long id, @RequestBody CartaoDTOEntrada dto) {
+        return super.atualizar(id, dto);
     }
 
 }

@@ -1,8 +1,8 @@
 package br.com.jhoneferreiradev.iconfeitto.api.controller.estoque;
 
+import br.com.jhoneferreiradev.iconfeitto.api.controller.ControllerBase;
 import br.com.jhoneferreiradev.iconfeitto.api.documentacao.estoque.UnidadeMedidaControllerDoc;
 import br.com.jhoneferreiradev.iconfeitto.api.grupovalidacao.ValidacaoInclusao;
-import br.com.jhoneferreiradev.iconfeitto.api.modelo.conversordeobjeto.ConversorObjetos;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.unidademedida.UnidadeMedidaDTOEntrada;
 import br.com.jhoneferreiradev.iconfeitto.api.modelo.saida.estoque.UnidadeMedidaDTOSaida;
 import br.com.jhoneferreiradev.iconfeitto.dominio.entidade.estoque.unidademedida.UnidadeMedida;
@@ -17,44 +17,36 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/unidades-medidas")
-public class UnidadeMedidaController implements UnidadeMedidaControllerDoc {
+public class UnidadeMedidaController
+        extends ControllerBase<UnidadeMedida, UnidadeMedidaDTOSaida, UnidadeMedidaDTOEntrada>
+        implements UnidadeMedidaControllerDoc {
 
     @Autowired
-    private UnidadeMedidaService unidadeMedidaService;
+    public UnidadeMedidaController(UnidadeMedidaService unidadeMedidaService) {
+        super(unidadeMedidaService, UnidadeMedida.class, UnidadeMedidaDTOSaida.class);
+    }
 
     @Transactional
     @PostMapping
-    public ResponseEntity<UnidadeMedidaDTOSaida> adicionar(@RequestBody @Validated(ValidacaoInclusao.class) UnidadeMedidaDTOEntrada dtoNovaUnidadeMedida) {
-        UnidadeMedida unidadeMedida = ConversorObjetos.converter(dtoNovaUnidadeMedida, UnidadeMedidaDTOEntrada.class, UnidadeMedida.class);
-        unidadeMedida = unidadeMedidaService.salvar(unidadeMedida);
-        UnidadeMedidaDTOSaida saida = ConversorObjetos.converter(unidadeMedida, UnidadeMedida.class, UnidadeMedidaDTOSaida.class);
-        return ResponseEntity.ok(saida);
+    @Override
+    public ResponseEntity<UnidadeMedidaDTOSaida> adicionar(@RequestBody @Validated(ValidacaoInclusao.class) UnidadeMedidaDTOEntrada dto) {
+        return super.adicionar(dto);
     }
 
     @GetMapping
     public ResponseEntity<List<UnidadeMedidaDTOSaida>> listar() {
-        List<UnidadeMedida> unidadesMedida = unidadeMedidaService.listarTodos();
-        List<UnidadeMedidaDTOSaida> saidas = unidadesMedida.stream().map(unidadeMedida -> ConversorObjetos.converter(unidadeMedida, UnidadeMedida.class, UnidadeMedidaDTOSaida.class)).toList();
-        return ResponseEntity.ok(saidas);
+        return super.listar();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UnidadeMedidaDTOSaida> buscarPorId(@PathVariable Long id) {
-        UnidadeMedida unidadeMedida = unidadeMedidaService.getPorId(id);
-        UnidadeMedidaDTOSaida saida = ConversorObjetos.converter(unidadeMedida, UnidadeMedida.class, UnidadeMedidaDTOSaida.class);
-        return ResponseEntity.ok(saida);
+        return super.buscarPorId(id);
     }
 
     @Transactional
     @PatchMapping("/{id}")
-    public ResponseEntity<UnidadeMedidaDTOSaida> atualizar(@PathVariable Long id, @RequestBody UnidadeMedidaDTOEntrada dtoAtualizacao) {
-        UnidadeMedida unidadeMedidaExistente = unidadeMedidaService.getPorId(id);
-
-        ConversorObjetos.atualizarIgnorandoNulos(dtoAtualizacao, unidadeMedidaExistente);
-
-        UnidadeMedida unidadeMedidaAtualizado = unidadeMedidaService.salvar(unidadeMedidaExistente);
-        UnidadeMedidaDTOSaida saida = ConversorObjetos.converter(unidadeMedidaAtualizado, UnidadeMedida.class, UnidadeMedidaDTOSaida.class);
-        return ResponseEntity.ok(saida);
+    public ResponseEntity<UnidadeMedidaDTOSaida> atualizar(@PathVariable Long id, @RequestBody UnidadeMedidaDTOEntrada dto) {
+        return super.atualizar(id, dto);
     }
 
 }

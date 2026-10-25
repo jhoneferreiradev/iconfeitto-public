@@ -3,18 +3,8 @@ package br.com.jhoneferreiradev.iconfeitto.api.modelo.conversordeobjeto;
 import br.com.jhoneferreiradev.iconfeitto.dominio.excecao.IConfeittoException;
 import org.springframework.http.HttpStatus;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.lang.reflect.*;
+import java.util.*;
 
 public final class ConversorObjetos {
 

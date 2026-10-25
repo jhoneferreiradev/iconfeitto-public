@@ -19,7 +19,7 @@ public interface CartaoControllerDoc {
     ResponseEntity<CartaoDTOSaida> adicionar(
             @RequestBody(
                     description = "Dados para a criação de um novo cartão",
-                    useParameterTypeSchema = true) CartaoDTOEntrada dtoNovaCartao);
+                    useParameterTypeSchema = true) CartaoDTOEntrada dto);
 
     @Operation(
             summary = "Lista os cartões",
@@ -47,6 +47,6 @@ public interface CartaoControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de um cartão. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) CartaoDTOEntrada dtoAtualizacao);
+                    useParameterTypeSchema = true) CartaoDTOEntrada dto);
 
 }

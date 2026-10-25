@@ -19,7 +19,7 @@ public interface ItemControllerDoc {
     ResponseEntity<ItemDTOSaida> adicionar(
             @RequestBody(
                     description = "Dados para a criação de um novo item",
-                    useParameterTypeSchema = true) ItemDTOEntrada itemDTOEntrada);
+                    useParameterTypeSchema = true) ItemDTOEntrada dto);
 
     @Operation(
             summary = "Lista os itens",
@@ -47,6 +47,6 @@ public interface ItemControllerDoc {
             @RequestBody(
                     description = "Dados para atualização de um item. " +
                             "Atributos nulos ou não informados, serão ignorados e não sobrescreverão os valores existentes",
-                    useParameterTypeSchema = true) ItemDTOEntrada itemDTOEntrada);
+                    useParameterTypeSchema = true) ItemDTOEntrada dto);
 
 }
