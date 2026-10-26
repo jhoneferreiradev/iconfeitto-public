@@ -24,8 +24,6 @@ import java.util.Set;
 @NoArgsConstructor
 public class Fabricacao extends MovimentacaoEstoque {
 
-    private OffsetDateTime data;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_principal_id")
     private Item itemPrincipal;
@@ -44,11 +42,10 @@ public class Fabricacao extends MovimentacaoEstoque {
     private Set<ItemMovimentacaoEstoque> itens;
 
     public Fabricacao(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime data,
-                      TipoMovimentacaoEstoque tipoMovimentacao, OffsetDateTime data1, Item itemPrincipal,
+                      TipoMovimentacaoEstoque tipoMovimentacao, Item itemPrincipal,
                       Fabricacao fabricacaoPai, Venda venda, BigDecimal quantidade,
                       Set<ItemMovimentacaoEstoque> itens) {
         super(id, confeitaria, criadoEm, data, tipoMovimentacao);
-        this.data = data1;
         this.itemPrincipal = itemPrincipal;
         this.fabricacaoPai = fabricacaoPai;
         this.venda = venda;
