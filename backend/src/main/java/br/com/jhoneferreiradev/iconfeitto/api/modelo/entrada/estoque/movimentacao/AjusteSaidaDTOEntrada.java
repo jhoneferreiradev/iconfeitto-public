@@ -2,7 +2,6 @@ package br.com.jhoneferreiradev.iconfeitto.api.modelo.entrada.estoque.movimentac
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,9 +16,9 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 @Getter
 @NoArgsConstructor
-public class AjusteEntradaDTOSaida extends AbstractMovimentacaoEstoqueDTOEntrada {
+public class AjusteSaidaDTOEntrada extends AbstractMovimentacaoEstoqueDTOEntrada {
 
-    public AjusteEntradaDTOSaida(OffsetDateTime data, List<ItemMovimentacaoEstoqueDTOEntrada> itens) {
+    public AjusteSaidaDTOEntrada(OffsetDateTime data, List<ItemMovimentacaoEstoqueDTOEntrada> itens) {
         super(data, itens);
     }
 }
