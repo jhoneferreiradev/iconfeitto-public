@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Getter
 @NoArgsConstructor
-public abstract class ItemMovimentacaoEstoqueDTOEntrada {
+public class ItemMovimentacaoEstoqueDTOEntrada {
 
     @Schema(
             requiredMode = Schema.RequiredMode.NOT_REQUIRED,

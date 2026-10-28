@@ -13,4 +13,9 @@ public class VendaServiceImpl extends BaseServiceImpl<Venda> implements VendaSer
         super(repository, "Venda");
     }
 
+    @Override
+    public Venda salvar(Venda objeto) {
+        objeto.getItens().forEach(item -> item.setMovimentacaoEstoque(objeto));
+        return super.salvar(objeto);
+    }
 }

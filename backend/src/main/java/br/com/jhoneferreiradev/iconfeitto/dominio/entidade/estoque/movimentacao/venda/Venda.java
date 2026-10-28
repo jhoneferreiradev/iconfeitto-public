@@ -17,7 +17,7 @@ import java.util.Set;
 @Data
 @Entity
 @Table(name = "tb_venda")
-@DiscriminatorValue("01") // 01 = TipoMovimentacaoEstoque.VENDA.getId()
+@DiscriminatorValue("VENDA") // 01 = TipoMovimentacaoEstoque.VENDA.getId()
 @PrimaryKeyJoinColumn(name = "id")
 @NoArgsConstructor
 public class Venda extends MovimentacaoEstoque {

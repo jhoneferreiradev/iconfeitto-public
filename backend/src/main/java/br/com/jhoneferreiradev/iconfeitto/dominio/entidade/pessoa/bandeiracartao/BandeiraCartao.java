@@ -15,7 +15,7 @@ import java.time.OffsetDateTime;
 @Data
 @Entity
 @Table(name = "tb_bandeira_cartao")
-@DiscriminatorValue("03") // 03 = TipoPessoa.BANDEIRA_CARTAO.getId()
+@DiscriminatorValue("BANDEIRA_CARTAO") // 03 = TipoPessoa.BANDEIRA_CARTAO.getId()
 @PrimaryKeyJoinColumn(name = "id")
 public class BandeiraCartao extends Pessoa {
 

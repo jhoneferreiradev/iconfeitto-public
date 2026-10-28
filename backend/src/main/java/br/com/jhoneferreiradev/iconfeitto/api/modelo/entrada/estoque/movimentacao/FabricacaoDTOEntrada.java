@@ -16,8 +16,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Schema(
-        name = "Venda",
-        description = "Dados de uma venda")
+        name = "Fabricação",
+        description = "Dados de uma fabricação")
 @JsonIgnoreProperties(ignoreUnknown = true)
 @EqualsAndHashCode(callSuper = true)
 @Getter

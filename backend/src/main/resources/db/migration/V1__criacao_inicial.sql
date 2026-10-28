@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS tb_pessoa
     is_ativo               BIT(1)       NOT NULL,
     nome                   VARCHAR(100) NOT NULL,
     personalidade_juridica VARCHAR(2)   NOT NULL,
-    tipo_pessoa            VARCHAR(2)   NOT NULL,
+    tipo_pessoa            VARCHAR(15)   NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_PESSOA_CONFEITARIA
     FOREIGN KEY (confeitaria_id) REFERENCES tb_confeitaria (id)
@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS tb_movimentacao_estoque
     confeitaria_id    BIGINT     NOT NULL,
     criado_em         DATETIME   NOT NULL,
     data              DATETIME   NOT NULL,
-    tipo_movimentacao VARCHAR(2) NOT NULL,
+    tipo_movimentacao VARCHAR(15) NOT NULL,
     PRIMARY KEY (id)
     );
 

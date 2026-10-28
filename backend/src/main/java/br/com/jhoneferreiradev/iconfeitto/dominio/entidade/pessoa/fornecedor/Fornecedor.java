@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Entity
 @Table(name = "tb_fornecedor")
-@DiscriminatorValue("01") // 01 = TipoPessoa.FORNECEDOR.getId()
+@DiscriminatorValue("FORNECEDOR") // 01 = TipoPessoa.FORNECEDOR.getId()
 @PrimaryKeyJoinColumn(name = "id")
 public class Fornecedor extends Pessoa {
 
