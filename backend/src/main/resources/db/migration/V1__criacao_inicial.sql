@@ -155,7 +155,6 @@ CREATE TABLE IF NOT EXISTS tb_movimentacao_estoque
     id                BIGINT     NOT NULL AUTO_INCREMENT,
     confeitaria_id    BIGINT     NOT NULL,
     criado_em         DATETIME   NOT NULL,
-    data              DATETIME   NOT NULL,
     tipo_movimentacao VARCHAR(15) NOT NULL,
     PRIMARY KEY (id)
     );
@@ -180,6 +179,7 @@ CREATE TABLE IF NOT EXISTS tb_item_movimentacao_estoque
 CREATE TABLE IF NOT EXISTS tb_compra
 (
     id            BIGINT NOT NULL AUTO_INCREMENT,
+    data_compra   DATETIME NOT NULL,
     fornecedor_id BIGINT NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_COMPRA_FORNECEDOR
@@ -190,8 +190,13 @@ CREATE TABLE IF NOT EXISTS tb_compra
 
 CREATE TABLE IF NOT EXISTS tb_venda
 (
-    id         BIGINT NOT NULL AUTO_INCREMENT,
-    cliente_id BIGINT NOT NULL,
+    id                    BIGINT NOT NULL AUTO_INCREMENT,
+    cliente_id            BIGINT NOT NULL,
+    status_venda          VARCHAR(20) NOT NULL,
+    tipo_venda            VARCHAR(20) NOT NULL,
+    data_venda            DATETIME NOT NULL,
+    data_previsao_entrega DATETIME NULL,
+    data_entrega DATETIME NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_VENDA_CLIENTE
     FOREIGN KEY (cliente_id) REFERENCES tb_cliente (id),
@@ -202,6 +207,7 @@ CREATE TABLE IF NOT EXISTS tb_venda
 CREATE TABLE IF NOT EXISTS tb_saida_consumo
 (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    data_consumo DATETIME NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_CONSUMO_ESTOQUE_MOVIMENTACAO_ESTOQUE
     FOREIGN KEY (id) REFERENCES tb_movimentacao_estoque (id)
@@ -210,6 +216,7 @@ CREATE TABLE IF NOT EXISTS tb_saida_consumo
 CREATE TABLE IF NOT EXISTS tb_ajuste_saida
 (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    data_ajuste DATETIME NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_AJUSTE_SAIDA_MOVIMENTACAO_ESTOQUE
     FOREIGN KEY (id) REFERENCES tb_movimentacao_estoque (id)
@@ -218,6 +225,7 @@ CREATE TABLE IF NOT EXISTS tb_ajuste_saida
 CREATE TABLE IF NOT EXISTS tb_ajuste_entrada
 (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    data_ajuste DATETIME NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT FK_AJUSTE_ENTRADA_MOVIMENTACAO_ESTOQUE
     FOREIGN KEY (id) REFERENCES tb_movimentacao_estoque (id)
@@ -226,6 +234,7 @@ CREATE TABLE IF NOT EXISTS tb_ajuste_entrada
 CREATE TABLE IF NOT EXISTS tb_fabricacao
 (
     id                BIGINT         NOT NULL AUTO_INCREMENT,
+    data_fabricacao   DATETIME       NOT NULL,
     item_principal_id BIGINT         NOT NULL,
     quantidade        DECIMAL(10, 2) NOT NULL,
     fabricacao_pai_id BIGINT NULL,

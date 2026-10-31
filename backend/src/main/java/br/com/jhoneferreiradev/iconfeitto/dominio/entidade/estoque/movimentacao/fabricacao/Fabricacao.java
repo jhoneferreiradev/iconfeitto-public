@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
@@ -23,6 +24,8 @@ import java.util.Set;
 @PrimaryKeyJoinColumn(name = "id")
 @NoArgsConstructor
 public class Fabricacao extends MovimentacaoEstoque {
+
+    private OffsetDateTime dataFabricacao;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_principal_id")
@@ -41,15 +44,21 @@ public class Fabricacao extends MovimentacaoEstoque {
     @OneToMany(mappedBy = "movimentacaoEstoque", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ItemMovimentacaoEstoque> itens;
 
-    public Fabricacao(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime data,
+    public Fabricacao(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime dataFabricacao,
                       TipoMovimentacaoEstoque tipoMovimentacao, Item itemPrincipal,
                       Fabricacao fabricacaoPai, Venda venda, BigDecimal quantidade,
                       Set<ItemMovimentacaoEstoque> itens) {
-        super(id, confeitaria, criadoEm, data, tipoMovimentacao);
+        super(id, confeitaria, criadoEm, tipoMovimentacao);
+        this.dataFabricacao = dataFabricacao;
         this.itemPrincipal = itemPrincipal;
         this.fabricacaoPai = fabricacaoPai;
         this.venda = venda;
         this.quantidade = quantidade;
         this.itens = itens;
+    }
+
+    @Override
+    public Optional<OffsetDateTime> getDataMovimentacao() {
+        return Optional.ofNullable(dataFabricacao);
     }
 }

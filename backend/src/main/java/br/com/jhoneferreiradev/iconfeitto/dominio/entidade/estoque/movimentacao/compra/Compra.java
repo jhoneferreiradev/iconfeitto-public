@@ -11,6 +11,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
@@ -22,6 +23,8 @@ import java.util.Set;
 @NoArgsConstructor
 public class Compra extends MovimentacaoEstoque {
 
+    private OffsetDateTime dataCompra;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fornecedor_id")
     private Fornecedor fornecedor;
@@ -29,11 +32,18 @@ public class Compra extends MovimentacaoEstoque {
     @OneToMany(mappedBy = "movimentacaoEstoque", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ItemMovimentacaoEstoque> itens;
 
-    public Compra(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime data,
+    public Compra(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime dataCompra,
                   TipoMovimentacaoEstoque tipoMovimentacao, Fornecedor fornecedor,
                   Set<ItemMovimentacaoEstoque> itens) {
-        super(id, confeitaria, criadoEm, data, tipoMovimentacao);
+        super(id, confeitaria, criadoEm, tipoMovimentacao);
+        this.dataCompra = dataCompra;
         this.fornecedor = fornecedor;
         this.itens = itens;
     }
+
+    @Override
+    public Optional<OffsetDateTime> getDataMovimentacao() {
+        return Optional.ofNullable(dataCompra);
+    }
+
 }

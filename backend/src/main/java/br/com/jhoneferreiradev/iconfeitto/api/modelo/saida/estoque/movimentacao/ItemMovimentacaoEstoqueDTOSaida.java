@@ -23,16 +23,16 @@ public abstract class ItemMovimentacaoEstoqueDTOSaida {
     @Schema(description = "Identificador do item de movimentação de estoque")
     private Long id;
 
-    @Schema(description = "Identificador do item. Obrigatório na inclusão")
+    @Schema(description = "Identificador do item")
     private ItemIdDTO item;
 
-    @Schema(description = "Identificador da unidade de medida. Obrigatório na inclusão")
+    @Schema(description = "Identificador da unidade de medida")
     private UnidadeMedidaIdDTO unidadeMedida;
 
-    @Schema(description = "Quantidade do item. Obrigatório na inclusão")
+    @Schema(description = "Quantidade do item")
     private BigDecimal quantidade;
 
-    @Schema(description = "Valor unitário do item. Obrigatório na inclusão")
+    @Schema(description = "Valor unitário do item")
     private BigDecimal valorUnitario;
 
     public ItemMovimentacaoEstoqueDTOSaida(Long id,

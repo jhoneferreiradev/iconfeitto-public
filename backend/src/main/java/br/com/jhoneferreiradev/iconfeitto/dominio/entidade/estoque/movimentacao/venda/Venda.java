@@ -11,6 +11,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
@@ -22,18 +23,42 @@ import java.util.Set;
 @NoArgsConstructor
 public class Venda extends MovimentacaoEstoque {
 
+    private OffsetDateTime dataVenda;
+    private OffsetDateTime dataPrevisaoEntrega;
+    private OffsetDateTime dataEntrega;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
+    @Enumerated(EnumType.STRING)
+    private StatusVenda statusVenda;
+
+    @Enumerated(EnumType.STRING)
+    private TipoVenda tipoVenda;
+
     @OneToMany(mappedBy = "movimentacaoEstoque", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ItemMovimentacaoEstoque> itens;
 
-    public Venda(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime data,
-                 TipoMovimentacaoEstoque tipoMovimentacao, Cliente cliente,
-                 Set<ItemMovimentacaoEstoque> itens) {
-        super(id, confeitaria, criadoEm, data, tipoMovimentacao);
+    public Venda(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, TipoMovimentacaoEstoque tipoMovimentacao,
+                 OffsetDateTime dataVenda, OffsetDateTime dataPrevisaoEntrega, OffsetDateTime dataEntrega,
+                 Cliente cliente, StatusVenda statusVenda, TipoVenda tipoVenda, Set<ItemMovimentacaoEstoque> itens) {
+        super(id, confeitaria, criadoEm, tipoMovimentacao);
+        this.dataVenda = dataVenda;
+        this.dataPrevisaoEntrega = dataPrevisaoEntrega;
+        this.dataEntrega = dataEntrega;
         this.cliente = cliente;
+        this.statusVenda = statusVenda;
+        this.tipoVenda = tipoVenda;
         this.itens = itens;
+    }
+
+    @Override
+    public Optional<OffsetDateTime> getDataMovimentacao() {
+        if (tipoVenda == TipoVenda.PRONTA_ENTREGA) {
+            return Optional.ofNullable(dataVenda);
+        } else {
+            return Optional.ofNullable(dataEntrega);
+        }
     }
 }

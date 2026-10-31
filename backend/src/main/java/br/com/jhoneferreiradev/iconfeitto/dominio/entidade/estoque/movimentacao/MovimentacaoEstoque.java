@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Data
@@ -18,16 +19,15 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 public abstract class MovimentacaoEstoque extends EntidadeBaseComDadosPadraoComConfeitaria {
 
-    private OffsetDateTime data;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_movimentacao", insertable = false, updatable = false)
     private TipoMovimentacaoEstoque tipoMovimentacao;
 
     public MovimentacaoEstoque(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm,
-                               OffsetDateTime data, TipoMovimentacaoEstoque tipoMovimentacao) {
+                               TipoMovimentacaoEstoque tipoMovimentacao) {
         super(id, confeitaria, criadoEm);
-        this.data = data;
         this.tipoMovimentacao = tipoMovimentacao;
     }
+
+    public abstract Optional<OffsetDateTime> getDataMovimentacao();
 }

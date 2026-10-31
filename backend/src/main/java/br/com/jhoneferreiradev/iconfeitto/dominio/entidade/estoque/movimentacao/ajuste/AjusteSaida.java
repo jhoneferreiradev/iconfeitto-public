@@ -10,6 +10,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
@@ -21,12 +22,20 @@ import java.util.Set;
 @NoArgsConstructor
 public class AjusteSaida extends MovimentacaoEstoque {
 
+    private OffsetDateTime dataAjuste;
+
     @OneToMany(mappedBy = "movimentacaoEstoque", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ItemMovimentacaoEstoque> itens;
 
-    public AjusteSaida(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime data,
+    public AjusteSaida(Long id, Confeitaria confeitaria, OffsetDateTime criadoEm, OffsetDateTime dataAjuste,
                        TipoMovimentacaoEstoque tipoMovimentacao, Set<ItemMovimentacaoEstoque> itens) {
-        super(id, confeitaria, criadoEm, data, tipoMovimentacao);
+        super(id, confeitaria, criadoEm, tipoMovimentacao);
+        this.dataAjuste = dataAjuste;
         this.itens = itens;
+    }
+
+    @Override
+    public Optional<OffsetDateTime> getDataMovimentacao() {
+        return Optional.ofNullable(dataAjuste);
     }
 }

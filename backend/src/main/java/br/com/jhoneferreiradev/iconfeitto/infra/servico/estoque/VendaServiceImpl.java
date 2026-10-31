@@ -18,4 +18,13 @@ public class VendaServiceImpl extends BaseServiceImpl<Venda> implements VendaSer
         objeto.getItens().forEach(item -> item.setMovimentacaoEstoque(objeto));
         return super.salvar(objeto);
     }
+
+    @Override
+    public Venda atualizarStatus(AtualizacaoStatusDTO atualizacaoStatus) {
+        final Long id = atualizacaoStatus.getId();
+        final Venda venda = getPorId(id);
+        venda.setStatusVenda(atualizacaoStatus.getStatusVenda());
+        venda.setDataEntrega(atualizacaoStatus.getDataEntrega());
+        return repository.save(venda);
+    }
 }
